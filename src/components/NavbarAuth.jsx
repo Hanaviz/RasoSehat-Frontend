@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from "react";
-import { Link } from "react-router-dom"; // ✅ Tambahan untuk routing
+import { Link } from "react-router-dom";
 
-export default function EnhancedNavbar() {
+export default function EnhancedNavbarLoggedIn() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
+  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -15,6 +17,20 @@ export default function EnhancedNavbar() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => {
+      setIsNotificationOpen(false);
+      setIsUserMenuOpen(false);
+    };
+    
+    if (isNotificationOpen || isUserMenuOpen) {
+      document.addEventListener("click", handleClickOutside);
+    }
+    
+    return () => document.removeEventListener("click", handleClickOutside);
+  }, [isNotificationOpen, isUserMenuOpen]);
+
   return (
     <>
       {/* Mobile Search Experience */}
@@ -23,7 +39,6 @@ export default function EnhancedNavbar() {
           isMobileSearchOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
         }`}
       >
-        {/* Backdrop with blur */}
         <div 
           className={`absolute inset-0 bg-black/20 backdrop-blur-sm transition-opacity duration-300 ${
             isMobileSearchOpen ? 'opacity-100' : 'opacity-0'
@@ -31,15 +46,13 @@ export default function EnhancedNavbar() {
           onClick={() => setIsMobileSearchOpen(false)}
         />
 
-        {/* Search Panel - Slides from bottom for better thumb reach */}
         <div 
           className={`absolute inset-x-0 bottom-0 bg-white rounded-t-3xl shadow-lg transform transition-all duration-300 ease-out-expo ${
             isMobileSearchOpen ? 'translate-y-0' : 'translate-y-full'
           }`}
         >
-          {/* Search Header */}
           <div className="flex items-center justify-between px-4 pt-3 pb-2">
-            <div className="w-8" /> {/* Spacer untuk centering */}
+            <div className="w-8" />
             <h2 className="text-lg font-semibold text-gray-800">Pencarian</h2>
             <button 
               onClick={() => setIsMobileSearchOpen(false)}
@@ -51,12 +64,10 @@ export default function EnhancedNavbar() {
             </button>
           </div>
 
-          {/* Drag Indicator */}
           <div className="flex justify-center">
             <div className="w-10 h-1 bg-gray-200 rounded-full my-1" />
           </div>
 
-          {/* Search Input Area */}
           <div className="px-4 pt-2 pb-4">
             <div className="relative">
               <input
@@ -77,9 +88,7 @@ export default function EnhancedNavbar() {
             </div>
           </div>
 
-          {/* Quick Access Section */}
           <div className="px-4 pb-6">
-            {/* Recent Searches */}
             <div className="mb-6">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-sm font-medium text-gray-500">Pencarian Terakhir</h3>
@@ -101,7 +110,6 @@ export default function EnhancedNavbar() {
               </div>
             </div>
 
-            {/* Trending Searches */}
             <div>
               <h3 className="text-sm font-medium text-gray-500 mb-3">Trending Hari Ini</h3>
               <div className="flex flex-wrap gap-2">
@@ -145,21 +153,57 @@ export default function EnhancedNavbar() {
                 </svg>
               </button>
             </div>
-            <div className="space-y-4">
+            
+            {/* Mobile Menu Items */}
+            <div className="space-y-3">
               <Link
-                to="/signin"
-                className="block w-full px-4 py-3 text-center font-semibold text-green-600 bg-white border-2 border-green-600 rounded-lg hover:bg-green-50 transition-colors duration-200"
+                to="/toko"
+                className="flex items-center gap-3 w-full px-4 py-3 text-left text-gray-700 hover:bg-green-50 rounded-lg transition-colors duration-200"
                 onClick={() => setIsMobileMenuOpen(false)}
               >
-                Masuk
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+                <span className="font-medium">Toko</span>
               </Link>
+              
               <Link
-                to="/signup"
-                className="block w-full px-4 py-3 text-center font-semibold text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors duration-200"
+                to="/profile"
+                className="flex items-center gap-3 w-full px-4 py-3 text-left text-gray-700 hover:bg-green-50 rounded-lg transition-colors duration-200"
                 onClick={() => setIsMobileMenuOpen(false)}
               >
-                Daftar
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+                <span className="font-medium">Profil</span>
               </Link>
+              
+              <Link
+                to="/notifications"
+                className="flex items-center gap-3 w-full px-4 py-3 text-left text-gray-700 hover:bg-green-50 rounded-lg transition-colors duration-200"
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                </svg>
+                <span className="font-medium">Notifikasi</span>
+                <span className="ml-auto bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">3</span>
+              </Link>
+              
+              <div className="border-t border-gray-200 my-4"></div>
+              
+              <button
+                className="flex items-center gap-3 w-full px-4 py-3 text-left text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200"
+                onClick={() => {
+                  setIsMobileMenuOpen(false);
+                  // Handle logout
+                }}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+                <span className="font-medium">Keluar</span>
+              </button>
             </div>
           </div>
         </div>
@@ -167,7 +211,7 @@ export default function EnhancedNavbar() {
 
       <nav
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        isScrolled 
+          isScrolled
             ? "bg-white shadow-lg"
             : "bg-gradient-to-r from-green-500 via-green-600 to-green-500 shadow-md"
         }`}
@@ -175,37 +219,35 @@ export default function EnhancedNavbar() {
         <div className="w-full px-3 sm:px-4 md:px-6 lg:px-8 xl:max-w-[1400px] xl:mx-auto">
           <div
             className={`flex items-center justify-between gap-2 sm:gap-3 md:gap-4 lg:gap-6 transition-all duration-300 ${
-            isScrolled 
+              isScrolled
                 ? "py-2 sm:py-2.5 md:py-3"
                 : "py-3 sm:py-4 md:py-5 lg:py-6"
             }`}
           >
-            {/* 🔹 Kiri: Logo */}
+            {/* Logo */}
             <div className="flex items-center flex-shrink-0">
               <Link
                 to="/"
                 className="flex items-center gap-2 sm:gap-3 md:gap-4 group cursor-pointer"
               >
-                {/* Logo Circle */}
                 <div className={`relative transition-all duration-300 ${
-                  isScrolled 
+                  isScrolled
                     ? "w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10"
                     : "w-10 h-10 sm:w-11 sm:h-11 md:w-12 md:h-12"
                 }`}>
                   <div className={`w-full h-full bg-white rounded-full flex items-center justify-center overflow-hidden p-1 ${
                     isScrolled ? "ring-1 ring-green-500" : "ring-1 ring-white/90"
                   }`}>
-                  <img 
+                    <img
                       src="/logo-RasoSehat.png"
                       alt="RasoSehat"
                       className="w-full h-full object-contain transform scale-125 transition-transform duration-300"
-                  />
-                </div>
+                    />
+                  </div>
                 </div>
 
-                {/* Brand Text */}
                 <span className={`font-bold transition-all duration-300 ${
-                  isScrolled 
+                  isScrolled
                     ? "text-gray-800 text-lg sm:text-xl md:text-2xl"
                     : "text-white text-xl sm:text-2xl md:text-3xl"
                 }`}>
@@ -214,20 +256,19 @@ export default function EnhancedNavbar() {
               </Link>
             </div>
 
-            {/* 🔹 Tengah: Search Bar - Desktop Only */}
+            {/* Search Bar - Desktop Only */}
             <div className="hidden md:flex flex-1 justify-center min-w-0 max-w-[800px]">
               <div
                 className={`flex items-center w-full transition-all duration-300 ${
-                isScrolled 
+                  isScrolled
                     ? "bg-white/95 backdrop-blur-sm"
                     : "bg-white/90 backdrop-blur-md"
-              } ${
-                isSearchFocused 
+                } ${
+                  isSearchFocused
                     ? "shadow-lg ring-2 ring-green-400 rounded-xl scale-[1.02]"
                     : "shadow-md hover:shadow-lg rounded-lg hover:scale-[1.01]"
                 } group`}
               >
-                {/* Search Icon Left */}
                 <div className={`flex-shrink-0 pl-4 pr-2 transition-all duration-300`}>
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
@@ -253,14 +294,13 @@ export default function EnhancedNavbar() {
                   </svg>
                 </div>
                 
-                {/* Input Field */}
                 <input
                   type="text"
                   placeholder="Cari makanan sehat di sekitar Anda..."
                   className={`flex-1 min-w-0 focus:outline-none bg-transparent transition-all duration-300 ${
                     isSearchFocused ? "text-gray-800" : "text-gray-600"
                   } placeholder-gray-400 ${
-                    isScrolled 
+                    isScrolled
                       ? "px-2 py-2.5 text-sm"
                       : "px-2 py-3 text-base"
                   }`}
@@ -268,10 +308,9 @@ export default function EnhancedNavbar() {
                   onBlur={() => setIsSearchFocused(false)}
                 />
 
-                {/* Search Button */}
                 <button
                   className={`flex-shrink-0 transition-all duration-300 flex items-center gap-2 ${
-                  isScrolled 
+                    isScrolled
                       ? "mr-2 px-3 py-1.5 text-sm"
                       : "mr-2 px-4 py-2 text-base"
                   } ${
@@ -283,28 +322,27 @@ export default function EnhancedNavbar() {
                   {isSearchFocused ? (
                     <>
                       <span>Cari</span>
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
                         className="h-4 w-4"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth="2.5"
-                  >
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
                         <path
                           strokeLinecap="round"
                           strokeLinejoin="round"
                           strokeWidth={2}
                           d="M13 7l5 5m0 0l-5 5m5-5H6"
                         />
-                  </svg>
+                      </svg>
                     </>
                   ) : null}
                 </button>
               </div>
             </div>
 
-            {/* 🔹 Kanan: Mobile Actions & Desktop Auth */}
+            {/* Right Side Actions */}
             <div className="flex items-center gap-2 md:gap-3 flex-shrink-0">
               {/* Mobile Search Button */}
               <button 
@@ -324,8 +362,6 @@ export default function EnhancedNavbar() {
                     d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" 
                   />
                 </svg>
-                <span className={`absolute -right-1 -top-1 w-2 h-2 rounded-full ${isScrolled ? 'bg-green-500' : 'bg-white'} animate-ping`}></span>
-                <span className={`absolute -right-1 -top-1 w-2 h-2 rounded-full ${isScrolled ? 'bg-green-500' : 'bg-white'}`}></span>
               </button>
 
               {/* Mobile Menu Button */}
@@ -338,85 +374,83 @@ export default function EnhancedNavbar() {
                 </svg>
               </button>
 
-              {/* Desktop Auth Buttons */}
+              {/* Desktop Actions */}
               <div className="hidden md:flex items-center gap-2 md:gap-3">
-              {/* Tombol Masuk */}
-              <Link
-                to="/signin"
-                className={`group relative overflow-hidden transition-all duration-300 font-semibold whitespace-nowrap rounded-lg ${
-                isScrolled 
-                    ? "bg-white text-green-600 px-3.5 md:px-4.5 py-1.5 text-sm hover:shadow-md"
-                    : "bg-white/90 backdrop-blur-sm text-green-600 px-4 md:px-5 py-2 text-sm md:text-base hover:shadow-lg"
-                }`}
-              >
-                {/* Ripple effect container */}
-                <span className="absolute inset-0 overflow-hidden rounded-lg">
-                  <span className="absolute inset-0 bg-green-600/0 group-hover:bg-green-600/5 transition-colors duration-200"></span>
-                  <span className="absolute -left-[100%] top-1/2 h-[200%] w-[200%] -translate-y-1/2 rounded-[50%] bg-green-500/10 transition-all duration-500 group-active:left-1/2 group-active:opacity-50"></span>
-                </span>
-                
-                {/* Content container */}
-                <span className="relative z-10 transition-all duration-300 inline-flex items-center gap-2 group-active:scale-95">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                    className={`${isScrolled ? 'w-4 h-4' : 'w-5 h-5'} transition-all duration-300 group-hover:rotate-12 group-active:rotate-[18deg]`} 
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4" />
-                </svg>
-                  <span className="relative overflow-hidden">
-                    Masuk
-                    <span className={`absolute -bottom-0.5 left-0 w-0 h-0.5 bg-current transition-all duration-300 group-hover:w-full group-active:h-[2px] ${
-                      isScrolled ? 'opacity-70' : 'opacity-60'
-                    }`}></span>
+                {/* Tombol Toko */}
+                <Link
+                  to="/toko"
+                  className={`group relative overflow-hidden transition-all duration-300 font-semibold whitespace-nowrap rounded-lg ${
+                    isScrolled
+                      ? "bg-white text-green-600 px-3.5 md:px-4.5 py-1.5 text-sm hover:shadow-md ring-1 ring-green-600"
+                      : "bg-white/90 backdrop-blur-sm text-green-600 px-4 md:px-5 py-2 text-sm md:text-base hover:shadow-lg"
+                  }`}
+                >
+                  <span className="absolute inset-0 overflow-hidden rounded-lg">
+                    <span className="absolute inset-0 bg-green-600/0 group-hover:bg-green-600/5 transition-colors duration-200"></span>
                   </span>
-                </span>
-              </Link>
-
-              {/* Tombol Daftar */}
-              <Link
-                to="/signup"
-                className={`group relative overflow-hidden transition-all duration-300 font-semibold whitespace-nowrap rounded-lg ${
-                isScrolled 
-                    ? "bg-green-600 text-white px-3.5 md:px-4.5 py-1.5 text-sm hover:shadow-md"
-                    : "bg-green-600/90 backdrop-blur-sm text-white px-4 md:px-5 py-2 text-sm md:text-base hover:shadow-lg"
-                }`}
-              >
-                {/* Ripple effect container */}
-                <span className="absolute inset-0 overflow-hidden rounded-lg">
-                  <span className="absolute inset-0 bg-white/0 group-hover:bg-white/10 transition-colors duration-200"></span>
-                  <span className="absolute -left-[100%] top-1/2 h-[200%] w-[200%] -translate-y-1/2 rounded-[50%] bg-white/20 transition-all duration-500 group-active:left-1/2 group-active:opacity-50"></span>
-                </span>
-
-                {/* Content container */}
-                <span className="relative z-10 transition-all duration-300 inline-flex items-center gap-2 group-active:scale-95">
-                  <svg 
-                    xmlns="http://www.w3.org/2000/svg" 
-                    className={`${isScrolled ? 'w-4 h-4' : 'w-5 h-5'} transition-all duration-300 group-hover:rotate-12 group-active:rotate-[18deg]`} 
-                    viewBox="0 0 24 24" 
-                    fill="none" 
-                    stroke="currentColor" 
-                    strokeWidth="2"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 14l1.5-3m0 0l1.5 3m-3 0h3" />
-                  </svg>
-                  <span className="relative overflow-hidden">
-                Daftar
-                    <span className={`absolute -bottom-0.5 left-0 w-0 h-0.5 bg-current transition-all duration-300 group-hover:w-full group-active:h-[2px] ${
-                      isScrolled ? 'opacity-70' : 'opacity-60'
-                    }`}></span>
+                  
+                  <span className="relative z-10 transition-all duration-300 inline-flex items-center gap-2 group-active:scale-95">
+                    <svg 
+                      xmlns="http://www.w3.org/2000/svg" 
+                      className={`${isScrolled ? 'w-4 h-4' : 'w-5 h-5'} transition-all duration-300`} 
+                      viewBox="0 0 24 24" 
+                      fill="none" 
+                      stroke="currentColor" 
+                      strokeWidth="2"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                    </svg>
+                    <span>Toko</span>
                   </span>
-                </span>
-              </Link>
-              </div>
-            </div>
-          </div>
-        </div>
-      </nav>
-    </>
-  );
-}
+                </Link>
+
+                {/* Tombol User */}
+                <div className="relative">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsUserMenuOpen(!isUserMenuOpen);
+                      setIsNotificationOpen(false);
+                    }}
+                    className={`group relative overflow-hidden transition-all duration-300 rounded-lg p-2 ${
+                      isScrolled
+                        ? "bg-white hover:bg-gray-100"
+                        : "bg-white/90 backdrop-blur-sm hover:bg-white"
+                    }`}
+                  >
+                    <svg 
+                      xmlns="http://www.w3.org/2000/svg" 
+                      className={`${isScrolled ? 'w-5 h-5' : 'w-6 h-6'} text-green-600 transition-all duration-300`} 
+                      viewBox="0 0 24 24" 
+                      fill="none" 
+                      stroke="currentColor" 
+                      strokeWidth="2"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                  </button>
+
+                  {/* User Dropdown */}
+                  {isUserMenuOpen && (
+                    <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg py-2 z-50 border border-gray-100">
+                      <div className="px-4 py-3 border-b border-gray-100">
+                        <p className="text-sm font-semibold text-gray-800">John Doe</p>
+                        <p className="text-xs text-gray-500">john@example.com</p>
+                      </div>
+                      <Link to="/profile" className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 text-gray-700 text-sm">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                        Profil Saya
+                      </Link>
+                      <Link to="/settings" className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 text-gray-700 text-sm">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                        Pengaturan
+                      </Link>
+                      <div className="border-t border-gray-100 my-1"></div>
+                      <button className="flex items-center gap-3 w-full px-4 py-2.5 hover:bg-red-50 text-red-600 text-sm">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
