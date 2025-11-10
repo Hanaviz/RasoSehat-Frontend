@@ -48,7 +48,6 @@ export default function HeroSection() {
 
   const handleExplore = () => {
     if (location.trim()) {
-      setShowLocationModal(false);
       // Handle location exploration logic here
       console.log('Exploring location:', location);
     }
@@ -58,8 +57,8 @@ export default function HeroSection() {
     <div className="pt-16 sm:pt-20 md:pt-24 lg:pt-28 px-3 sm:px-4 md:px-6 lg:px-8 bg-gradient-to-b from-green-50 to-white pb-8">
       <div className="max-w-[1400px] mx-auto">
         {/* Hero Carousel */}
-        <div className="relative rounded-2xl overflow-hidden shadow-xl group mb-6">
-          {/* Carousel Images */}
+        <div className="relative mb-24">
+          <div className="relative rounded-2xl overflow-hidden shadow-xl group">
           <div className="relative h-48 sm:h-56 md:h-64 lg:h-72 overflow-hidden">
             {heroSlides.map((slide, index) => (
               <div
@@ -81,31 +80,6 @@ export default function HeroSection() {
                 <div className="absolute inset-0 bg-black/20"></div>
               </div>
             ))}
-
-            {/* Location Modal Overlay */}
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="bg-white rounded-xl shadow-2xl p-6 sm:p-8 max-w-md w-full mx-4">
-                <h3 className="text-lg sm:text-xl font-bold text-gray-800 mb-4 text-center">
-                  Choose Your Location
-                </h3>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={location}
-                    onChange={(e) => setLocation(e.target.value)}
-                    placeholder="Enter your location"
-                    className="flex-1 px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-sm sm:text-base"
-                    onKeyPress={(e) => e.key === 'Enter' && handleExplore()}
-                  />
-                  <button
-                    onClick={handleExplore}
-                    className="bg-green-500 hover:bg-green-600 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-lg font-semibold transition-colors text-sm sm:text-base whitespace-nowrap"
-                  >
-                    Explore
-                  </button>
-                </div>
-              </div>
-            </div>
           </div>
 
           {/* Previous Button */}
@@ -141,11 +115,37 @@ export default function HeroSection() {
                 }`}
               />
             ))}
+            </div>
+          </div>
+
+          {/* Standalone Location Chooser (flow, not absolute) */}
+          <div className="max-w-md mx-auto px-4 -mt-12 mb-12 relative z-10">
+            <div className="bg-white rounded-xl shadow-2xl p-6 sm:p-8 transform transition-all duration-300 hover:shadow-2xl hover:-translate-y-1">
+              <h3 className="text-lg sm:text-xl font-bold text-gray-800 mb-4 text-center">
+                Choose Your Location
+              </h3>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
+                  placeholder="Enter your location"
+                  className="flex-1 px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-sm sm:text-base"
+                  onKeyPress={(e) => e.key === 'Enter' && handleExplore()}
+                />
+                <button
+                  onClick={handleExplore}
+                  className="bg-green-500 hover:bg-green-600 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-lg font-semibold transition-colors text-sm sm:text-base whitespace-nowrap shadow-lg hover:shadow-xl active:scale-[0.98]"
+                >
+                  Explore
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Categories Section */}
-        <div className="bg-white rounded-2xl shadow-md p-4 sm:p-6 mb-6 border-2 border-green-200">
+  {/* Categories Section */}
+  <div className="bg-white rounded-2xl shadow-md p-4 sm:p-6 mb-6 -mt-8 border-2 border-green-200">
           <h2 className="text-lg sm:text-xl font-bold text-gray-700 mb-4">Kategori</h2>
           <div className="grid grid-cols-4 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3 sm:gap-4">
             {[
