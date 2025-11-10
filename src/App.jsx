@@ -3,7 +3,8 @@ import { AnimatePresence, motion } from 'framer-motion';
 import Navbar from "./components/navbar";
 import HeroSection from "./pages/Herosection";
 import SignInPage from "./pages/Signin";
-import SignUpPage from "./pages/SignUp"; // opsional kalau sudah ada halaman daftar
+import SignUpPage from "./pages/SignUp"; 
+import NavbarAuth from "./components/NavbarAuth";// opsional kalau sudah ada halaman daftar
 
 function AppContent() {
   const location = useLocation();
@@ -11,7 +12,7 @@ function AppContent() {
 
   return (
     <>
-      {showNavbar && <Navbar />}
+      {showNavbar && <NavbarAuth />}
       <AnimatePresence mode="wait">
         <motion.div
           key={location.pathname}

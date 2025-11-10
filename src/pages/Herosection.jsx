@@ -9,19 +9,19 @@ export default function HeroSection() {
   const heroSlides = [
     {
       id: 1,
-      image: 'https://images.unsplash.com/photo-1490645935967-10de6ba17061?w=1200&h=400&fit=crop',
+      image: 'https://images.unsplash.com/photo-1490645935967-10de6ba17061?w=1920&h=1080&fit=crop',
     },
     {
       id: 2,
-      image: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=1200&h=400&fit=crop',
+      image: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=1920&h=1080&fit=crop',
     },
     {
       id: 3,
-      image: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=1200&h=400&fit=crop',
+      image: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=1920&h=1080&fit=crop',
     },
     {
       id: 4,
-      image: 'https://images.unsplash.com/photo-1498837167922-ddd27525d352?w=1200&h=400&fit=crop',
+      image: 'https://images.unsplash.com/photo-1498837167922-ddd27525d352?w=1920&h=1080&fit=crop',
     }
   ];
 
@@ -59,7 +59,7 @@ export default function HeroSection() {
         {/* Hero Carousel */}
         <div className="relative mb-24">
           <div className="relative rounded-2xl overflow-hidden shadow-xl group">
-          <div className="relative h-48 sm:h-56 md:h-64 lg:h-72 overflow-hidden">
+          <div className="relative h-72 sm:h-[360px] md:h-[420px] lg:h-[480px] overflow-hidden">
             {heroSlides.map((slide, index) => (
               <div
                 key={slide.id}

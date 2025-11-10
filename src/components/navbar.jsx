@@ -1,12 +1,22 @@
-import React, { useState, useEffect } from "react";
-import { Link } from "react-router-dom"; // ✅ Tambahan untuk routing
+import React, { useState, useEffect, useCallback, useRef } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import debounce from 'lodash/debounce';
 
 export default function EnhancedNavbar() {
+  const navigate = useNavigate();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
+  
+  // Search states
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const searchContainerRef = useRef(null);
 
+  // Handle scroll effect
   useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 20);
@@ -14,6 +24,121 @@ export default function EnhancedNavbar() {
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  // Handle click outside to close suggestions
+  useEffect(() => {
+    const
+     handleClickOutside = (event) => {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(event.target)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Simulated search results categories for demo
+  const searchCategories = {
+    RECENT: 'recent',
+    POPULAR: 'popular',
+    RESTAURANT: 'restaurant',
+    MENU: 'menu',
+    CATEGORY: 'category'
+  };
+
+  // Mock search function - replace with actual API call
+  const fetchSearchResults = async (query) => {
+    setIsLoading(true);
+    try {
+      // Simulate API call delay
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      // Mock results - replace with actual API data
+      const results = [
+        {
+          id: 1,
+          type: searchCategories.RESTAURANT,
+          name: "Healthy Corner",
+          description: "Restoran Sehat",
+          rating: 4.8,
+          image: "https://example.com/image1.jpg",
+          highlight: query ? [...query.matchAll(new RegExp(query, 'gi'))] : []
+        },
+        {
+          id: 2,
+          type: searchCategories.MENU,
+          name: "Buddha Bowl",
+          description: "Bowl Sayur Organik",
+          price: "25.000",
+          image: "https://example.com/image2.jpg",
+          highlight: query ? [...query.matchAll(new RegExp(query, 'gi'))] : []
+        },
+        {
+          id: 3,
+          type: searchCategories.CATEGORY,
+          name: "Makanan Sehat",
+          count: 150,
+          highlight: query ? [...query.matchAll(new RegExp(query, 'gi'))] : []
+        }
+      ];
+      
+      setSearchResults(results);
+    } catch (error) {
+      console.error('Search error:', error);
+      setSearchResults([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Debounced search function
+  const debouncedSearch = useCallback(
+    debounce((query) => {
+      if (query.trim()) {
+        fetchSearchResults(query);
+      } else {
+        setSearchResults([]);
+      }
+    }, 300),
+    []
+  );
+
+  // Handle search input change
+  const handleSearchChange = (e) => {
+    const query = e.target.value;
+    setSearchQuery(query);
+    setShowSuggestions(true);
+    debouncedSearch(query);
+  };
+
+  // Handle search submission
+  const handleSearchSubmit = (e) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      setShowSuggestions(false);
+      navigate(`/search?q=${encodeURIComponent(searchQuery)}`);
+    }
+  };
+
+  // Handle suggestion click
+  const handleSuggestionClick = (result) => {
+    setShowSuggestions(false);
+    setSearchQuery("");
+    
+    switch (result.type) {
+      case searchCategories.RESTAURANT:
+        navigate(`/restaurant/${result.id}`);
+        break;
+      case searchCategories.MENU:
+        navigate(`/menu/${result.id}`);
+        break;
+      case searchCategories.CATEGORY:
+        navigate(`/category/${result.name.toLowerCase()}`);
+        break;
+      default:
+        navigate(`/search?q=${encodeURIComponent(result.name)}`);
+    }
+  };
 
   return (
     <>
@@ -215,93 +340,193 @@ export default function EnhancedNavbar() {
             </div>
 
             {/* 🔹 Tengah: Search Bar - Desktop Only */}
-            <div className="hidden md:flex flex-1 justify-center min-w-0 max-w-[800px]">
-              <div
-                className={`flex items-center w-full transition-all duration-300 ${
-                isScrolled 
-                    ? "bg-white/95 backdrop-blur-sm"
-                    : "bg-white/90 backdrop-blur-md"
-              } ${
-                isSearchFocused 
-                    ? "shadow-lg ring-2 ring-green-400 rounded-xl scale-[1.02]"
-                    : "shadow-md hover:shadow-lg rounded-lg hover:scale-[1.01]"
-                } group`}
+            <div className="hidden md:flex flex-1 justify-center min-w-0 max-w-[800px]" ref={searchContainerRef}>
+              <form 
+                onSubmit={handleSearchSubmit}
+                className="w-full relative"
               >
-                {/* Search Icon Left */}
-                <div className={`flex-shrink-0 pl-4 pr-2 transition-all duration-300`}>
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className={`transition-all duration-300 ${
-                      isSearchFocused
-                        ? "text-green-600"
-                        : "text-gray-400 group-hover:text-gray-500"
-                    } ${
-                      isScrolled
-                        ? "h-4 w-4 sm:h-4 sm:w-4 md:h-5 md:w-5"
-                        : "h-5 w-5 sm:h-5 sm:w-5 md:h-6 md:w-6"
-                    }`}
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M21 21l-4.35-4.35m0 0A7.5 7.5 0 1110.5 3a7.5 7.5 0 016.15 13.65z"
-                    />
-                  </svg>
-                </div>
-                
-                {/* Input Field */}
-                <input
-                  type="text"
-                  placeholder="Cari makanan sehat di sekitar Anda..."
-                  className={`flex-1 min-w-0 focus:outline-none bg-transparent transition-all duration-300 ${
-                    isSearchFocused ? "text-gray-800" : "text-gray-600"
-                  } placeholder-gray-400 ${
-                    isScrolled 
-                      ? "px-2 py-2.5 text-sm"
-                      : "px-2 py-3 text-base"
-                  }`}
-                  onFocus={() => setIsSearchFocused(true)}
-                  onBlur={() => setIsSearchFocused(false)}
-                />
-
-                {/* Search Button */}
-                <button
-                  className={`flex-shrink-0 transition-all duration-300 flex items-center gap-2 ${
+                <div
+                  className={`flex items-center w-full transition-all duration-300 ${
                   isScrolled 
-                      ? "mr-2 px-3 py-1.5 text-sm"
-                      : "mr-2 px-4 py-2 text-base"
-                  } ${
-                    isSearchFocused
-                      ? "bg-green-600 hover:bg-green-700 text-white rounded-lg"
-                      : "text-gray-500 hover:text-green-600"
-                  }`}
+                      ? "bg-white/95 backdrop-blur-sm"
+                      : "bg-white/90 backdrop-blur-md"
+                } ${
+                  isSearchFocused 
+                      ? "shadow-lg ring-2 ring-green-400 rounded-xl scale-[1.02]"
+                      : "shadow-md hover:shadow-lg rounded-lg hover:scale-[1.01]"
+                  } group`}
                 >
-                  {isSearchFocused ? (
-                    <>
-                      <span>Cari</span>
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                        className="h-4 w-4"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth="2.5"
+                  {/* Search Icon Left */}
+                  <div className={`flex-shrink-0 pl-4 pr-2 transition-all duration-300`}>
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className={`transition-all duration-300 ${
+                        isSearchFocused
+                          ? "text-green-600"
+                          : "text-gray-400 group-hover:text-gray-500"
+                      } ${
+                        isScrolled
+                          ? "h-4 w-4 sm:h-4 sm:w-4 md:h-5 md:w-5"
+                          : "h-5 w-5 sm:h-5 sm:w-5 md:h-6 md:w-6"
+                      }`}
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M21 21l-4.35-4.35m0 0A7.5 7.5 0 1110.5 3a7.5 7.5 0 016.15 13.65z"
+                      />
+                    </svg>
+                  </div>
+                  
+                  {/* Input Field */}
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={handleSearchChange}
+                    placeholder="Cari makanan sehat di sekitar Anda..."
+                    className={`flex-1 min-w-0 focus:outline-none bg-transparent transition-all duration-300 ${
+                      isSearchFocused ? "text-gray-800" : "text-gray-600"
+                    } placeholder-gray-400 ${
+                      isScrolled 
+                        ? "px-2 py-2.5 text-sm"
+                        : "px-2 py-3 text-base"
+                    }`}
+                    onFocus={() => {
+                      setIsSearchFocused(true);
+                      setShowSuggestions(true);
+                    }}
+                  />
+
+                  {/* Loading Indicator */}
+                  {isLoading && (
+                    <div className="flex-shrink-0 mr-2">
+                      <div className="w-4 h-4 border-2 border-green-500 border-t-transparent rounded-full animate-spin"></div>
+                    </div>
+                  )}
+
+                  {/* Search Button */}
+                  <button
+                    type="submit"
+                    className={`flex-shrink-0 transition-all duration-300 flex items-center gap-2 ${
+                    isScrolled 
+                        ? "mr-2 px-3 py-1.5 text-sm"
+                        : "mr-2 px-4 py-2 text-base"
+                    } ${
+                      isSearchFocused
+                        ? "bg-green-600 hover:bg-green-700 text-white rounded-lg"
+                        : "text-gray-500 hover:text-green-600"
+                    }`}
                   >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M13 7l5 5m0 0l-5 5m5-5H6"
-                        />
-                  </svg>
-                    </>
-                  ) : null}
-                </button>
-              </div>
+                    {isSearchFocused ? (
+                      <>
+                        <span>Cari</span>
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="h-4 w-4"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                          strokeWidth="2.5"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M13 7l5 5m0 0l-5 5m5-5H6"
+                          />
+                        </svg>
+                      </>
+                    ) : null}
+                  </button>
+                </div>
+
+                {/* Search Suggestions Dropdown */}
+                {showSuggestions && (isSearchFocused || searchResults.length > 0) && (
+                  <div className="absolute w-full mt-2 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-50">
+                    {isLoading && searchQuery && (
+                      <div className="p-4 text-center text-gray-500">
+                        Mencari "{searchQuery}"...
+                      </div>
+                    )}
+
+                    {!isLoading && searchResults.length === 0 && searchQuery && (
+                      <div className="p-4 text-center text-gray-500">
+                        Tidak ada hasil untuk "{searchQuery}"
+                      </div>
+                    )}
+
+                    {searchResults.map((result) => (
+                      <button
+                        key={result.id}
+                        onClick={() => handleSuggestionClick(result)}
+                        className="w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-50 transition-colors duration-150"
+                      >
+                        {/* Icon based on type */}
+                        <div className="flex-shrink-0">
+                          {result.type === 'restaurant' && (
+                            <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                            </svg>
+                          )}
+                          {result.type === 'menu' && (
+                            <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                            </svg>
+                          )}
+                          {result.type === 'category' && (
+                            <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                            </svg>
+                          )}
+                        </div>
+
+                        {/* Result Content */}
+                        <div className="flex-1 text-left">
+                          <div className="font-medium text-gray-900">{result.name}</div>
+                          {result.description && (
+                            <div className="text-sm text-gray-500">{result.description}</div>
+                          )}
+                          {result.type === 'category' && (
+                            <div className="text-sm text-gray-500">{result.count} menu</div>
+                          )}
+                        </div>
+
+                        {/* Additional Info */}
+                        {result.rating && (
+                          <div className="flex items-center gap-1 text-yellow-400">
+                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                              <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                            </svg>
+                            <span className="text-sm font-medium text-gray-600">{result.rating}</span>
+                          </div>
+                        )}
+                      </button>
+                    ))}
+
+                    {/* Quick Access Categories */}
+                    {!searchQuery && (
+                      <div className="p-4 border-t border-gray-100">
+                        <div className="text-xs font-medium text-gray-500 mb-2">Kategori Populer</div>
+                        <div className="flex flex-wrap gap-2">
+                          {['Makanan Sehat', 'Low Calories', 'Vegetarian', 'Gluten Free'].map((category) => (
+                            <button
+                              key={category}
+                              onClick={() => handleSuggestionClick({ type: 'category', name: category })}
+                              className="px-3 py-1.5 bg-gray-50 hover:bg-gray-100 text-sm text-gray-600 rounded-lg transition-colors duration-150"
+                            >
+                              {category}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </form>
             </div>
 
             {/* 🔹 Kanan: Mobile Actions & Desktop Auth */}
