@@ -1,4 +1,8 @@
+// Ganti seluruh isi file src/pages/Herosection.jsx dengan kode ini:
+
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom'; // 👈 Import Link
+import { motion } from 'framer-motion';
 
 export default function HeroSection() {
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -59,7 +63,6 @@ export default function HeroSection() {
       
       {/* PENTING: Container dalam menangani MAX-WIDTH, centering (mx-auto), DAN padding horizontal (px-*) */}
       <div className="max-w-[1400px] mx-auto px-3 sm:px-4 md:px-6 lg:px-8">
-        
         {/* Hero Carousel */}
         <div className="relative mb-24">
           <div className="relative rounded-2xl overflow-hidden shadow-xl group">
@@ -123,7 +126,6 @@ export default function HeroSection() {
           </div>
 
           {/* Standalone Location Chooser (flow, not absolute) */}
-          {/* Hapus px-4 di sini karena sudah ada di container atas, tetapi jaga max-w dan mx-auto */}
           <div className="max-w-md mx-auto -mt-12 mb-12 relative z-10">
             <div className="bg-white rounded-xl shadow-2xl p-6 sm:p-8 transform transition-all duration-300 hover:shadow-2xl hover:-translate-y-1">
               <h3 className="text-lg sm:text-xl font-bold text-gray-800 mb-4 text-center">
@@ -205,8 +207,11 @@ export default function HeroSection() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-            {/* Card 1 */}
-            <div className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow group">
+            {/* Card 1 - Green Goddess Smoothie */}
+            <Link 
+              to="/menu/green-goddess-smoothie" // 👈 LINK BARU
+              className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow group block"
+            >
               <div className="relative">
                 <img
                   src="https://images.unsplash.com/photo-1638176066666-ffb2f013c7dd?w=400&h=300&fit=crop"
@@ -221,7 +226,7 @@ export default function HeroSection() {
                 </div>
               </div>
               <div className="p-4">
-                <h3 className="font-bold text-gray-800 mb-1 text-sm sm:text-base">Green Goddess Smoothie</h3>
+                <h3 className="font-bold text-gray-800 mb-1 text-sm sm:text-base group-hover:text-green-600 transition-colors">Green Goddess Smoothie</h3>
                 <p className="text-xs text-gray-500 mb-3 line-clamp-2">
                   Smoothie hijau dengan bayam, pisang, alpukat, dan protein powder
                 </p>
@@ -249,10 +254,13 @@ export default function HeroSection() {
                   <span>5-10 menit</span>
                 </div>
               </div>
-            </div>
+            </Link>
 
-            {/* Card 2 */}
-            <div className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow group">
+            {/* Card 2 - Selamat Datang */}
+            <Link 
+              to="/menu/selamat-datang" // 👈 LINK BARU (Mock)
+              className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow group block"
+            >
               <div className="relative">
                 <img
                   src="https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&h=300&fit=crop"
@@ -264,7 +272,7 @@ export default function HeroSection() {
                 </div>
               </div>
               <div className="p-4">
-                <h3 className="font-bold text-gray-800 mb-1 text-sm sm:text-base">Selamat Datang</h3>
+                <h3 className="font-bold text-gray-800 mb-1 text-sm sm:text-base group-hover:text-green-600 transition-colors">Selamat Datang</h3>
                 <p className="text-xs text-gray-500 mb-3 line-clamp-2">
                   Menu spesial dengan bahan-bahan segar dan berkualitas
                 </p>
@@ -272,10 +280,13 @@ export default function HeroSection() {
                   <span>15-20 menit</span>
                 </div>
               </div>
-            </div>
+            </Link>
 
-            {/* Card 3 */}
-            <div className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow group">
+            {/* Card 3 - Rainbow Buddha Bowl */}
+            <Link 
+              to="/menu/buddha-bowl" // 👈 LINK BARU (Terhubung ke Mock Data)
+              className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow group block"
+            >
               <div className="relative">
                 <img
                   src="https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=400&h=300&fit=crop"
@@ -290,7 +301,7 @@ export default function HeroSection() {
                 </div>
               </div>
               <div className="p-4">
-                <h3 className="font-bold text-gray-800 mb-1 text-sm sm:text-base">Rainbow Buddha Bowl</h3>
+                <h3 className="font-bold text-gray-800 mb-1 text-sm sm:text-base group-hover:text-green-600 transition-colors">Rainbow Buddha Bowl</h3>
                 <p className="text-xs text-gray-500 mb-3 line-clamp-2">
                   Bowl sehati dengan quinoa, sayuran, alpukat, dan tahini dressing
                 </p>
@@ -318,7 +329,7 @@ export default function HeroSection() {
                   <span>15-20 menit</span>
                 </div>
               </div>
-            </div>
+            </Link>
           </div>
         </div>
       </div>
