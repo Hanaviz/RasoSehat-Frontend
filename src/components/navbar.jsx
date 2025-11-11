@@ -27,10 +27,10 @@ export default function EnhancedNavbar() {
 
   // Handle click outside to close suggestions
   useEffect(() => {
-    const
-     handleClickOutside = (event) => {
+    const handleClickOutside = (event) => {
       if (searchContainerRef.current && !searchContainerRef.current.contains(event.target)) {
         setShowSuggestions(false);
+        setIsSearchFocused(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -54,35 +54,19 @@ export default function EnhancedNavbar() {
       await new Promise(resolve => setTimeout(resolve, 300));
       
       // Mock results - replace with actual API data
-      const results = [
-        {
-          id: 1,
-          type: searchCategories.RESTAURANT,
-          name: "Healthy Corner",
-          description: "Restoran Sehat",
-          rating: 4.8,
-          image: "https://example.com/image1.jpg",
-          highlight: query ? [...query.matchAll(new RegExp(query, 'gi'))] : []
-        },
-        {
-          id: 2,
-          type: searchCategories.MENU,
-          name: "Buddha Bowl",
-          description: "Bowl Sayur Organik",
-          price: "25.000",
-          image: "https://example.com/image2.jpg",
-          highlight: query ? [...query.matchAll(new RegExp(query, 'gi'))] : []
-        },
-        {
-          id: 3,
-          type: searchCategories.CATEGORY,
-          name: "Makanan Sehat",
-          count: 150,
-          highlight: query ? [...query.matchAll(new RegExp(query, 'gi'))] : []
-        }
+      const mockData = [
+        { id: 1, type: 'restaurant', name: "Healthy Corner", description: "Restoran Sehat", rating: 4.8 },
+        { id: 2, type: 'menu', name: "Buddha Bowl", description: "Bowl Sayur Organik", price: "25.000" },
+        { id: 3, type: 'category', name: "Makanan Sehat", count: 150 },
+        { id: 4, type: 'menu', name: "Nasi Goreng Sehat", description: "Nasi Goreng Rendah Minyak", price: "20.000" },
       ];
-      
-      setSearchResults(results);
+
+      const filtered = mockData.filter(item => 
+        item.name.toLowerCase().includes(query.toLowerCase()) || 
+        (item.description && item.description.toLowerCase().includes(query.toLowerCase()))
+      );
+
+      setSearchResults(filtered);
     } catch (error) {
       console.error('Search error:', error);
       setSearchResults([]);
@@ -103,7 +87,7 @@ export default function EnhancedNavbar() {
     []
   );
 
-  // Handle search input change
+  // Handle search input change (Desktop & Mobile)
   const handleSearchChange = (e) => {
     const query = e.target.value;
     setSearchQuery(query);
@@ -111,12 +95,13 @@ export default function EnhancedNavbar() {
     debouncedSearch(query);
   };
 
-  // Handle search submission
+  // Handle search submission (Desktop & Mobile)
   const handleSearchSubmit = (e) => {
     e.preventDefault();
     if (searchQuery.trim()) {
       setShowSuggestions(false);
-      navigate(`/search?q=${encodeURIComponent(searchQuery)}`);
+      setIsMobileSearchOpen(false); // Tutup mobile search
+      navigate(`/search?q=${encodeURIComponent(searchQuery)}`); // Arahkan ke SearchResultsPage
     }
   };
 
@@ -124,6 +109,7 @@ export default function EnhancedNavbar() {
   const handleSuggestionClick = (result) => {
     setShowSuggestions(false);
     setSearchQuery("");
+    setIsMobileSearchOpen(false); 
     
     switch (result.type) {
       case searchCategories.RESTAURANT:
@@ -133,11 +119,51 @@ export default function EnhancedNavbar() {
         navigate(`/menu/${result.id}`);
         break;
       case searchCategories.CATEGORY:
-        navigate(`/category/${result.name.toLowerCase()}`);
+        navigate(`/search?c=${result.name.toLowerCase()}`); // Arahkan ke search page dengan filter kategori
         break;
       default:
         navigate(`/search?q=${encodeURIComponent(result.name)}`);
     }
+  };
+
+  // Render suggestion item for reusability
+  const renderSuggestionItem = (result) => {
+    const iconMap = {
+        'restaurant': <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>,
+        'menu': <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>,
+        'category': <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" /></svg>,
+    };
+
+    return (
+        <button
+            key={result.id}
+            onClick={() => handleSuggestionClick(result)}
+            className="w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-50 transition-colors duration-150"
+        >
+            <div className="flex-shrink-0">
+                {iconMap[result.type]}
+            </div>
+
+            <div className="flex-1 text-left">
+                <div className="font-medium text-gray-900">{result.name}</div>
+                {result.description && (
+                    <div className="text-sm text-gray-500">{result.description}</div>
+                )}
+                {result.type === 'category' && (
+                    <div className="text-sm text-gray-500">{result.count} menu</div>
+                )}
+            </div>
+            
+            {result.rating && (
+                <div className="flex items-center gap-1 text-yellow-400">
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                    </svg>
+                    <span className="text-sm font-medium text-gray-600">{result.rating}</span>
+                </div>
+            )}
+        </button>
+    );
   };
 
   return (
@@ -162,9 +188,8 @@ export default function EnhancedNavbar() {
             isMobileSearchOpen ? 'translate-y-0' : 'translate-y-full'
           }`}
         >
-          {/* Search Header */}
           <div className="flex items-center justify-between px-4 pt-3 pb-2">
-            <div className="w-8" /> {/* Spacer untuk centering */}
+            <div className="w-8" /> 
             <h2 className="text-lg font-semibold text-gray-800">Pencarian</h2>
             <button 
               onClick={() => setIsMobileSearchOpen(false)}
@@ -181,69 +206,91 @@ export default function EnhancedNavbar() {
             <div className="w-10 h-1 bg-gray-200 rounded-full my-1" />
           </div>
 
-          {/* Search Input Area */}
-          <div className="px-4 pt-2 pb-4">
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Cari makanan sehat..."
-                className="w-full pl-12 pr-4 py-3.5 bg-gray-100 text-base rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:bg-white transition-all duration-200"
-                autoFocus
-              />
-              <svg 
-                xmlns="http://www.w3.org/2000/svg" 
-                className="h-6 w-6 text-gray-400 absolute left-4 top-1/2 -translate-y-1/2" 
-                fill="none" 
-                viewBox="0 0 24 24" 
-                stroke="currentColor"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
+          {/* Search Input Area (Mobile) */}
+          <form onSubmit={handleSearchSubmit}> {/* 👈 FORM DITAMBAHKAN */}
+            <div className="px-4 pt-2 pb-4">
+              <div className="relative">
+                <input
+                  type="text"
+                  value={searchQuery} // 👈 Terikat ke state
+                  onChange={handleSearchChange} // 👈 Terikat ke state
+                  placeholder="Cari makanan sehat..."
+                  className="w-full pl-12 pr-4 py-3.5 bg-gray-100 text-base rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:bg-white transition-all duration-200"
+                  autoFocus
+                />
+                <svg 
+                  xmlns="http://www.w3.org/2000/svg" 
+                  className="h-6 w-6 text-gray-400 absolute left-4 top-1/2 -translate-y-1/2" 
+                  fill="none" 
+                  viewBox="0 0 24 24" 
+                  stroke="currentColor"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
             </div>
-          </div>
+          </form> {/* 👈 END FORM */}
 
           {/* Quick Access Section */}
-          <div className="px-4 pb-6">
-            {/* Recent Searches */}
-            <div className="mb-6">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-medium text-gray-500">Pencarian Terakhir</h3>
-                <button className="text-sm text-green-600 hover:text-green-700 font-medium">Hapus</button>
-              </div>
-              <div className="space-y-2">
-                <button className="flex items-center w-full px-3 py-2 hover:bg-gray-50 rounded-lg group transition-colors duration-200">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400 group-hover:text-green-500 mr-3 transition-colors duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <span className="text-gray-600 group-hover:text-gray-900">Nasi Goreng Sehat</span>
-                </button>
-                <button className="flex items-center w-full px-3 py-2 hover:bg-gray-50 rounded-lg group transition-colors duration-200">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400 group-hover:text-green-500 mr-3 transition-colors duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <span className="text-gray-600 group-hover:text-gray-900">Salad Bowl</span>
-                </button>
-              </div>
-            </div>
+          <div className="px-4 pb-6 max-h-[50vh] overflow-y-auto">
+            
+            {/* Show Results/Suggestions (Mobile) */}
+            {isLoading && searchQuery && <div className="p-4 text-center text-gray-500">Mencari "{searchQuery}"...</div>}
+            
+            {!isLoading && searchResults.length > 0 && searchQuery && (
+                <div className="space-y-2">
+                    {searchResults.map(renderSuggestionItem)}
+                </div>
+            )}
 
-            {/* Trending Searches */}
-            <div>
-              <h3 className="text-sm font-medium text-gray-500 mb-3">Trending Hari Ini</h3>
-              <div className="flex flex-wrap gap-2">
-                <button className="px-4 py-2 bg-green-50 text-green-600 rounded-xl text-sm font-medium hover:bg-green-100 transition-colors duration-200">
-                  🥗 Healthy Bowl
-                </button>
-                <button className="px-4 py-2 bg-green-50 text-green-600 rounded-xl text-sm font-medium hover:bg-green-100 transition-colors duration-200">
-                  🥑 Avocado Toast
-                </button>
-                <button className="px-4 py-2 bg-green-50 text-green-600 rounded-xl text-sm font-medium hover:bg-green-100 transition-colors duration-200">
-                  🥤 Smoothies
-                </button>
-                <button className="px-4 py-2 bg-green-50 text-green-600 rounded-xl text-sm font-medium hover:bg-green-100 transition-colors duration-200">
-                  🍜 Mie Sehat
-                </button>
-              </div>
-            </div>
+            {!isLoading && searchResults.length === 0 && searchQuery && (
+                <div className="p-4 text-center text-gray-500">Tidak ada hasil untuk "{searchQuery}"</div>
+            )}
+            
+            {/* Quick Access Categories (Jika tidak ada query) */}
+            {(!searchQuery || searchResults.length === 0) && (
+              <>
+                <div className="mb-6 border-t border-gray-100 pt-6">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-sm font-medium text-gray-500">Pencarian Terakhir</h3>
+                    <button className="text-sm text-green-600 hover:text-green-700 font-medium">Hapus</button>
+                  </div>
+                  <div className="space-y-2">
+                    {/* Mock recent searches (as buttons to handleSuggestionClick) */}
+                    <button onClick={() => handleSuggestionClick({ type: 'menu', name: 'Nasi Goreng Sehat', id: '4' })} className="flex items-center w-full px-3 py-2 hover:bg-gray-50 rounded-lg group transition-colors duration-200">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400 group-hover:text-green-500 mr-3 transition-colors duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <span className="text-gray-600 group-hover:text-gray-900">Nasi Goreng Sehat</span>
+                    </button>
+                    <button onClick={() => handleSuggestionClick({ type: 'menu', name: 'Salad Bowl', id: '2' })} className="flex items-center w-full px-3 py-2 hover:bg-gray-50 rounded-lg group transition-colors duration-200">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400 group-hover:text-green-500 mr-3 transition-colors duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <span className="text-gray-600 group-hover:text-gray-900">Salad Bowl</span>
+                    </button>
+                  </div>
+                </div>
+            
+                <div>
+                  <h3 className="text-sm font-medium text-gray-500 mb-3">Trending Hari Ini</h3>
+                  <div className="flex flex-wrap gap-2">
+                    <button onClick={() => handleSuggestionClick({ type: 'category', name: 'Rendah Kalori' })} className="px-4 py-2 bg-green-50 text-green-600 rounded-xl text-sm font-medium hover:bg-green-100 transition-colors duration-200">
+                      🥗 Healthy Bowl
+                    </button>
+                    <button onClick={() => handleSuggestionClick({ type: 'category', name: 'Vegetarian' })} className="px-4 py-2 bg-green-50 text-green-600 rounded-xl text-sm font-medium hover:bg-green-100 transition-colors duration-200">
+                      🥑 Avocado Toast
+                    </button>
+                    <button onClick={() => handleSuggestionClick({ type: 'category', name: 'Smoothies' })} className="px-4 py-2 bg-green-50 text-green-600 rounded-xl text-sm font-medium hover:bg-green-100 transition-colors duration-200">
+                      🥤 Smoothies
+                    </button>
+                    <button onClick={() => handleSuggestionClick({ type: 'category', name: 'Tinggi Protein' })} className="px-4 py-2 bg-green-50 text-green-600 rounded-xl text-sm font-medium hover:bg-green-100 transition-colors duration-200">
+                      🍜 Mie Sehat
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>

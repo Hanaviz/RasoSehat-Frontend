@@ -1,13 +1,13 @@
 import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router-dom";
 import { AnimatePresence, motion } from 'framer-motion';
 // Hapus import Navbar/NavbarAuth di sini, karena sudah diurus oleh Layout
-import Layout from "./components/Layout"; // 👈 Import Layout
+import Layout from "./components/Layout";
 import HeroSection from "./pages/Herosection";
 import SignInPage from "./pages/Signin";
 import SignUpPage from "./pages/SignUp"; 
 import ProfilePage from "./pages/Profile"; 
 import MenuDetailPage from "./pages/MenuDetailPage"; 
-// Tambahkan import halaman lain di sini saat Anda membuatnya (e.g., AboutPage, StoreRegisterPage)
+import SearchResultsPage from "./pages/SearchResultsPage"; // 👈 Import Halaman Hasil Pencarian
 
 function AppContent() {
   const location = useLocation();
@@ -31,9 +31,13 @@ function AppContent() {
           <Route path="/" element={<Layout />}>
             
             {/* Nested Routes (Content yang Ditampilkan di dalam Layout) */}
-            <Route index element={<HeroSection />} /> {/* Path="/" */}
+            <Route index element={<HeroSection />} /> 
             <Route path="/profile" element={<ProfilePage />} /> 
             <Route path="/menu/:slug" element={<MenuDetailPage />} /> 
+            
+            {/* 👈 ROUTE BARU untuk Hasil Pencarian */}
+            {/* Menggunakan path="/search" untuk menangani query parameter, e.g., /search?q=salad */}
+            <Route path="/search" element={<SearchResultsPage />} />
             
             {/* Tambahkan rute konten lain di sini: */}
             {/* <Route path="/about" element={<AboutPage />} /> */}
