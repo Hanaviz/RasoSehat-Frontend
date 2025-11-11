@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { debounce } from "lodash";
+import debounce from 'lodash/debounce';
 
 export default function NavbarAuth() {
   const navigate = useNavigate();
@@ -32,30 +32,30 @@ export default function NavbarAuth() {
   const [notifications, setNotifications] = useState([
     {
       id: 1,
-      type: "order",
-      title: "Pesanan Baru",
-      message: "Anda memiliki pesanan baru dari Healthy Bowl",
+      type: "info",
+      title: "Menu Baru Ditambahkan",
+      message: "Restoran Healthy Corner menambahkan menu Buddha Bowl baru",
       time: "5 menit lalu",
       isRead: false,
-      icon: "🛍️"
+      icon: "🆕"
     },
     {
       id: 2,
-      type: "promo",
-      title: "Promo Spesial!",
-      message: "Diskon 30% untuk menu Salad Bowl",
+      type: "update",
+      title: "Update Informasi",
+      message: "Jam operasional Restoran Sehat berubah menjadi 08.00-21.00",
       time: "1 jam lalu",
       isRead: false,
-      icon: "🎉"
+      icon: "⏰"
     },
     {
       id: 3,
-      type: "info",
-      title: "Pengiriman Berhasil",
-      message: "Pesanan #12345 telah sampai",
+      type: "tips",
+      title: "Tips Kesehatan",
+      message: "Konsumsi sayuran hijau minimal 3 porsi per hari untuk kesehatan optimal",
       time: "2 jam lalu",
       isRead: true,
-      icon: "✅"
+      icon: "💡"
     }
   ]);
 
@@ -348,17 +348,6 @@ export default function NavbarAuth() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                 </svg>
                 <span className="font-medium">Profil Saya</span>
-              </Link>
-
-              <Link
-                to="/orders"
-                className="flex items-center gap-3 w-full px-4 py-3 text-left text-gray-700 hover:bg-gray-50 rounded-lg transition-colors duration-200"
-                onClick={() => setIsMobileMenuOpen(false)}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-                </svg>
-                <span className="font-medium">Pesanan Saya</span>
               </Link>
 
               {!userData.isStoreMember ? (
@@ -834,28 +823,6 @@ export default function NavbarAuth() {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                         </svg>
                         <span className="font-medium">Profil Saya</span>
-                      </Link>
-
-                      <Link
-                        to="/orders"
-                        className="flex items-center gap-3 px-4 py-2.5 text-gray-700 hover:bg-gray-50 transition-colors duration-150"
-                        onClick={() => setShowProfileMenu(false)}
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-                        </svg>
-                        <span className="font-medium">Pesanan Saya</span>
-                      </Link>
-
-                      <Link
-                        to="/favorites"
-                        className="flex items-center gap-3 px-4 py-2.5 text-gray-700 hover:bg-gray-50 transition-colors duration-150"
-                        onClick={() => setShowProfileMenu(false)}
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                        </svg>
-                        <span className="font-medium">Favorit</span>
                       </Link>
 
                       <Link

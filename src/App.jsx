@@ -1,18 +1,28 @@
 import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router-dom";
 import { AnimatePresence, motion } from 'framer-motion';
 import Navbar from "./components/navbar";
+import NavbarAuth from "./components/NavbarAuth";
 import HeroSection from "./pages/Herosection";
 import SignInPage from "./pages/Signin";
 import SignUpPage from "./pages/SignUp"; 
-import NavbarAuth from "./components/NavbarAuth";// opsional kalau sudah ada halaman daftar
+import ProfilePage from "./pages/Profile"; // 👈 Import Profile Page
 
 function AppContent() {
   const location = useLocation();
-  const showNavbar = !['/signin', '/signup'].includes(location.pathname);
-
+  
+  // Halaman yang tidak menampilkan navbar
+  const noNavbarPages = ['/signin', '/signup'];
+  const showNavbar = !noNavbarPages.includes(location.pathname);
+  
+  // Tentukan navbar mana yang ditampilkan (sebelum/sesudah login)
+  const isAuthenticated = true; // 👈 Ganti dengan state auth real nanti
+  
   return (
     <>
-      {showNavbar && <NavbarAuth />}
+      {showNavbar && (
+        isAuthenticated ? <NavbarAuth /> : <Navbar />
+      )}
+      
       <AnimatePresence mode="wait">
         <motion.div
           key={location.pathname}
@@ -25,6 +35,7 @@ function AppContent() {
             <Route path="/" element={<HeroSection />} />
             <Route path="/signin" element={<SignInPage />} />
             <Route path="/signup" element={<SignUpPage />} />
+            <Route path="/profile" element={<ProfilePage />} /> {/* 👈 Route Profile */}
           </Routes>
         </motion.div>
       </AnimatePresence>
