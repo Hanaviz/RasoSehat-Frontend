@@ -54,8 +54,12 @@ export default function HeroSection() {
   };
 
   return (
-    <div className="pt-16 sm:pt-20 md:pt-24 lg:pt-28 px-3 sm:px-4 md:px-6 lg:px-8 bg-gradient-to-b from-green-50 to-white pb-8">
-      <div className="max-w-[1400px] mx-auto">
+    // PENTING: Container luar HANYA menangani padding vertikal (pt/pb) dan background (full-width)
+    <div className="pt-16 sm:pt-20 md:pt-24 lg:pt-28 bg-gradient-to-b from-green-50 to-white pb-8">
+      
+      {/* PENTING: Container dalam menangani MAX-WIDTH, centering (mx-auto), DAN padding horizontal (px-*) */}
+      <div className="max-w-[1400px] mx-auto px-3 sm:px-4 md:px-6 lg:px-8">
+        
         {/* Hero Carousel */}
         <div className="relative mb-24">
           <div className="relative rounded-2xl overflow-hidden shadow-xl group">
@@ -119,7 +123,8 @@ export default function HeroSection() {
           </div>
 
           {/* Standalone Location Chooser (flow, not absolute) */}
-          <div className="max-w-md mx-auto px-4 -mt-12 mb-12 relative z-10">
+          {/* Hapus px-4 di sini karena sudah ada di container atas, tetapi jaga max-w dan mx-auto */}
+          <div className="max-w-md mx-auto -mt-12 mb-12 relative z-10">
             <div className="bg-white rounded-xl shadow-2xl p-6 sm:p-8 transform transition-all duration-300 hover:shadow-2xl hover:-translate-y-1">
               <h3 className="text-lg sm:text-xl font-bold text-gray-800 mb-4 text-center">
                 Choose Your Location
