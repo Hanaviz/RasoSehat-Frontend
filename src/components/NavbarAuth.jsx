@@ -61,6 +61,24 @@ export default function NavbarAuth() {
 
   const unreadCount = notifications.filter(n => !n.isRead).length;
 
+  // LOGOUT HANDLER BARU
+  const handleLogout = () => {
+    // 1. (REAL APP): Panggil API Laravel untuk menghapus token (Sanctum)
+    // 2. (REAL APP): Hapus state/token otentikasi lokal di React Context/Redux
+
+    // Simulasi logout
+    console.log("User logged out successfully.");
+    
+    // Tutup semua dropdown/menu
+    setShowProfileMenu(false);
+    setIsMobileMenuOpen(false);
+
+    // 3. Arahkan ke Halaman Utama (Layout akan otomatis menampilkan Navbar non-auth)
+    navigate('/');
+    // PERHATIAN: Di aplikasi nyata, Anda juga harus mengatur isAuthenticated = false secara global.
+  };
+  // END LOGOUT HANDLER
+
   // Handle scroll effect
   useEffect(() => {
     const handleScroll = () => {

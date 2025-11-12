@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom'; // 👈 Import Link dan useNavigate
 import { motion } from 'framer-motion';
+import { LocateFixed } from 'lucide-react'; // 👈 Import ikon Lokasi
 
 export default function HeroSection() {
+  const navigate = useNavigate(); // 👈 Gunakan useNavigate
   const [currentSlide, setCurrentSlide] = useState(0);
   const [location, setLocation] = useState('');
-  const [showLocationModal, setShowLocationModal] = useState(false);
+  // State showLocationModal dihapus karena tidak digunakan lagi
+  // const [showLocationModal, setShowLocationModal] = useState(false);
 
   // Hero carousel images data
   const heroSlides = [
@@ -56,15 +59,23 @@ export default function HeroSection() {
     setCurrentSlide(index);
   };
 
+  // Fungsi untuk membuat slug yang valid
+  const createSlug = (name) => name.toLowerCase().replace(/\s/g, '-').replace(/[^\w-]+/g, '');
+
+  // LOGIC UNTUK LOCATION CHOOSER
   const handleExplore = () => {
     if (location.trim()) {
-      // Handle location exploration logic here
-      console.log('Exploring location:', location);
+      // Arahkan ke halaman search dengan query parameter 'loc'
+      navigate(`/search?loc=${encodeURIComponent(location.trim())}`);
     }
   };
 
-  // Fungsi untuk membuat slug yang valid
-  const createSlug = (name) => name.toLowerCase().replace(/\s/g, '-').replace(/[^\w-]+/g, '');
+  const handleGetCurrentLocation = () => {
+    // Simulasi pengambilan lokasi dari browser (Frontend only)
+    // Di aplikasi nyata: Navigator.geolocation.getCurrentPosition(...)
+    setLocation("Limau Manih, Padang"); 
+  };
+  // END LOGIC LOCATION CHOOSER
 
   return (
     <div className="pt-16 sm:pt-20 md:pt-24 lg:pt-28 bg-gradient-to-b from-green-50 to-white pb-8">
@@ -76,7 +87,6 @@ export default function HeroSection() {
           <div className="relative rounded-2xl overflow-hidden shadow-xl group">
           
             {/* PENGURANGAN TINGGI CAROUSEL */}
-            {/* H-48 (mobile) hingga H-80 (desktop) untuk mengurangi ruang vertikal */}
             <div className="relative h-48 sm:h-64 md:h-72 lg:h-80 overflow-hidden"> 
               {heroSlides.map((slide, index) => (
                 <div
@@ -155,28 +165,41 @@ export default function HeroSection() {
               </div>
             </div>
 
-            {/* Standalone Location Chooser (ditarik ke atas agar mengisi space) */}
+            {/* Standalone Location Chooser */}
             <div className="max-w-md mx-auto -mt-12 relative z-10">
               <div className="bg-white rounded-xl shadow-2xl p-6 sm:p-8 transform transition-all duration-300 hover:shadow-2xl hover:-translate-y-1">
                 <h3 className="text-lg sm:text-xl font-bold text-gray-800 mb-4 text-center">
-                  Choose Your Location
+                  Cari Makanan di Sekitar Anda
                 </h3>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={location}
-                    onChange={(e) => setLocation(e.target.value)}
-                    placeholder="Enter your location"
-                    className="flex-1 px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-sm sm:text-base"
-                    onKeyPress={(e) => e.key === 'Enter' && handleExplore()}
-                  />
-                  <button
-                    onClick={handleExplore}
-                    className="bg-green-500 hover:bg-green-600 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-lg font-semibold transition-colors text-sm sm:text-base whitespace-nowrap shadow-lg hover:shadow-xl active:scale-[0.98]"
-                  >
-                    Explore
-                  </button>
-                </div>
+                {/* Form untuk Chooser Location */}
+                <form onSubmit={(e) => { e.preventDefault(); handleExplore(); }}>
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <input
+                        type="text"
+                        value={location}
+                        onChange={(e) => setLocation(e.target.value)}
+                        placeholder="Masukkan Area / Kecamatan"
+                        className="w-full pl-10 pr-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-sm sm:text-base"
+                      />
+                      {/* Tombol GPS untuk lokasi saat ini */}
+                      <button 
+                          type="button"
+                          onClick={handleGetCurrentLocation}
+                          className="absolute left-0 top-1/2 -translate-y-1/2 p-2 text-gray-500 hover:text-green-600 transition-colors"
+                          title="Gunakan Lokasi Saat Ini"
+                      >
+                          <LocateFixed className='w-5 h-5'/>
+                      </button>
+                    </div>
+                    <button
+                      type="submit"
+                      className="bg-green-600 hover:bg-green-700 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-lg font-semibold transition-colors text-sm sm:text-base whitespace-nowrap shadow-lg hover:shadow-xl active:scale-[0.98]"
+                    >
+                      Cari
+                    </button>
+                  </div>
+                </form>
               </div>
             </div>
           </div>
@@ -195,7 +218,7 @@ export default function HeroSection() {
                 { name: 'Vegetarian / Vegan', icon: '🥦' },
                 { name: 'Lainnya', icon: '📦' }
               ].map((category, index) => (
-                // 👈 DIUBAH DARI BUTTON MENJADI LINK
+                // DIUBAH DARI BUTTON MENJADI LINK
                 <Link 
                   key={index}
                   to={`/category/${createSlug(category.name)}`} // Mengarahkan ke route kategori baru
@@ -208,7 +231,7 @@ export default function HeroSection() {
                     {category.name}
                   </span>
                 </Link>
-                // 👈 END LINK
+                // END LINK
               ))}
             </div>
             <div className="text-center mt-4">
