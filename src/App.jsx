@@ -7,7 +7,8 @@ import SignInPage from "./pages/Signin";
 import SignUpPage from "./pages/SignUp"; 
 import ProfilePage from "./pages/Profile"; 
 import MenuDetailPage from "./pages/MenuDetailPage"; 
-import SearchResultsPage from "./pages/SearchResultsPage"; // 👈 Import Halaman Hasil Pencarian
+import SearchResultsPage from "./pages/SearchResultsPage"; 
+import CategoryPage from "./pages/CategoryPage"; // 👈 Import CategoryPage
 
 function AppContent() {
   const location = useLocation();
@@ -34,14 +35,11 @@ function AppContent() {
             <Route index element={<HeroSection />} /> 
             <Route path="/profile" element={<ProfilePage />} /> 
             <Route path="/menu/:slug" element={<MenuDetailPage />} /> 
-            
-            {/* 👈 ROUTE BARU untuk Hasil Pencarian */}
-            {/* Menggunakan path="/search" untuk menangani query parameter, e.g., /search?q=salad */}
             <Route path="/search" element={<SearchResultsPage />} />
             
-            {/* Tambahkan rute konten lain di sini: */}
-            {/* <Route path="/about" element={<AboutPage />} /> */}
-            {/* <Route path="/register-store" element={<StoreRegisterPage />} /> */}
+            {/* 👈 ROUTE BARU untuk Halaman Kategori (Dinamic) */}
+            <Route path="/category/:categorySlug" element={<CategoryPage />} />
+            
 
           </Route>
           

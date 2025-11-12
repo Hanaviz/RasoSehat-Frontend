@@ -40,7 +40,7 @@ export default function Footer() {
               Platform Panduan Makanan Sehat di Padang.
             </p>
             <a 
-              href="https://github.com/your-repo-link" 
+              href="https://github.com/Hanaviz/RasoSehat-Frontend.git" 
               target="_blank" 
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1 text-[10px] text-green-300 hover:text-white transition-colors font-medium" // Font sangat kecil

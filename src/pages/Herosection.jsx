@@ -63,6 +63,9 @@ export default function HeroSection() {
     }
   };
 
+  // Fungsi untuk membuat slug yang valid
+  const createSlug = (name) => name.toLowerCase().replace(/\s/g, '-').replace(/[^\w-]+/g, '');
+
   return (
     <div className="pt-16 sm:pt-20 md:pt-24 lg:pt-28 bg-gradient-to-b from-green-50 to-white pb-8">
       
@@ -192,8 +195,10 @@ export default function HeroSection() {
                 { name: 'Vegetarian / Vegan', icon: '🥦' },
                 { name: 'Lainnya', icon: '📦' }
               ].map((category, index) => (
-                <button
+                // 👈 DIUBAH DARI BUTTON MENJADI LINK
+                <Link 
                   key={index}
+                  to={`/category/${createSlug(category.name)}`} // Mengarahkan ke route kategori baru
                   className="flex flex-col items-center justify-center bg-gradient-to-br from-green-50 to-green-100 hover:from-green-100 hover:to-green-200 rounded-xl p-3 sm:p-4 transition-all hover:shadow-lg hover:scale-105 group"
                 >
                   <div className="text-3xl sm:text-4xl mb-2 group-hover:scale-110 transition-transform">
@@ -202,13 +207,14 @@ export default function HeroSection() {
                   <span className="text-xs sm:text-sm font-medium text-gray-700 text-center">
                     {category.name}
                   </span>
-                </button>
+                </Link>
+                // 👈 END LINK
               ))}
             </div>
             <div className="text-center mt-4">
-              <button className="text-green-600 hover:text-green-700 font-semibold text-sm sm:text-base hover:underline">
+              <Link to="/search" className="text-green-600 hover:text-green-700 font-semibold text-sm sm:text-base hover:underline">
                 Show More
-              </button>
+              </Link>
             </div>
           </div>
 
