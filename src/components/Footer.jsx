@@ -90,7 +90,7 @@ export default function Footer() {
 
           {/* Kolom 4: Tim Pengembang (Kunci Mobile Compact) */}
           <div className="col-span-2 lg:col-span-2 space-y-2"> {/* Mengurangi space-y menjadi 2 */}
-            <h4 className="font-bold text-sm sm:text-base text-white mb-2 border-b border-green-500/50 pb-0.5">Tim Pengembang (RPL Group)</h4>
+            <h4 className="font-bold text-sm sm:text-base text-white mb-2 border-b border-green-500/50 pb-0.5">Tim Pengembang</h4>
             
             {/* Menggunakan 2 kolom di mobile dan 3 kolom di tablet (sm:grid-cols-3) */}
             <ul className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-2 gap-y-2 gap-x-2"> 

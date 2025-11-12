@@ -8,7 +8,13 @@ import SignUpPage from "./pages/SignUp";
 import ProfilePage from "./pages/Profile"; 
 import MenuDetailPage from "./pages/MenuDetailPage"; 
 import SearchResultsPage from "./pages/SearchResultsPage"; 
-import CategoryPage from "./pages/CategoryPage"; // 👈 Import CategoryPage
+import CategoryPage from "./pages/CategoryPage"; 
+
+// 👈 START: Tambahkan import untuk halaman toko
+import RegisterStorePage from "./pages/RegisterStorePage"; 
+import MyStorePage from "./pages/MyStorePage"; 
+// END: Tambahkan import untuk halaman toko
+
 
 function AppContent() {
   const location = useLocation();
@@ -37,10 +43,14 @@ function AppContent() {
             <Route path="/menu/:slug" element={<MenuDetailPage />} /> 
             <Route path="/search" element={<SearchResultsPage />} />
             
-            {/* 👈 ROUTE BARU untuk Halaman Kategori (Dinamic) */}
+            {/* ROUTE BARU untuk Halaman Kategori (Dinamic) */}
             <Route path="/category/:categorySlug" element={<CategoryPage />} />
             
-
+            {/* 👈 START: Tambahkan Route Toko Baru */}
+            <Route path="/register-store" element={<RegisterStorePage />} /> {/* Menampilkan Form Pendaftaran Toko */}
+            <Route path="/my-store" element={<MyStorePage />} />             {/* Menampilkan Dashboard Toko (Placeholder) */}
+            {/* END: Tambahkan Route Toko Baru */}
+            
           </Route>
           
         </Routes>

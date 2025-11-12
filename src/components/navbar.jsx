@@ -2,7 +2,8 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import debounce from 'lodash/debounce';
 
-export default function EnhancedNavbar() {
+// 💡 Tambahkan prop onLogout di sini
+export default function EnhancedNavbar({ onLogout }) {
   const navigate = useNavigate();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
