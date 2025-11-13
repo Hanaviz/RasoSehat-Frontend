@@ -1,6 +1,6 @@
 // hanaviz/rasosehat-frontend/RasoSehat-Frontend-8fe64945ce814624136f2a939b0264a9e138ff80/src/components/Layout.jsx
 
-import React, { useState } from 'react'; // 👈 Tambahkan import useState
+import React, { useState, useEffect } from 'react'; // 👈 Tambahkan import useState
 import { useLocation, Outlet } from 'react-router-dom';
 // Import komponen yang diperlukan
 import Navbar from './navbar'; 
@@ -10,13 +10,34 @@ import Footer from './Footer';
 export default function Layout() {
   const location = useLocation();
 
-  // Mock status autentikasi. Ganti ini dengan state Auth Context/Redux yang sebenarnya.
-  // const isAuthenticated = true; // ❌ Hapus baris ini
-  const [isAuthenticated, setIsAuthenticated] = useState(true); // 👈 Gunakan useState untuk status otentikasi
+  // Baca status autentikasi dari localStorage (frontend-only).
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    try {
+      return localStorage.getItem('isAuthenticated') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  // Sinkronisasi perubahan auth antar tab/jendela (jika ada)
+  useEffect(() => {
+    const onStorage = (e) => {
+      if (e.key === 'isAuthenticated') {
+        setIsAuthenticated(e.newValue === 'true');
+      }
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, []);
 
   // Fungsi untuk Logout
   const handleLogout = () => {
     // Di sini adalah tempat untuk menghapus token/session/cookie pengguna.
+    try {
+      localStorage.removeItem('isAuthenticated');
+    } catch {
+      // ignore
+    }
     console.log('User logged out. Switching to unauthenticated navbar.');
     setIsAuthenticated(false); // 👈 Atur status ke false untuk memuat Navbar unauthenticated
   };

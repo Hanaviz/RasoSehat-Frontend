@@ -1,14 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom'; // 👈 Import Link dan useNavigate
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { LocateFixed } from 'lucide-react'; // 👈 Import ikon Lokasi
 
 export default function HeroSection() {
   const navigate = useNavigate(); // 👈 Gunakan useNavigate
   const [currentSlide, setCurrentSlide] = useState(0);
   const [location, setLocation] = useState('');
-  // State showLocationModal dihapus karena tidak digunakan lagi
-  // const [showLocationModal, setShowLocationModal] = useState(false);
+  const [showMapModal, setShowMapModal] = useState(false);
+  const [selectedCoords, setSelectedCoords] = useState(null);
 
   // Hero carousel images data
   const heroSlides = [
@@ -76,6 +76,137 @@ export default function HeroSection() {
     setLocation("Limau Manih, Padang"); 
   };
   // END LOGIC LOCATION CHOOSER
+
+  // GOOGLE MAPS INTEGRATION
+  const mapRef = useRef(null);
+  const markerRef = useRef(null);
+  const mapInstanceRef = useRef(null);
+  const [mapError, setMapError] = useState('');
+
+  // Inisialisasi peta Google Maps
+  useEffect(() => {
+    if (showMapModal && mapRef.current && !mapInstanceRef.current) {
+      // Tunggu sampai Google Maps API siap
+      const checkGoogleMaps = setInterval(() => {
+        if (window.google && window.google.maps) {
+          clearInterval(checkGoogleMaps);
+          try {
+            console.log('Google Maps API loaded, initializing map...');
+            const newMap = new window.google.maps.Map(mapRef.current, {
+              zoom: 13,
+              center: { lat: -0.9471, lng: 100.4172 }, // Pusat Padang
+              mapTypeId: 'roadmap'
+            });
+
+            // Set koordinat awal (so button is enabled by default)
+            const initialCoords = { lat: -0.9471, lng: 100.4172 };
+            setSelectedCoords(initialCoords);
+            console.log('Initial coordinates set:', initialCoords);
+
+            // Buat marker awal di tengah peta
+            const marker = new window.google.maps.Marker({
+              position: initialCoords,
+              map: newMap,
+              draggable: true,
+              title: 'Pilih Lokasi Anda'
+            });
+
+            // Event saat peta diklik
+            newMap.addListener('click', (e) => {
+              const clickedLat = e.latLng.lat();
+              const clickedLng = e.latLng.lng();
+              const newCoords = { lat: clickedLat, lng: clickedLng };
+              console.log('Map clicked, new coords:', newCoords);
+              marker.setPosition(e.latLng);
+              setSelectedCoords(newCoords);
+            });
+
+            // Event saat marker di-drag
+            marker.addListener('dragend', () => {
+              const markerLat = marker.getPosition().lat();
+              const markerLng = marker.getPosition().lng();
+              const newCoords = { lat: markerLat, lng: markerLng };
+              console.log('Marker dragged, new coords:', newCoords);
+              setSelectedCoords(newCoords);
+            });
+
+            mapInstanceRef.current = newMap;
+            markerRef.current = marker;
+            setMapError('');
+            console.log('Map initialized successfully!');
+          } catch (error) {
+            console.error('Error initializing map:', error);
+            setMapError('Gagal memuat peta. Periksa browser console untuk detail.');
+          }
+        }
+      }, 100);
+
+      // Timeout jika API tidak siap dalam 5 detik
+      const timeout = setTimeout(() => {
+        clearInterval(checkGoogleMaps);
+        if (!mapInstanceRef.current) {
+          console.warn('Google Maps API timeout - API may not be loaded');
+          setMapError('Google Maps API tidak merespons. Periksa koneksi internet dan API key.');
+        }
+      }, 5000);
+
+      return () => {
+        clearInterval(checkGoogleMaps);
+        clearTimeout(timeout);
+      };
+    }
+  }, [showMapModal]);
+
+  // Fungsi untuk menggunakan lokasi dari peta
+  const handleUseMapLocation = async () => {
+    console.log('handleUseMapLocation called, selectedCoords:', selectedCoords);
+    if (selectedCoords) {
+      try {
+        // Gunakan Geocoding API untuk mendapatkan nama tempat dari koordinat
+        const geocoder = new window.google.maps.Geocoder();
+        console.log('Geocoding location:', selectedCoords);
+        geocoder.geocode({ location: selectedCoords }, (results, status) => {
+          console.log('Geocoding result status:', status);
+          if (status === 'OK' && results[0]) {
+            const locationName = results[0].formatted_address;
+            console.log('Location found:', locationName);
+            setLocation(locationName);
+            setShowMapModal(false);
+            // Reset map untuk next time
+            mapInstanceRef.current = null;
+          } else {
+            console.warn('Geocoding failed:', status);
+            // Fallback: gunakan koordinat sebagai string
+            const coordString = `${selectedCoords.lat.toFixed(4)}, ${selectedCoords.lng.toFixed(4)}`;
+            setLocation(coordString);
+            setShowMapModal(false);
+            mapInstanceRef.current = null;
+          }
+        });
+      } catch (error) {
+        console.error('Error geocoding:', error);
+        // Fallback jika error
+        const coordString = `${selectedCoords.lat.toFixed(4)}, ${selectedCoords.lng.toFixed(4)}`;
+        setLocation(coordString);
+        setShowMapModal(false);
+        mapInstanceRef.current = null;
+      }
+    } else {
+      console.warn('No coordinates selected');
+    }
+  };
+
+  // Fungsi untuk membuka map modal
+  const handleOpenMapModal = () => {
+    setShowMapModal(true);
+  };
+
+  // Fungsi untuk menutup map modal
+  const handleCloseMapModal = () => {
+    setShowMapModal(false);
+    mapInstanceRef.current = null;
+  };
+  // END GOOGLE MAPS INTEGRATION
 
   return (
     <div className="pt-16 sm:pt-20 md:pt-24 lg:pt-28 bg-gradient-to-b from-green-50 to-white pb-8">
@@ -179,8 +310,10 @@ export default function HeroSection() {
                         type="text"
                         value={location}
                         onChange={(e) => setLocation(e.target.value)}
+                        onClick={handleOpenMapModal}
                         placeholder="Masukkan Area / Kecamatan"
-                        className="w-full pl-10 pr-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-sm sm:text-base"
+                        className="w-full pl-10 pr-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-sm sm:text-base cursor-pointer"
+                        readOnly
                       />
                       {/* Tombol GPS untuk lokasi saat ini */}
                       <button 
@@ -202,6 +335,78 @@ export default function HeroSection() {
                 </form>
               </div>
             </div>
+
+            {/* Google Maps Modal */}
+            <AnimatePresence>
+              {showMapModal && (
+                <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4">
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.9 }}
+                    transition={{ duration: 0.3 }}
+                    className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col"
+                  >
+                  {/* Header */}
+                  <div className="p-4 sm:p-6 border-b border-gray-200 flex items-center justify-between">
+                    <h2 className="text-xl sm:text-2xl font-bold text-gray-800">
+                      Pilih Lokasi dari Peta
+                    </h2>
+                    <button
+                      onClick={handleCloseMapModal}
+                      className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                    >
+                      <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+
+                  {/* Map Container */}
+                  <div className="flex-1 overflow-hidden">
+                    {mapError ? (
+                      <div className="w-full h-full min-h-[400px] flex items-center justify-center bg-gray-100">
+                        <div className="text-center text-red-600">
+                          <p className="font-semibold">{mapError}</p>
+                          <p className="text-sm mt-2">Pastikan Anda memiliki API key Google Maps yang valid.</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div 
+                        ref={mapRef}
+                        className="w-full h-full min-h-[400px]"
+                        style={{ minHeight: '400px' }}
+                      />
+                    )}
+                  </div>
+
+                  {/* Footer dengan tombol aksi */}
+                  <div className="p-4 sm:p-6 border-t border-gray-200 bg-gray-50 flex gap-3">
+                    <button
+                      onClick={handleCloseMapModal}
+                      className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-100 transition-colors"
+                    >
+                      Batal
+                    </button>
+                    <button
+                      onClick={handleUseMapLocation}
+                      disabled={!selectedCoords}
+                      className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-300 text-white font-semibold rounded-lg transition-colors"
+                    >
+                      Gunakan Lokasi Ini
+                    </button>
+                  </div>
+
+                  {/* Info Helper */}
+                  {selectedCoords && (
+                    <div className="px-4 sm:px-6 py-3 bg-blue-50 text-blue-800 text-sm border-t border-blue-200">
+                      ✓ Lokasi dipilih: ({selectedCoords.lat.toFixed(4)}, {selectedCoords.lng.toFixed(4)})
+                    </div>
+                  )}
+                </motion.div>
+              </div>
+              )}
+            </AnimatePresence>
           </div>
 
     {/* Categories Section */}

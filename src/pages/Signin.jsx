@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff } from 'lucide-react';
 import HeroSidebar from '../components/HeroSidebar';
 
@@ -10,6 +10,7 @@ export default function SignInPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const navigate = useNavigate();
 
   const handleSubmit = () => {
     if (!email || !password) {
@@ -21,8 +22,17 @@ export default function SignInPage() {
     setTimeout(() => {
       setIsLoading(false);
       setIsSuccess(true);
-      // small success state then reset (or redirect)
-      setTimeout(() => setIsSuccess(false), 1200);
+      // small success state then redirect to home (frontend-only)
+      try {
+        // mark as authenticated (frontend only)
+        localStorage.setItem('isAuthenticated', 'true');
+      } catch (e) {
+        console.warn('localStorage not available', e);
+      }
+      setTimeout(() => {
+        // navigate to home (Herosection)
+        navigate('/');
+      }, 700);
     }, 1200);
   };
 

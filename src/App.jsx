@@ -1,6 +1,6 @@
 // src/App.jsx
 
-import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, useLocation, Navigate } from "react-router-dom";
 import { AnimatePresence, motion } from 'framer-motion';
 // Hapus import Navbar/NavbarAuth di sini, karena sudah diurus oleh Layout
 import Layout from "./components/Layout";
@@ -18,6 +18,17 @@ import MyStorePage from "./pages/MyStorePage";
 import SettingsPage from "./pages/SettingsPage"; // 👈 IMPORT BARU
 // END: Tambahkan import untuk halaman toko dan settings
 
+// Small frontend-only protection component: redirects to /signin when not authenticated
+function ProtectedRoute({ children }) {
+  let isAuth = false;
+  try {
+    isAuth = localStorage.getItem('isAuthenticated') === 'true';
+  } catch {
+    isAuth = false;
+  }
+  if (!isAuth) return <Navigate to="/signin" replace />;
+  return children;
+}
 
 function AppContent() {
   const location = useLocation();
@@ -38,7 +49,11 @@ function AppContent() {
           <Route path="/signup" element={<SignUpPage />} />
 
           {/* 2. Parent Route: Layout (Menggunakan Navbar & Footer) */}
-          <Route path="/" element={<Layout />}>
+          <Route path="/" element={
+            <ProtectedRoute>
+              <Layout />
+            </ProtectedRoute>
+          }>
             
             {/* Nested Routes (Content yang Ditampilkan di dalam Layout) */}
             <Route index element={<HeroSection />} /> 
