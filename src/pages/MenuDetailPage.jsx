@@ -32,6 +32,7 @@ const mockMenuData = {
       "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=800&h=600&fit=crop",
     restaurant: {
       name: "Healthy Corner",
+      slug: "healthy-corner",
       address: "Jl. Limau Manih No. 12, Padang",
       phone: "62812xxxxxxx", // Ganti dengan nomor WA asli
       distance: "0.5 km",
@@ -224,9 +225,12 @@ export default function MenuDetailPage() {
                 <Utensils className="w-6 h-6 text-green-500" /> Informasi
                 Penjual
               </h3>
-              <p className="text-base font-semibold text-gray-700 mb-2">
+              <Link
+                to={`/restaurant/${menu.restaurant.slug}`}
+                className="text-base font-semibold text-gray-700 mb-2 hover:text-green-600 transition-colors underline"
+              >
                 {menu.restaurant.name}
-              </p>
+              </Link>
               <div className="space-y-3">
                 <div className="flex items-center gap-3 text-gray-600">
                   <MapPin className="w-5 h-5 text-red-500 flex-shrink-0" />

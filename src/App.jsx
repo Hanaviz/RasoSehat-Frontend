@@ -17,6 +17,7 @@ import RegisterStorePage from "./pages/RegisterStorePage";
 import MyStorePage from "./pages/MyStorePage"; 
 import SettingsPage from "./pages/SettingsPage"; // 👈 IMPORT BARU
 // END: Tambahkan import untuk halaman toko dan settings
+import RestaurantDetailPage from "./pages/RestaurantDetailPage";
 
 // Small frontend-only protection component: redirects to /signin when not authenticated
 function ProtectedRoute({ children }) {
@@ -48,7 +49,13 @@ function AppContent() {
           <Route path="/signin" element={<SignInPage />} />
           <Route path="/signup" element={<SignUpPage />} />
 
-          {/* 2. Parent Route: Layout (Menggunakan Navbar & Footer) */}
+          {/* Public: Restaurant detail should be accessible without login.
+              Wrap it with Layout so Navbar/Footer remain visible. */}
+          <Route path="/restaurant/:slug" element={<Layout />}>
+            <Route index element={<RestaurantDetailPage />} />
+          </Route>
+
+          {/* 2. Parent Route: Layout (Menggunakan Navbar & Footer) - Protected */}
           <Route path="/" element={
             <ProtectedRoute>
               <Layout />
@@ -69,7 +76,6 @@ function AppContent() {
             {/* START: Route Settings Page BARU */}
             <Route path="/settings" element={<SettingsPage />} /> 
             {/* END: Route Settings Page BARU */}
-            
           </Route>
           
         </Routes>
