@@ -1,3 +1,5 @@
+// src/App.jsx
+
 import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router-dom";
 import { AnimatePresence, motion } from 'framer-motion';
 // Hapus import Navbar/NavbarAuth di sini, karena sudah diurus oleh Layout
@@ -10,10 +12,11 @@ import MenuDetailPage from "./pages/MenuDetailPage";
 import SearchResultsPage from "./pages/SearchResultsPage"; 
 import CategoryPage from "./pages/CategoryPage"; 
 
-// 👈 START: Tambahkan import untuk halaman toko
+// START: Tambahkan import untuk halaman toko dan settings
 import RegisterStorePage from "./pages/RegisterStorePage"; 
 import MyStorePage from "./pages/MyStorePage"; 
-// END: Tambahkan import untuk halaman toko
+import SettingsPage from "./pages/SettingsPage"; // 👈 IMPORT BARU
+// END: Tambahkan import untuk halaman toko dan settings
 
 
 function AppContent() {
@@ -42,14 +45,15 @@ function AppContent() {
             <Route path="/profile" element={<ProfilePage />} /> 
             <Route path="/menu/:slug" element={<MenuDetailPage />} /> 
             <Route path="/search" element={<SearchResultsPage />} />
-            
-            {/* ROUTE BARU untuk Halaman Kategori (Dinamic) */}
             <Route path="/category/:categorySlug" element={<CategoryPage />} />
             
-            {/* 👈 START: Tambahkan Route Toko Baru */}
-            <Route path="/register-store" element={<RegisterStorePage />} /> {/* Menampilkan Form Pendaftaran Toko */}
-            <Route path="/my-store" element={<MyStorePage />} />             {/* Menampilkan Dashboard Toko (Placeholder) */}
-            {/* END: Tambahkan Route Toko Baru */}
+            {/* Route Toko */}
+            <Route path="/register-store" element={<RegisterStorePage />} /> 
+            <Route path="/my-store" element={<MyStorePage />} />             
+            
+            {/* START: Route Settings Page BARU */}
+            <Route path="/settings" element={<SettingsPage />} /> 
+            {/* END: Route Settings Page BARU */}
             
           </Route>
           
