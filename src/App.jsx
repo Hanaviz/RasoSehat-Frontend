@@ -22,7 +22,7 @@ import MyStorePage from "./pages/MyStorePage";
 import SettingsPage from "./pages/SettingsPage";
 // END: Tambahkan import untuk halaman toko dan settings
 import RestaurantDetailPage from "./pages/RestaurantDetailPage"; // Sudah ada
-
+import AddMenuPage from "./pages/AddMenuPage";
 // Small frontend-only protection component: redirects to /signin when not authenticated
 function ProtectedRoute({ children }) {
   let isAuth = false;
@@ -53,6 +53,7 @@ function AppContent() {
           {/* 1. Route Khusus (Tanpa Navbar/Footer - Full Screen) */}
                     <Route path="/signin" element={<SignInPage />} />
                     <Route path="/signup" element={<SignUpPage />} />         {" "}
+                    <Route path="/add-menu" element={<AddMenuPage />} />  
           {/* Public: Restaurant detail (di sini kami menggunakan struktur standar React Router) */}
                    {" "}
           <Route path="/restaurant/:slug" element={<Layout />}>
@@ -83,6 +84,7 @@ function AppContent() {
             {/* Route Toko - MyStorePage kini memuat logika pemisah Pending/Verified */}
                        {" "}
             <Route path="/register-store" element={<RegisterStorePage />} />
+            
                         <Route path="/my-store" element={<MyStorePage />} />    
                                             {/* Route Settings Page */}
                         <Route path="/settings" element={<SettingsPage />} />   
