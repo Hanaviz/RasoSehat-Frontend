@@ -30,6 +30,42 @@ export default function HeroSection() {
   // Tampilkan hanya 8 kategori pertama di awal, atau semua jika showAllCategories
   const displayedCategories = showAllCategories ? allCategories : allCategories.slice(0, 8);
 
+  // Data menu per kategori (lebih banyak isi untuk memperbanyak konten di HeroSection)
+  const categoriesMenus = [
+    {
+      title: 'Rendah Kalori',
+      slug: 'rendah-kalori',
+      items: [
+        { id: 'g1', name: 'Green Goddess Smoothie', slug: 'green-goddess-smoothie', price: '18.000', rating: 4.6, prepTime: '5-10 menit', image: 'https://images.unsplash.com/photo-1638176066666-ffb2f013c7dd?w=400&h=300&fit=crop', restaurantName: 'Healthy Corner', restaurantSlug: 'healthy-corner' },
+        { id: 'g2', name: 'Smoothie Berry Blast', slug: 'berry-blast-smoothie', price: '20.000', rating: 4.5, prepTime: '5-8 menit', image: 'https://images.unsplash.com/photo-1542444459-db3d2d1f48b4?w=400&h=300&fit=crop', restaurantName: 'Fresh Juice Bar', restaurantSlug: 'fresh-juice-bar' },
+        { id: 'g3', name: 'Tropical Fruit Bowl', slug: 'tropical-fruit-bowl', price: '12.000', rating: 4.5, prepTime: '5-8 menit', image: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&h=300&fit=crop', restaurantName: 'Salad Delight', restaurantSlug: 'salad-delight' },
+      ]
+    },
+    {
+      title: 'Salad & Bowl',
+      slug: 'salad-bowl',
+      items: [
+        { id: 's1', name: 'Rainbow Buddha Bowl', slug: 'buddha-bowl', price: '25.000', rating: 4.8, prepTime: '15-20 menit', image: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=400&h=300&fit=crop', restaurantName: 'Healthy Corner', restaurantSlug: 'healthy-corner' },
+        { id: 's2', name: 'Quinoa Power Bowl', slug: 'quinoa-power-bowl', price: '30.000', rating: 4.7, prepTime: '12-18 menit', image: 'https://images.unsplash.com/photo-1504754524776-8f4f37790ca0?w=400&h=300&fit=crop', restaurantName: 'Grain Goodness', restaurantSlug: 'grain-goodness' },
+      ]
+    },
+    {
+      title: 'Main Course',
+      slug: 'main-course',
+      items: [
+        { id: 'm1', name: 'Ayam Panggang Keto', slug: 'ayam-panggang-keto', price: '45.000', rating: 4.6, prepTime: '20-30 menit', image: 'https://images.unsplash.com/photo-1559400262-e2c7a5f973c9?w=400&h=300&fit=crop', restaurantName: 'Healthy Corner', restaurantSlug: 'healthy-corner' },
+        { id: 'm2', name: 'Steak Salmon Oven', slug: 'salmon-oven', price: '65.000', rating: 4.9, prepTime: '25-30 menit', image: 'https://images.unsplash.com/photo-1532551466723-5e921e10696b?w=400&h=300&fit=crop', restaurantName: 'Ocean Grille', restaurantSlug: 'ocean-grille' },
+      ]
+    },
+    {
+      title: 'Minuman Sehat',
+      slug: 'minuman-sehat',
+      items: [
+        { id: 'd1', name: 'Lemon Ginger Infuse', slug: 'lemon-ginger-infuse', price: '8.000', rating: 4.3, prepTime: '2-4 menit', image: 'https://images.unsplash.com/photo-1512058564366-c9e3f9972b54?w=400&h=300&fit=crop', restaurantName: 'Fresh Juice Bar', restaurantSlug: 'fresh-juice-bar' },
+      ]
+    }
+  ];
+
   // Hero carousel images data
   const heroSlides = [
     {
@@ -479,181 +515,53 @@ export default function HeroSection() {
             </p>
           </div>
 
-          {/* Food Cards Section */}
-          <div className="bg-white rounded-2xl shadow-md p-4 sm:p-6 border-2 border-green-200">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl sm:text-2xl font-bold text-green-600">Rendah kalori</h2>
-              <button className="text-green-600 hover:text-green-700 p-2 rounded-full hover:bg-green-50 transition-colors">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
-                </svg>
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-              {/* Card 1 - Green Goddess Smoothie */}
-              <div className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow group flex flex-col">
-                <Link 
-                  to="/menu/green-goddess-smoothie"
-                  className="block"
-                >
-                  <div className="relative">
-                    <img
-                      src="https://images.unsplash.com/photo-1638176066666-ffb2f013c7dd?w=400&h=300&fit=crop"
-                      alt="Green Goddess Smoothie"
-                      className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
-                    />
-                    <div className="absolute top-2 left-2 bg-green-500 text-white text-xs font-bold px-2 py-1 rounded-full">
-                      Smoothie
-                    </div>
-                    <div className="absolute top-2 right-2 bg-black text-white text-xs font-bold px-2 py-1 rounded-full">
-                      Buka
-                    </div>
-                  </div>
-                  <div className="p-4">
-                    <h3 className="font-bold text-gray-800 mb-1 text-sm sm:text-base group-hover:text-green-600 transition-colors">Green Goddess Smoothie</h3>
-                    <p className="text-xs text-gray-500 mb-3 line-clamp-2">
-                      Smoothie hijau dengan bayam, pisang, alpukat, dan protein powder
-                    </p>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-green-600 font-bold text-sm sm:text-base">Rp 18.000</span>
-                      <div className="flex items-center gap-1 text-yellow-500">
-                        <svg className="w-4 h-4 fill-current" viewBox="0 0 20 20">
-                          <path d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z"/>
-                        </svg>
-                        <span className="text-xs font-semibold text-gray-700">4.6</span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 text-xs text-gray-500">
-                      <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z"/>
-                      </svg>
-                      <span>0.8 km</span>
-                    </div>
-                    <div className="flex items-center gap-1 text-xs text-gray-500 mt-1">
-                      <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z"/>
-                      </svg>
-                      <span>5-10 menit</span>
-                    </div>
-                  </div>
-                </Link>
-                {/* Restaurant Name Link */}
-                <div className="px-4 py-3 border-t border-gray-200 bg-gray-50 mt-auto">
-                  <Link 
-                    to="/restaurant/healthy-corner"
-                    className="text-green-600 hover:text-green-700 hover:underline font-semibold text-sm transition-colors"
-                  >
-                    🏪 Healthy Corner
-                  </Link>
-                </div>
+          {/* Food Cards Section - render multiple categories with items */}
+          {categoriesMenus.map((cat) => (
+            <div key={cat.slug} className="bg-white rounded-2xl shadow-md p-4 sm:p-6 border-2 border-green-200 mb-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl sm:text-2xl font-bold text-green-600">{cat.title}</h2>
+                <Link to={`/category/${cat.slug}`} className="text-green-600 hover:text-green-700 p-2 rounded-full hover:bg-green-50 transition-colors text-sm font-medium">Lihat Semua</Link>
               </div>
 
-              {/* Card 2 - Selamat Datang */}
-              <div className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow group flex flex-col">
-                <Link 
-                  to="/menu/selamat-datang"
-                  className="block"
-                >
-                  <div className="relative">
-                    <img
-                      src="https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&h=300&fit=crop"
-                      alt="Selamat Datang"
-                      className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
-                    />
-                    <div className="absolute top-2 right-2 bg-black text-white text-xs font-bold px-2 py-1 rounded-full">
-                      Buka
-                    </div>
-                  </div>
-                  <div className="p-4">
-                    <h3 className="font-bold text-gray-800 mb-1 text-sm sm:text-base group-hover:text-green-600 transition-colors">Selamat Datang</h3>
-                    <p className="text-xs text-gray-500 mb-3 line-clamp-2">
-                      Menu spesial dengan bahan-bahan segar dan berkualitas
-                    </p>
-                    <div className="flex items-center gap-2 text-xs text-gray-500">
-                      <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z"/>
-                      </svg>
-                      <span>0.6 km</span>
-                    </div>
-                    <div className="flex items-center gap-1 text-xs text-gray-500 mt-1">
-                      <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z"/>
-                      </svg>
-                      <span>15-20 menit</span>
-                    </div>
-                  </div>
-                </Link>
-                {/* Restaurant Name Link */}
-                <div className="px-4 py-3 border-t border-gray-200 bg-gray-50 mt-auto">
-                  <Link 
-                    to="/restaurant/warung-selamat"
-                    className="text-green-600 hover:text-green-700 hover:underline font-semibold text-sm transition-colors"
-                  >
-                    🏪 Warung Selamat
-                  </Link>
-                </div>
-              </div>
-
-              {/* Card 3 - Rainbow Buddha Bowl */}
-              <div className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow group flex flex-col">
-                <Link 
-                  to="/menu/buddha-bowl"
-                  className="block"
-                >
-                  <div className="relative">
-                    <img
-                      src="https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=400&h=300&fit=crop"
-                      alt="Rainbow Buddha Bowl"
-                      className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
-                    />
-                    <div className="absolute top-2 left-2 bg-green-500 text-white text-xs font-bold px-2 py-1 rounded-full">
-                      Salad
-                    </div>
-                    <div className="absolute top-2 right-2 bg-black text-white text-xs font-bold px-2 py-1 rounded-full">
-                      Buka
-                    </div>
-                  </div>
-                  <div className="p-4">
-                    <h3 className="font-bold text-gray-800 mb-1 text-sm sm:text-base group-hover:text-green-600 transition-colors">Rainbow Buddha Bowl</h3>
-                    <p className="text-xs text-gray-500 mb-3 line-clamp-2">
-                      Bowl sehati dengan quinoa, sayuran, alpukat, dan tahini dressing
-                    </p>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-green-600 font-bold text-sm sm:text-base">Rp 25.000</span>
-                      <div className="flex items-center gap-1 text-yellow-500">
-                        <svg className="w-4 h-4 fill-current" viewBox="0 0 20 20">
-                          <path d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z"/>
-                        </svg>
-                        <span className="text-xs font-semibold text-gray-700">4.8</span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                {cat.items.map((menu) => (
+                  <div key={menu.id} className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow group flex flex-col">
+                    <Link to={`/menu/${menu.slug}`} className="block">
+                      <div className="relative">
+                        <img src={menu.image} alt={menu.name} className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300" />
+                        <div className="absolute top-2 left-2 bg-green-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                          {cat.title.split(' ')[0]}
+                        </div>
+                        <div className="absolute top-2 right-2 bg-black text-white text-xs font-bold px-2 py-1 rounded-full">Buka</div>
                       </div>
-                    </div>
-                    <div className="flex items-center gap-2 text-xs text-gray-500">
-                      <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z"/>
-                      </svg>
-                      <span>0.5 km</span>
-                    </div>
-                    <div className="flex items-center gap-1 text-xs text-gray-500 mt-1">
-                      <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z"/>
-                      </svg>
-                      <span>15-20 menit</span>
+                      <div className="p-4">
+                        <h3 className="font-bold text-gray-800 mb-1 text-sm sm:text-base group-hover:text-green-600 transition-colors">{menu.name}</h3>
+                        <p className="text-xs text-gray-500 mb-3 line-clamp-2">{menu.description || ''}</p>
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-green-600 font-bold text-sm sm:text-base">Rp {menu.price}</span>
+                          <div className="flex items-center gap-1 text-yellow-500">
+                            <svg className="w-4 h-4 fill-current" viewBox="0 0 20 20"><path d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z"/></svg>
+                            <span className="text-xs font-semibold text-gray-700">{menu.rating}</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-gray-500">
+                          <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z"/></svg>
+                          <span>{menu.distance || ''}</span>
+                        </div>
+                        <div className="flex items-center gap-1 text-xs text-gray-500 mt-1">
+                          <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z"/></svg>
+                          <span>{menu.prepTime}</span>
+                        </div>
+                      </div>
+                    </Link>
+                    <div className="px-4 py-3 border-t border-gray-200 bg-gray-50 mt-auto">
+                      <Link to={`/restaurant/${menu.restaurantSlug}`} className="text-green-600 hover:text-green-700 hover:underline font-semibold text-sm transition-colors">🏪 {menu.restaurantName}</Link>
                     </div>
                   </div>
-                </Link>
-                {/* Restaurant Name Link */}
-                <div className="px-4 py-3 border-t border-gray-200 bg-gray-50 mt-auto">
-                  <Link 
-                    to="/restaurant/healthy-corner"
-                    className="text-green-600 hover:text-green-700 hover:underline font-semibold text-sm transition-colors"
-                  >
-                    🏪 Healthy Corner
-                  </Link>
-                </div>
+                ))}
               </div>
             </div>
-          </div>
+          ))}
         </div>
     </div>
   );
