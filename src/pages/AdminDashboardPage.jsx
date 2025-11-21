@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { LayoutDashboard, Store, Utensils, CheckCircle, Clock, User, MapPin, Phone, Mail, X, LogOut, MessageSquare, Menu } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -140,6 +141,7 @@ const VerificationModal = ({ type, data, onClose, onVerify, onReject }) => (
 );
 
 export default function AdminDashboardPage() {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('merchants');
   const [selectedItem, setSelectedItem] = useState(null);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
@@ -156,7 +158,7 @@ export default function AdminDashboardPage() {
   
   const handleAdminLogout = () => {
     localStorage.removeItem("isAuthenticated");
-    alert('Logout berhasil!');
+    navigate('/signin');
   };
 
   // Tampilan Tabel Merchant

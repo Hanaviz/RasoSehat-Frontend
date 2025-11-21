@@ -89,14 +89,15 @@ function AppContent() {
             <Route path="/my-store" element={<MyStorePage />} /> 
             <Route path="/add-menu" element={<AddMenuPage />} /> 
             
-            {/* Admin Routes */}
-            {/* Menggunakan nama /admin-dashboard untuk menghindari konflik dengan alias lama */}
-            <Route path="/admin-dashboard" element={<AdminDashboardPage />} /> 
+            {/* Admin Routes (moved out so admin page does NOT render the site Layout/Navbar) */}
+            {/* Admin page will be protected but rendered without the main Layout component */}
             
           </Route>
           
           {/* Alias dari /admin ke /admin-dashboard */}
           <Route path="/admin" element={<Navigate to="/admin-dashboard" replace />} />
+          {/* Protected admin page without the site Layout (no Navbar) */}
+          <Route path="/admin-dashboard" element={<ProtectedRoute><AdminDashboardPage /></ProtectedRoute>} />
           
         </Routes>
       </motion.div>
