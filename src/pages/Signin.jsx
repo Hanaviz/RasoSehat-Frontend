@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff } from 'lucide-react';
 import HeroSidebar from '../components/HeroSidebar';
+import { useAuth } from '../context/AuthContext'; // <-- IMPORT BARU
 
 export default function SignInPage() {
   const [email, setEmail] = useState('');
@@ -10,30 +11,47 @@ export default function SignInPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [errorMessage, setErrorMessage] = useState(''); // <-- Tambah state error
+  
   const navigate = useNavigate();
+  const { login } = useAuth(); // <-- Ambil fungsi login dari AuthContext
 
-  const handleSubmit = () => {
+  const handleSubmit = async (e) => { // <-- JADIKAN ASYNC
+    e.preventDefault(); // Mencegah reload form
+    
+    setErrorMessage(''); // Reset error message
     if (!email || !password) {
-      alert('Mohon isi email dan password');
+      setErrorMessage('Mohon isi email dan password');
       return;
     }
+    
     setIsLoading(true);
-    // simulate login
-    setTimeout(() => {
-      setIsLoading(false);
-      setIsSuccess(true);
-      // small success state then redirect to home (frontend-only)
-      try {
-        // mark as authenticated (frontend only)
-        localStorage.setItem('isAuthenticated', 'true');
-      } catch (e) {
-        console.warn('localStorage not available', e);
-      }
-      setTimeout(() => {
-        // navigate to home (Herosection)
-        navigate('/');
-      }, 700);
-    }, 1200);
+    
+    try {
+        const credentials = { email, password };
+        const result = await login(credentials); // <-- PANGGIL FUNGSI LOGIN DARI CONTEXT
+
+        if (result.success) {
+            setIsSuccess(true);
+            
+            // Hapus logika localStorage & setTimeout mock
+            setTimeout(() => {
+                navigate('/'); // Arahkan ke beranda setelah berhasil
+            }, 700);
+
+        } else {
+            // Tampilkan pesan error dari backend
+            setErrorMessage(result.message || 'Login gagal. Periksa koneksi.');
+            setIsLoading(false);
+            setIsSuccess(false);
+        }
+
+    } catch (error) {
+        // Ini menangani error jika server Express tidak terjangkau
+        setErrorMessage('Gagal terhubung ke server. Coba lagi.');
+        setIsLoading(false);
+        setIsSuccess(false);
+    }
   };
 
   const pageVariants = {
@@ -88,107 +106,124 @@ export default function SignInPage() {
             </div>
           </div>
 
-              <motion.div className="bg-white rounded-2xl shadow-xl p-8 space-y-6 card-hover relative z-20"
-                whileHover={{ translateY: -4 }}
-                transition={{ type: 'spring', stiffness: 300, damping: 22 }}
-              >
-            <div className="text-center space-y-2">
-              <h2 className="text-3xl font-bold text-gray-800 fade-in-up delay-1">Selamat Datang</h2>
-              <p className="text-gray-600 fade-in-up delay-2">Temukan makanan sehat di sekitar anda</p>
-            </div>
-
-            <div className="space-y-5">
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                  Email
-                </label>
-                <input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="contoh: sehat@gmail.com"
-                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all outline-none input-focus fade-in-up delay-2"
-                />
+          {/* Form */}
+          <form onSubmit={handleSubmit}>
+            <motion.div className="bg-white rounded-2xl shadow-xl p-8 space-y-6 card-hover relative z-20"
+              whileHover={{ translateY: -4 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 22 }}
+            >
+              <div className="text-center space-y-2">
+                <h2 className="text-3xl font-bold text-gray-800 fade-in-up delay-1">Selamat Datang</h2>
+                <p className="text-gray-600 fade-in-up delay-2">Temukan makanan sehat di sekitar anda</p>
               </div>
 
-              <div>
-                <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-                  Password
-                </label>
-                <div className="relative">
+              {/* Error Message */}
+              <AnimatePresence>
+                  {errorMessage && (
+                      <motion.div 
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          exit={{ opacity: 0, height: 0 }}
+                          className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-xl relative overflow-hidden"
+                      >
+                          <p className="text-sm font-semibold">{errorMessage}</p>
+                      </motion.div>
+                  )}
+              </AnimatePresence>
+
+              <div className="space-y-5">
+                <div>
+                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                    Email
+                  </label>
                   <input
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Masukan password anda"
-                    className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all outline-none pr-12 input-focus fade-in-up delay-3"
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="contoh: sehat@gmail.com"
+                    className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all outline-none input-focus fade-in-up delay-2"
                   />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 transition-colors"
-                  >
-                    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                  </button>
+                </div>
+
+                <div>
+                  <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+                    Password
+                  </label>
+                  <div className="relative">
+                    <input
+                      id="password"
+                      type={showPassword ? "text" : "password"}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Masukan password anda"
+                      className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all outline-none pr-12 input-focus fade-in-up delay-3"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 transition-colors"
+                    >
+                      {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                    </button>
+                  </div>
+                </div>
+
+                <motion.button
+                  type="submit" // <-- Ubah ke type submit
+                  disabled={isLoading || isSuccess}
+                  className="w-full bg-gradient-to-r from-green-600 to-green-500 text-white py-3 rounded-lg font-semibold hover:from-green-700 hover:to-green-600 transition-all duration-300 transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl btn-press fade-in-up delay-4"
+                  whileTap={{ scale: 0.995 }}
+                >
+                  <AnimatePresence mode="wait">
+                    {isLoading && (
+                      <motion.span key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex items-center justify-center gap-2">
+                        <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Memproses...
+                      </motion.span>
+                    )}
+
+                    {!isLoading && !isSuccess && (
+                      <motion.span key="label" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>Submit</motion.span>
+                    )}
+
+                    {isSuccess && (
+                      <motion.span key="success" initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ opacity: 0 }} className="flex items-center justify-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="none">
+                          <path d="M6 10l2 2 6-6" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                        Berhasil
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
+                </motion.button>
+
+                <div className="text-center">
+                  <a href="#" className="text-sm text-green-600 hover:text-green-700 font-medium transition-colors">
+                    Lupa Password?
+                  </a>
                 </div>
               </div>
 
-              <motion.button
-                onClick={handleSubmit}
-                disabled={isLoading || isSuccess}
-                className="w-full bg-gradient-to-r from-green-600 to-green-500 text-white py-3 rounded-lg font-semibold hover:from-green-700 hover:to-green-600 transition-all duration-300 transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl btn-press fade-in-up delay-4"
-                whileTap={{ scale: 0.995 }}
-              >
-                <AnimatePresence mode="wait">
-                  {isLoading && (
-                    <motion.span key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex items-center justify-center gap-2">
-                      <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      Memproses...
-                    </motion.span>
-                  )}
-
-                  {!isLoading && !isSuccess && (
-                    <motion.span key="label" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>Submit</motion.span>
-                  )}
-
-                  {isSuccess && (
-                    <motion.span key="success" initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ opacity: 0 }} className="flex items-center justify-center gap-2">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="none">
-                        <path d="M6 10l2 2 6-6" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                      Berhasil
-                    </motion.span>
-                  )}
-                </AnimatePresence>
-              </motion.button>
-
-              <div className="text-center">
-                <a href="#" className="text-sm text-green-600 hover:text-green-700 font-medium transition-colors">
-                  Lupa Password?
-                </a>
+              <div className="pt-4 border-t border-gray-200 text-center">
+                <p className="text-gray-600 text-sm">
+                  Belum punya akun?{' '}
+                  <Link to="/signup" className="text-green-600 hover:text-green-700 font-semibold transition-colors">
+                    Daftar sekarang
+                  </Link>
+                </p>
               </div>
-            </div>
+            </motion.div>
+          </form>
 
-            <div className="pt-4 border-t border-gray-200 text-center">
-              <p className="text-gray-600 text-sm">
-                Belum punya akun?{' '}
-                <Link to="/signup" className="text-green-600 hover:text-green-700 font-semibold transition-colors">
-                  Daftar sekarang
-                </Link>
-              </p>
-            </div>
-        </motion.div>
-
-      <p className="text-center text-xs text-gray-500 mt-6">
-            © 2025 RasoSehat. Semua hak dilindungi
-          </p>
+          <p className="text-center text-xs text-gray-500 mt-6">
+              © 2025 RasoSehat. Semua hak dilindungi
+            </p>
+        </div>
       </div>
-    </div>
     </motion.div>
   );
 }

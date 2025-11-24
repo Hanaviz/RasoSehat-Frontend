@@ -1,8 +1,7 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
-import axios from 'axios';
-
-// 🚨 PENTING: URL ini harus disesuaikan jika server Laravel Anda berjalan di alamat lain
-const API_URL = 'http://127.0.0.1:8000/api/v1'; 
+import api from '../utils/api';
+// NOTE: api has baseURL pointing to http://localhost:3000/api by default
+const BASE_URL = '/auth';
 
 const AuthContext = createContext();
 
@@ -17,18 +16,17 @@ export const AuthProvider = ({ children }) => {
         const fetchUser = async () => {
             if (token) {
                 // Set header untuk request
-                axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+                api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
                 try {
-                    // Coba ambil data user (GET /api/v1/user)
-                    const response = await axios.get(`${API_URL}/user`); 
+                    // Coba ambil data user dari endpoint /user
+                    const response = await api.get(`/user`);
                     setUser(response.data);
                 } catch (error) {
-                    // Token kadaluarsa atau tidak valid di server
                     console.error('Token invalid or expired. Logging out.');
-                    handleLogoutLocal(); // Hapus data lokal
+                    handleLogoutLocal();
                 }
             } else {
-                delete axios.defaults.headers.common['Authorization'];
+                delete api.defaults.headers.common['Authorization'];
                 setUser(null);
             }
             setIsLoading(false);
@@ -42,43 +40,55 @@ export const AuthProvider = ({ children }) => {
         localStorage.removeItem('access_token');
         setToken(null);
         setUser(null);
-        delete axios.defaults.headers.common['Authorization'];
+        delete api.defaults.headers.common['Authorization'];
     };
 
-    // 2. LOGIN HANDLER (Memanggil POST /api/v1/login)
+    // 2. REGISTER HANDLER (Baru ditambahkan untuk SignUp.jsx)
+    const handleRegister = async (data) => {
+        try {
+            const response = await api.post(`${BASE_URL}/register`, data);
+            return { success: true, message: response.data.message || 'Pendaftaran berhasil' };
+        } catch (error) {
+             return {
+                success: false,
+                message: error.response?.data?.message || 'Pendaftaran Gagal. Periksa data dan koneksi.'
+            };
+        }
+    }
+
+    // 3. LOGIN HANDLER (Memanggil POST /api/auth/login)
     const handleLogin = async (credentials) => {
         setIsLoading(true);
         try {
-            const response = await axios.post(`${API_URL}/login`, credentials); // POST /api/v1/login
-            const { access_token, user } = response.data;
-            
+            const response = await api.post(`${BASE_URL}/login`, credentials);
+            const { token: access_token, user } = response.data;
+
             localStorage.setItem('access_token', access_token);
             setToken(access_token);
             setUser(user);
-            
-            // Set header untuk semua request selanjutnya
-            axios.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
-            
+
+            api.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
+
+            setIsLoading(false);
             return { success: true };
         } catch (error) {
             setIsLoading(false);
-            return { 
-                success: false, 
-                message: error.response?.data?.message || 'Login Gagal. Cek kredensial dan koneksi.' 
+            return {
+                success: false,
+                message: error.response?.data?.message || 'Login Gagal. Cek kredensial dan koneksi.'
             };
         }
     };
 
-    // 3. LOGOUT HANDLER (Memanggil POST /api/v1/logout)
+    // 4. LOGOUT HANDLER (Memanggil POST /api/auth/logout - Opsional)
     const handleLogout = async () => {
         setIsLoading(true);
         try {
-            // Panggil endpoint logout API Laravel untuk mencabut token di server
-            await axios.post(`${API_URL}/logout`); // POST /api/v1/logout
+            await api.post(`${BASE_URL}/logout`);
         } catch (error) {
             console.error('Logout failed on server, cleaning local data.', error);
         } finally {
-            handleLogoutLocal(); // Bersihkan state lokal
+            handleLogoutLocal();
             setIsLoading(false);
         }
     };
@@ -90,6 +100,7 @@ export const AuthProvider = ({ children }) => {
         isLoading,
         token,
         login: handleLogin,
+        register: handleRegister, // <-- Expose fungsi register
         logout: handleLogout,
         // Helper untuk cek role
         isAdmin: user?.role === 'admin',
@@ -105,8 +116,3 @@ export const AuthProvider = ({ children }) => {
 
 // Hook untuk menggunakan Auth Context
 export const useAuth = () => useContext(AuthContext);
-
-// 💡 PENTING: Anda perlu menginstal axios dan mengganti semua penggunaan localStorage 
-//             di Signin.jsx dan NavbarAuth.jsx dengan hook useAuth.
-
-// Untuk menggunakan Context ini, bungkus <App /> di main.jsx dengan <AuthProvider>.

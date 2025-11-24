@@ -1,6 +1,6 @@
 // src/pages/RestaurantDetailPage.jsx
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Utensils, MapPin, Star, Phone, Clock, MessageSquare, Briefcase, Globe, CheckCircle, AlertTriangle, ChevronRight, Menu, Loader } from 'lucide-react'; 
 import { motion } from 'framer-motion';
@@ -107,6 +107,62 @@ export default function RestaurantDetailPage() {
     // Cek apakah toko buka (mock sederhana)
     const isStoreOpen = true; 
 
+    // --- Local Reviews (client-side, stored in localStorage) ---
+    const reviewsStorageKey = `rs_reviews_${restaurant.slug}`;
+    const [localReviews, setLocalReviews] = useState([]);
+    const [reviewName, setReviewName] = useState('');
+    const [reviewRating, setReviewRating] = useState(5);
+    const [reviewComment, setReviewComment] = useState('');
+
+    useEffect(() => {
+        try {
+            const raw = localStorage.getItem(reviewsStorageKey);
+            if (raw) setLocalReviews(JSON.parse(raw));
+        } catch (err) {
+            console.warn('Failed to load local reviews', err);
+        }
+    }, [reviewsStorageKey]);
+
+    const totalReviews = useMemo(() => restaurant.reviewsCount + localReviews.length, [restaurant.reviewsCount, localReviews.length]);
+    const computedAverage = useMemo(() => {
+        const localSum = localReviews.reduce((s, r) => s + (Number(r.rating) || 0), 0);
+        const total = restaurant.reviewsCount + localReviews.length;
+        if (total === 0) return restaurant.rating || 0;
+        return ((restaurant.rating * restaurant.reviewsCount) + localSum) / total;
+    }, [restaurant.rating, restaurant.reviewsCount, localReviews]);
+
+    const handleSubmitReview = (e) => {
+        e.preventDefault();
+        const name = reviewName.trim() || 'Anonim';
+        const rating = Number(reviewRating) || 0;
+        const comment = reviewComment.trim();
+        if (rating < 1 || rating > 5) {
+            alert('Berikan penilaian antara 1 dan 5.');
+            return;
+        }
+        if (!comment) {
+            alert('Tuliskan komentar/ulasan Anda.');
+            return;
+        }
+        const newReview = {
+            id: Date.now(),
+            name,
+            rating,
+            comment,
+            date: new Date().toISOString(),
+        };
+        const updated = [newReview, ...localReviews];
+        setLocalReviews(updated);
+        try {
+            localStorage.setItem(reviewsStorageKey, JSON.stringify(updated));
+        } catch (err) {
+            console.warn('Failed to save review', err);
+        }
+        setReviewName('');
+        setReviewRating(5);
+        setReviewComment('');
+    };
+
     return (
         <div className="min-h-screen bg-gray-50 pt-24 md:pt-28 pb-12">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -133,10 +189,10 @@ export default function RestaurantDetailPage() {
                         {/* Detail Kanan: Rating & Status (Responsive Stacking) */}
                         <div className="flex flex-col items-start md:items-end gap-2 flex-shrink-0 w-full md:w-auto mt-4 md:mt-0">
                             <div className="flex items-center gap-2">
-                                <span className="text-4xl sm:text-5xl font-black text-yellow-500">{restaurant.rating}</span>
+                                <span className="text-4xl sm:text-5xl font-black text-yellow-500">{computedAverage.toFixed(1)}</span>
                                 <Star className="w-6 h-6 sm:w-8 sm:h-8 fill-current text-yellow-500"/>
                             </div>
-                            <p className="text-xs sm:text-sm text-gray-600 mb-2">{restaurant.reviewsCount} Ulasan • 75% Diproses</p>
+                            <p className="text-xs sm:text-sm text-gray-600 mb-2">{totalReviews} Ulasan • 75% Diproses</p>
                             
                             {/* Status Badge Group */}
                             <div className={`p-2 rounded-lg font-semibold text-xs sm:text-sm flex-shrink-0 flex items-center gap-2 ${restaurant.verified ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'} w-full justify-center md:justify-end`}>
@@ -251,7 +307,7 @@ export default function RestaurantDetailPage() {
                                         <div className="border-t border-gray-100 pt-3 flex justify-between items-center text-sm sm:text-base font-bold">
                                             <span className="text-gray-800">Rata-rata</span>
                                             <span className="text-green-600 flex items-center gap-1">
-                                                {restaurant.rating} <Star className="w-4 h-4 fill-current text-green-600"/>
+                                                {computedAverage.toFixed(1)} <Star className="w-4 h-4 fill-current text-green-600"/>
                                             </span>
                                         </div>
                                     </div>
@@ -305,14 +361,55 @@ export default function RestaurantDetailPage() {
                             <h3 className="text-xl sm:text-2xl font-bold text-gray-800 mb-4 sm:mb-5 border-b pb-2 flex items-center gap-2">
                                 <MessageSquare className="w-6 h-6 text-green-600"/> Ulasan Pengguna
                             </h3>
-                            <div className="text-center p-6 sm:p-8 bg-gray-50 rounded-xl border border-gray-200">
-                                <p className="text-2xl sm:text-3xl font-extrabold text-yellow-500 mb-2 flex items-center justify-center">
-                                    {restaurant.rating} <Star className="w-6 h-6 sm:w-7 sm:h-7 fill-current ml-2"/>
-                                </p>
-                                <p className="text-sm sm:text-base text-gray-700">Berdasarkan **{restaurant.reviewsCount}** ulasan yang terverifikasi.</p>
-                                <Link to={`/reviews/${restaurant.slug}`} className="mt-3 sm:mt-4 inline-block text-green-600 hover:underline font-semibold text-sm sm:text-base transition-colors">
-                                    Baca Semua Ulasan →
-                                </Link>
+                            <div className="space-y-4">
+                                <div className="text-center p-6 sm:p-8 bg-gray-50 rounded-xl border border-gray-200">
+                                    <p className="text-2xl sm:text-3xl font-extrabold text-yellow-500 mb-2 flex items-center justify-center">
+                                        {computedAverage.toFixed(1)} <Star className="w-6 h-6 sm:w-7 sm:h-7 fill-current ml-2"/>
+                                    </p>
+                                    <p className="text-sm sm:text-base text-gray-700">Berdasarkan <strong>{totalReviews}</strong> ulasan (termasuk ulasan lokal di browser Anda).</p>
+                                </div>
+
+                                {/* Submit Review Form (Client-side only) */}
+                                <form onSubmit={handleSubmitReview} className="bg-white p-4 sm:p-6 rounded-xl border border-gray-100">
+                                    <h4 className="font-semibold text-gray-800 mb-3">Tulis Ulasan Anda</h4>
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
+                                        <input value={reviewName} onChange={(e) => setReviewName(e.target.value)} placeholder="Nama (opsional)" className="col-span-2 px-3 py-2 border rounded-lg" />
+                                        <select value={reviewRating} onChange={(e) => setReviewRating(e.target.value)} className="px-3 py-2 border rounded-lg">
+                                            <option value={5}>5 — Sangat Baik</option>
+                                            <option value={4}>4 — Bagus</option>
+                                            <option value={3}>3 — Cukup</option>
+                                            <option value={2}>2 — Kurang</option>
+                                            <option value={1}>1 — Buruk</option>
+                                        </select>
+                                    </div>
+                                    <textarea value={reviewComment} onChange={(e) => setReviewComment(e.target.value)} rows={3} placeholder="Tulis komentar singkat tentang makanan atau layanan..." className="w-full px-3 py-2 border rounded-lg mb-3" />
+                                    <div className="flex justify-end">
+                                        <button type="submit" className="bg-green-600 hover:bg-green-700 text-white font-semibold px-4 py-2 rounded-lg">Kirim Ulasan</button>
+                                    </div>
+                                </form>
+
+                                {/* Recent Local Reviews */}
+                                <div className="space-y-3">
+                                    <h4 className="font-semibold text-gray-800">Ulasan Terbaru (Lokal)</h4>
+                                    {localReviews.length === 0 ? (
+                                        <div className="text-sm text-gray-600">Belum ada ulasan lokal. Jadilah yang pertama menulis ulasan!</div>
+                                    ) : (
+                                        <div className="space-y-3">
+                                            {localReviews.slice(0, 6).map((r) => (
+                                                <div key={r.id} className="bg-white p-3 rounded-lg border border-gray-100">
+                                                    <div className="flex items-center justify-between">
+                                                        <div className="font-semibold text-sm">{r.name}</div>
+                                                        <div className="flex items-center text-yellow-500 text-sm">
+                                                            {r.rating} <Star className="w-4 h-4 fill-current ml-1" />
+                                                        </div>
+                                                    </div>
+                                                    <p className="text-xs text-gray-500 mt-1">{new Date(r.date).toLocaleString()}</p>
+                                                    <p className="mt-2 text-gray-700 text-sm">{r.comment}</p>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </motion.div>
 

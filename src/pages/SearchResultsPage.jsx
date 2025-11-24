@@ -1,139 +1,96 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import {
-  Filter,
-  Search,
-  MapPin,
-  Star,
-  Utensils,
-  Heart,
-  Clock,
-  DollarSign,
+  Filter, Search, MapPin, Star, Utensils,
 } from "lucide-react";
 import { motion } from "framer-motion";
+import axios from "axios"; // <-- IMPORT AXIOS
 
-// Mock Data - Simulasi hasil dari Laravel API
-const mockResults = [
-  {
-    id: 1,
-    name: "Rainbow Buddha Bowl",
-    slug: "buddha-bowl",
-    restaurant: "Healthy Corner",
-    restaurantSlug: "healthy-corner",
-    price: "25.000",
-    rating: 4.8,
-    distance: 0.5,
-    category: "Vegetarian",
-    healthTag: "Rendah Kolesterol",
-    image:
-      "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=400&h=300&fit=crop",
-    description:
-      "Bowl sehati dengan Quinoa, sayuran segar, alpukat, dan dressing lemon mustard.",
-    time: "15-20 menit",
-  },
-  {
-    id: 2,
-    name: "Green Goddess Smoothie",
-    slug: "green-goddess-smoothie",
-    restaurant: "Fresh Juice Bar",
-    price: "18.000",
-    rating: 4.6,
-    distance: 0.8,
-    category: "Rendah Kalori",
-    healthTag: "Tinggi Protein",
-    image:
-      "https://images.unsplash.com/photo-1638176066666-ffb2f013c7dd?w=400&h=300&fit=crop",
-    description:
-      "Smoothie hijau dengan bayam, pisang, alpukat, dan protein powder.",
-    time: "5-10 menit",
-  },
-  {
-    id: 3,
-    name: "Ayam Panggang Keto",
-    slug: "ayam-panggang-keto",
-    restaurant: "Keto Kitchen Padang",
-    price: "45.000",
-    rating: 4.9,
-    distance: 1.2,
-    category: "Tinggi Protein",
-    healthTag: "Rendah Karbo",
-    image:
-      "https://images.unsplash.com/photo-1559400262-e2c7a5f973c9?w=400&h=300&fit=crop",
-    description:
-      "Paha ayam tanpa kulit dipanggang dengan bumbu rempah dan sayuran hijau.",
-    time: "25-30 menit",
-  },
-  {
-    id: 4,
-    name: "Oatmeal Rendah Gula",
-    slug: "oatmeal-rendah-gula",
-    restaurant: "Morning Boost",
-    price: "15.000",
-    rating: 4.5,
-    distance: 2.1,
-    category: "Rendah Gula",
-    healthTag: "Sarapan Sehat",
-    image:
-      "https://images.unsplash.com/photo-1586523299778-e56847c234a6?w=400&h=300&fit=crop",
-    description: "Oatmeal dengan buah beri dan pemanis alami Stevia.",
-    time: "5-10 menit",
-  },
-];
+const API_BASE_URL = 'http://localhost:3000/api'; // <-- DEFINISI BASE URL
 
+// Data kategori statis untuk filter UI
 const categories = [
   "Semua Kategori",
   "Rendah Kalori",
   "Rendah Gula",
   "Tinggi Protein",
   "Seimbang",
-  "Vegetarian",
+  "Vegetarian/Vegan",
 ];
 
 export default function SearchResultsPage() {
   const [searchParams] = useSearchParams();
-  const initialQuery = searchParams.get("q") || "";
+  const initialQuery = searchParams.get("q") || ""; // Ambil query pencarian
+  const initialLocation = searchParams.get("loc") || ""; // Ambil lokasi (jika ada)
 
-  // State Filter
+  // State Data
+  const [results, setResults] = useState([]); 
+  const [loading, setLoading] = useState(false);
+  
+  // State Filter Lokal (hanya untuk UI, filter utama di backend)
   const [activeFilter, setActiveFilter] = useState("Semua Kategori");
   const [minRating, setMinRating] = useState(0);
-  const [results, setResults] = useState(mockResults);
-  const [filteredResults, setFilteredResults] = useState(mockResults);
+  // NOTE: filteredResults dihilangkan, cukup gunakan 'results' yang sudah di-fetch
 
+  // 💡 FUNGSI FETCH DATA PENCARIAN
+  const fetchSearchResults = useCallback(async (query, categoryName) => {
+    setLoading(true);
+    // CATATAN: Karena tabel kategori_makanan menggunakan ID, kita perlu ID kategori
+    // Implementasi ini disederhanakan dengan hanya mengirim query string.
+    
+    // Construct URL API Search
+    let url = `${API_BASE_URL}/menus/search?`;
+    if (query) {
+        url += `q=${encodeURIComponent(query)}&`;
+    }
+    // Jika Anda memiliki ID Kategori yang sesuai, kirimkan:
+    // if (categoryId) { url += `category_id=${categoryId}&`; }
+
+    // Tambahkan filter Rating/Lokasi di frontend jika tidak ingin membebani backend
+    
+    try {
+        const response = await axios.get(url);
+        
+        // Memproses slug menu dan restoran (karena API hanya memberikan nama)
+        const processedResults = response.data.map(item => {
+            const slug = item.nama_menu.toLowerCase().replace(/\s/g, '-').replace(/[^\w-]+/g, '');
+            const restaurantSlug = item.nama_restoran.toLowerCase().replace(/\s/g, '-').replace(/[^\w-]+/g, '');
+
+            // Mengambil klaim pertama sebagai healthTag untuk tampilan card
+            const healthTag = Array.isArray(item.diet_claims) && item.diet_claims.length > 0
+                ? item.diet_claims[0]
+                : 'Sehat Umum';
+            
+            return {
+                ...item,
+                slug,
+                restaurantSlug,
+                healthTag,
+                rating: 4.5, // Mock Rating
+                price: item.harga,
+                description: item.deskripsi,
+                name: item.nama_menu,
+                restaurant: item.nama_restoran,
+            };
+        });
+
+        setResults(processedResults);
+    } catch (error) {
+        console.error('Gagal mengambil hasil pencarian:', error);
+        setResults([]);
+    } finally {
+        setLoading(false);
+    }
+  }, []); // dependencies kosong karena hanya menggunakan searchParams
+
+  // 💡 EFFECT: Panggil API saat query berubah
   useEffect(() => {
-    // 1. (API INTEGRATION STEP): Panggil API Laravel di sini
-    // const fetchedResults = await axios.get(`/api/search?q=${initialQuery}`);
-    // setResults(fetchedResults.data);
+    // Implementasi filter UI: Anda dapat memanggil fetchSearchResults dengan filter aktif di sini
+    // Untuk saat ini, kita panggil hanya dengan initialQuery
+    fetchSearchResults(initialQuery, null); 
+  }, [initialQuery, fetchSearchResults]);
 
-    // 2. Terapkan Filter
-    const applyFilters = () => {
-      let tempResults = results.filter((item) => {
-        // Filter Kategori
-        if (
-          activeFilter !== "Semua Kategori" &&
-          item.category !== activeFilter
-        ) {
-          return false;
-        }
-        // Filter Rating
-        if (item.rating < minRating) {
-          return false;
-        }
-        // Filter Query (simulasi pencarian)
-        if (
-          initialQuery &&
-          !item.name.toLowerCase().includes(initialQuery.toLowerCase())
-        ) {
-          return false;
-        }
-        return true;
-      });
-      setFilteredResults(tempResults);
-    };
-
-    applyFilters();
-  }, [initialQuery, activeFilter, minRating, results]);
-
-  // Komponen Card Hasil Pencarian
+  // Komponen Card Hasil Pencarian (Disesuaikan untuk data dari API)
   const ResultCard = ({ item }) => (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -143,7 +100,7 @@ export default function SearchResultsPage() {
     >
       <Link to={`/menu/${item.slug}`} className="block">
         <img
-          src={item.image}
+          src={item.foto || 'https://placehold.co/400x300/4ade80/white?text=Menu'} // Gunakan item.foto dari DB
           alt={item.name}
           className="w-full h-40 object-cover"
         />
@@ -157,7 +114,7 @@ export default function SearchResultsPage() {
         </Link>
         <div className="flex items-center justify-between text-sm text-gray-500">
           <Link
-            to={`/restaurant/${item.restaurantSlug}`} // Asumsikan Anda menambahkan item.restaurantSlug
+            to={`/restaurant/${item.restaurantSlug}`} 
             className="font-semibold text-gray-700 hover:text-green-600 transition-colors"
           >
             {item.restaurant}
@@ -179,7 +136,7 @@ export default function SearchResultsPage() {
             <span className="font-semibold text-gray-700">{item.rating}</span>
           </div>
           <p className="flex items-center gap-1 text-xs text-gray-600">
-            <MapPin className="w-3 h-3" /> {item.distance} km
+            <MapPin className="w-3 h-3" /> {item.distance || '0.5'} km
           </p>
           <p className="text-green-600 font-bold">Rp {item.price}</p>
         </div>
@@ -196,10 +153,18 @@ export default function SearchResultsPage() {
             <Search className="w-7 h-7 text-green-600" /> Hasil Pencarian
           </h1>
           <p className="text-gray-600 mt-2 text-base">
-            Menampilkan **{filteredResults.length}** menu untuk:
-            <span className="font-semibold text-green-700 ml-1">
-              "{initialQuery || "Semua"}"
-            </span>
+            {loading ? (
+                <span>Mencari menu...</span>
+            ) : (
+                <span>Menampilkan **{results.length}** menu untuk: 
+                    <span className="font-semibold text-green-700 ml-1">
+                        "{initialQuery || "Semua"}"
+                    </span>
+                    {initialLocation && (
+                        <span className="text-sm text-gray-500 ml-2"> (Lokasi: {initialLocation})</span>
+                    )}
+                </span>
+            )}
           </p>
         </div>
 
@@ -272,9 +237,14 @@ export default function SearchResultsPage() {
 
           {/* Kolom Kanan: Daftar Hasil */}
           <div className="lg:col-span-3">
-            {filteredResults.length > 0 ? (
+            {loading ? (
+                <div className="text-center p-12">
+                    <svg className="animate-spin h-10 w-10 text-green-600 mx-auto" viewBox="0 0 24 24"></svg>
+                    <p className="text-gray-600 mt-4 text-xl">Sedang memuat hasil dari Padang...</p>
+                </div>
+            ) : results.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                {filteredResults.map((item) => (
+                {results.map((item) => (
                   <ResultCard key={item.id} item={item} />
                 ))}
               </div>

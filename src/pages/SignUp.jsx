@@ -3,26 +3,32 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, ChevronDown } from 'lucide-react';
 import HeroSidebar from '../components/HeroSidebar';
+import { useAuth } from '../context/AuthContext'; // <-- IMPORT BARU
 
-export default function SignUpPage() {
+export default function SignUpPage() { // <-- NAMA COMPONENT DIPERBAIKI (TADI MASIH SignInPage)
   const [formData, setFormData] = useState({
     nama: '',
     tanggalLahir: { day: '', month: '', year: '' },
     jenisKelamin: '',
-    nomorHP: '',
+    nomorHP: '', // Digunakan sebagai Email/Username
     kataSandi: ''
   });
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
-  const navigate = useNavigate();
   const [errors, setErrors] = useState({});
+  const [errorMessage, setErrorMessage] = useState(''); // <-- Tambah state error
+  
+  const navigate = useNavigate();
+  const { register } = useAuth(); // <-- Ambil fungsi register dari AuthContext
 
   const handleChange = (field, value) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
     }));
+    setErrors(prev => ({ ...prev, [field]: '' }));
+    setErrorMessage('');
   };
 
   const handleDateChange = (part, value) => {
@@ -33,6 +39,7 @@ export default function SignUpPage() {
         [part]: value
       }
     }));
+    setErrors(prev => ({ ...prev, tanggalLahir: '' }));
   };
 
   const validate = () => {
@@ -41,27 +48,45 @@ export default function SignUpPage() {
     const { day, month, year } = formData.tanggalLahir;
     if (!day || !month || !year) newErrors.tanggalLahir = 'Tanggal lahir harus lengkap';
     if (!formData.jenisKelamin) newErrors.jenisKelamin = 'Pilih jenis kelamin';
-    if (!formData.nomorHP || !formData.nomorHP.trim()) newErrors.nomorHP = 'Nomor HP atau email wajib diisi';
+    if (!formData.nomorHP || !formData.nomorHP.trim() || !formData.nomorHP.includes('@')) newErrors.nomorHP = 'Email wajib diisi dan format harus valid';
     if (!formData.kataSandi || formData.kataSandi.length < 6) newErrors.kataSandi = 'Kata sandi minimal 6 karakter';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = () => {
-    // validate first
-    if (!validate()) return;
+  const handleSubmit = async (e) => { // <-- JADIKAN ASYNC
+    e.preventDefault(); // Mencegah form reload
+
+    if (!validate()) {
+        setErrorMessage('Mohon perbaiki isian yang salah.');
+        return;
+    }
 
     setIsLoading(true);
-    // simulate sign up (replace with real API call)
-    setTimeout(() => {
-      setIsLoading(false);
-      setIsSuccess(true);
-      // show success briefly then redirect to signin so user can log in
-      setTimeout(() => {
+    setErrorMessage('');
+    
+    const registrationData = {
+        name: formData.nama,
+        email: formData.nomorHP, // Menggunakan nomorHP/email field untuk email registrasi
+        password: formData.kataSandi,
+        // Data lain (Tanggal Lahir, Gender) dapat ditambahkan ke tabel users/profile nanti
+    };
+
+    const result = await register(registrationData); // <-- PANGGIL FUNGSI REGISTER DARI CONTEXT
+
+    setIsLoading(false);
+    
+    if (result.success) {
+        setIsSuccess(true);
+        // alert(result.message); // Opsional: Tampilkan pesan sukses dari backend
+        
+        setTimeout(() => {
+            navigate('/signin'); // Arahkan ke halaman login
+        }, 1100);
+    } else {
+        setErrorMessage(result.message); // Tampilkan error dari backend
         setIsSuccess(false);
-        navigate('/signin');
-      }, 1100);
-    }, 1400);
+    }
   };
 
   const pageVariants = {
@@ -103,180 +128,198 @@ export default function SignUpPage() {
             </div>
           </div>
 
-          <motion.div className="bg-white rounded-2xl shadow-xl p-8 space-y-6 card-hover relative z-20" whileHover={{ translateY: -4 }} transition={{ type: 'spring', stiffness: 300, damping: 22 }}>
-            <div className="text-center space-y-2">
-              <h2 className="text-3xl font-bold text-gray-800 fade-in-up">Daftar Sekarang</h2>
-              <p className="text-gray-600 fade-in-up">
-                Sudah punya akun RasoSehat?{' '}
-                <Link to="/signin" className="text-green-600 hover:text-green-700 font-semibold transition-colors">
-                  Masuk
-                </Link>
-              </p>
-            </div>
-
-            <div className="space-y-5">
-              {/* Nama */}
-              <div>
-                <label htmlFor="nama" className="block text-sm font-medium text-gray-700 mb-2">
-                  Nama
-                </label>
-                <input
-                  id="nama"
-                  type="text"
-                  value={formData.nama}
-                  onChange={(e) => handleChange('nama', e.target.value)}
-                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all outline-none"
-                />
-                {errors.nama && (
-                  <p className="text-xs text-red-600 mt-2">{errors.nama}</p>
-                )}
+          <form onSubmit={handleSubmit}>
+            <motion.div className="bg-white rounded-2xl shadow-xl p-8 space-y-6 card-hover relative z-20" whileHover={{ translateY: -4 }} transition={{ type: 'spring', stiffness: 300, damping: 22 }}>
+              <div className="text-center space-y-2">
+                <h2 className="text-3xl font-bold text-gray-800 fade-in-up">Daftar Sekarang</h2>
+                <p className="text-gray-600 fade-in-up">
+                  Sudah punya akun RasoSehat?{' '}
+                  <Link to="/signin" className="text-green-600 hover:text-green-700 font-semibold transition-colors">
+                    Masuk
+                  </Link>
+                </p>
               </div>
 
-              {/* Tanggal Lahir */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Tanggal Lahir
-                </label>
-                <div className="grid grid-cols-3 gap-3">
-                  <input
-                    type="number"
-                    placeholder="DD"
-                    value={formData.tanggalLahir.day}
-                    onChange={(e) => handleDateChange('day', e.target.value)}
-                    className="px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all outline-none text-center"
-                    min="1"
-                    max="31"
-                  />
-                  <input
-                    type="number"
-                    placeholder="MM"
-                    value={formData.tanggalLahir.month}
-                    onChange={(e) => handleDateChange('month', e.target.value)}
-                    className="px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all outline-none text-center"
-                    min="1"
-                    max="12"
-                  />
-                  <input
-                    type="number"
-                    placeholder="YYYY"
-                    value={formData.tanggalLahir.year}
-                    onChange={(e) => handleDateChange('year', e.target.value)}
-                    className="px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all outline-none text-center"
-                    min="1900"
-                    max="2024"
-                  />
-                </div>
-                {errors.tanggalLahir && (
-                  <p className="text-xs text-red-600 mt-2">{errors.tanggalLahir}</p>
-                )}
-              </div>
-
-              {/* Jenis Kelamin */}
-              <div>
-                <label htmlFor="jenisKelamin" className="block text-sm font-medium text-gray-700 mb-2">
-                  Jenis Kelamin
-                </label>
-                <div className="relative">
-                  <select
-                    id="jenisKelamin"
-                    value={formData.jenisKelamin}
-                    onChange={(e) => handleChange('jenisKelamin', e.target.value)}
-                    className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all outline-none appearance-none bg-white"
-                  >
-                    <option value="">Pilih jenis kelamin</option>
-                    <option value="Laki-laki">Laki-laki</option>
-                    <option value="Perempuan">Perempuan</option>
-                  </select>
-                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" size={20} />
-                </div>
-                {errors.jenisKelamin && (
-                  <p className="text-xs text-red-600 mt-2">{errors.jenisKelamin}</p>
-                )}
-              </div>
-
-              {/* Nomor HP / Email */}
-              <div>
-                <label htmlFor="nomorHP" className="block text-sm font-medium text-gray-700 mb-2">
-                  Nomor HP / Email
-                </label>
-                <input
-                  id="nomorHP"
-                  type="text"
-                  value={formData.nomorHP}
-                  onChange={(e) => handleChange('nomorHP', e.target.value)}
-                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all outline-none"
-                />
-                {errors.nomorHP && (
-                  <p className="text-xs text-red-600 mt-2">{errors.nomorHP}</p>
-                )}
-              </div>
-
-              {/* Kata Sandi */}
-              <div>
-                <label htmlFor="kataSandi" className="block text-sm font-medium text-gray-700 mb-2">
-                  Kata Sandi
-                </label>
-                <div className="relative">
-                  <input
-                    id="kataSandi"
-                    type={showPassword ? "text" : "password"}
-                    value={formData.kataSandi}
-                    onChange={(e) => handleChange('kataSandi', e.target.value)}
-                    className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all outline-none pr-12"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 transition-colors"
-                  >
-                    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                  </button>
-                </div>
-                {errors.kataSandi && (
-                  <p className="text-xs text-red-600 mt-2">{errors.kataSandi}</p>
-                )}
-              </div>
-
-              {/* Submit Button */}
-              <motion.button
-                onClick={handleSubmit}
-                disabled={isLoading || isSuccess}
-                className="w-full bg-gradient-to-r from-green-600 to-green-500 text-white py-3 rounded-lg font-semibold hover:from-green-700 hover:to-green-600 transition-all duration-300 transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl btn-press"
-                whileTap={{ scale: 0.995 }}
-              >
-                <AnimatePresence mode="wait">
-                  {isLoading && (
-                    <motion.span key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex items-center justify-center gap-2">
-                      <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      Memproses...
-                    </motion.span>
+              {/* Error Message */}
+              <AnimatePresence>
+                  {errorMessage && (
+                      <motion.div 
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          exit={{ opacity: 0, height: 0 }}
+                          className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-xl relative overflow-hidden"
+                      >
+                          <p className="text-sm font-semibold">{errorMessage}</p>
+                      </motion.div>
                   )}
+              </AnimatePresence>
 
-                  {!isLoading && !isSuccess && (
-                    <motion.span key="label" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>Daftar</motion.span>
+
+              <div className="space-y-5">
+                {/* Nama */}
+                <div>
+                  <label htmlFor="nama" className="block text-sm font-medium text-gray-700 mb-2">
+                    Nama
+                  </label>
+                  <input
+                    id="nama"
+                    type="text"
+                    value={formData.nama}
+                    onChange={(e) => handleChange('nama', e.target.value)}
+                    className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all outline-none"
+                  />
+                  {errors.nama && (
+                    <p className="text-xs text-red-600 mt-2">{errors.nama}</p>
                   )}
+                </div>
 
-                  {isSuccess && (
-                    <motion.span key="success" initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ opacity: 0 }} className="flex items-center justify-center gap-2">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="none">
-                        <path d="M6 10l2 2 6-6" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                      Berhasil
-                    </motion.span>
+                {/* Tanggal Lahir */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Tanggal Lahir
+                  </label>
+                  <div className="grid grid-cols-3 gap-3">
+                    <input
+                      type="number"
+                      placeholder="DD"
+                      value={formData.tanggalLahir.day}
+                      onChange={(e) => handleDateChange('day', e.target.value)}
+                      className="px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all outline-none text-center"
+                      min="1"
+                      max="31"
+                    />
+                    <input
+                      type="number"
+                      placeholder="MM"
+                      value={formData.tanggalLahir.month}
+                      onChange={(e) => handleDateChange('month', e.target.value)}
+                      className="px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all outline-none text-center"
+                      min="1"
+                      max="12"
+                    />
+                    <input
+                      type="number"
+                      placeholder="YYYY"
+                      value={formData.tanggalLahir.year}
+                      onChange={(e) => handleDateChange('year', e.target.value)}
+                      className="px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all outline-none text-center"
+                      min="1900"
+                      max="2025" // Updated max year
+                    />
+                  </div>
+                  {errors.tanggalLahir && (
+                    <p className="text-xs text-red-600 mt-2">{errors.tanggalLahir}</p>
                   )}
-                </AnimatePresence>
-              </motion.button>
+                </div>
 
-              <div className="text-center">
-                <Link to="/signin" className="text-sm text-green-600 hover:text-green-700 font-medium transition-colors">
-                  Udah punya akun?
-                </Link>
+                {/* Jenis Kelamin */}
+                <div>
+                  <label htmlFor="jenisKelamin" className="block text-sm font-medium text-gray-700 mb-2">
+                    Jenis Kelamin
+                  </label>
+                  <div className="relative">
+                    <select
+                      id="jenisKelamin"
+                      value={formData.jenisKelamin}
+                      onChange={(e) => handleChange('jenisKelamin', e.target.value)}
+                      className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all outline-none appearance-none bg-white"
+                    >
+                      <option value="">Pilih jenis kelamin</option>
+                      <option value="Laki-laki">Laki-laki</option>
+                      <option value="Perempuan">Perempuan</option>
+                    </select>
+                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" size={20} />
+                  </div>
+                  {errors.jenisKelamin && (
+                    <p className="text-xs text-red-600 mt-2">{errors.jenisKelamin}</p>
+                  )}
+                </div>
+
+                {/* Nomor HP / Email */}
+                <div>
+                  <label htmlFor="nomorHP" className="block text-sm font-medium text-gray-700 mb-2">
+                    Email
+                  </label>
+                  <input
+                    id="nomorHP"
+                    type="email" // Changed type to email for better validation
+                    value={formData.nomorHP}
+                    onChange={(e) => handleChange('nomorHP', e.target.value)}
+                    placeholder="Masukkan email aktif"
+                    className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all outline-none"
+                  />
+                  {errors.nomorHP && (
+                    <p className="text-xs text-red-600 mt-2">{errors.nomorHP}</p>
+                  )}
+                </div>
+
+                {/* Kata Sandi */}
+                <div>
+                  <label htmlFor="kataSandi" className="block text-sm font-medium text-gray-700 mb-2">
+                    Kata Sandi
+                  </label>
+                  <div className="relative">
+                    <input
+                      id="kataSandi"
+                      type={showPassword ? "text" : "password"}
+                      value={formData.kataSandi}
+                      onChange={(e) => handleChange('kataSandi', e.target.value)}
+                      className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all outline-none pr-12"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 transition-colors"
+                    >
+                      {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                    </button>
+                  </div>
+                  {errors.kataSandi && (
+                    <p className="text-xs text-red-600 mt-2">{errors.kataSandi}</p>
+                  )}
+                </div>
+
+                {/* Submit Button */}
+                <motion.button
+                  type="submit" // <-- Ubah ke type submit
+                  disabled={isLoading || isSuccess}
+                  className="w-full bg-gradient-to-r from-green-600 to-green-500 text-white py-3 rounded-lg font-semibold hover:from-green-700 hover:to-green-600 transition-all duration-300 transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl btn-press"
+                  whileTap={{ scale: 0.995 }}
+                >
+                  <AnimatePresence mode="wait">
+                    {isLoading && (
+                      <motion.span key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex items-center justify-center gap-2">
+                        <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Memproses...
+                      </motion.span>
+                    )}
+
+                    {!isLoading && !isSuccess && (
+                      <motion.span key="label" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>Daftar</motion.span>
+                    )}
+
+                    {isSuccess && (
+                      <motion.span key="success" initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ opacity: 0 }} className="flex items-center justify-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="none">
+                          <path d="M6 10l2 2 6-6" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                        Berhasil
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
+                </motion.button>
+
+                <div className="text-center">
+                  <Link to="/signin" className="text-sm text-green-600 hover:text-green-700 font-medium transition-colors">
+                    Udah punya akun?
+                  </Link>
+                </div>
               </div>
-            </div>
-          </motion.div>
+            </motion.div>
+          </form>
 
           <p className="text-center text-xs text-gray-500 mt-6">
             © 2025 RasoSehat. Semua hak dilindungi

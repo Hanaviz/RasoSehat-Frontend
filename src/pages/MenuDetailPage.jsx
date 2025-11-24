@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useParams, Link } from "react-router-dom";
 import {
   Clock,
@@ -179,6 +179,58 @@ export default function MenuDetailPage() {
   const menu = mockMenuData[slug] || mockMenuData["buddha-bowl"]; // Fallback
   const [showNutritionModal, setShowNutritionModal] = useState(false);
 
+  // --- Client-side reviews for menu (stored in localStorage) ---
+  const reviewsKey = `rs_menu_reviews_${menu.slug}`;
+  const [localReviews, setLocalReviews] = useState([]);
+  const [reviewName, setReviewName] = useState("");
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState("");
+  const [reviewMedia, setReviewMedia] = useState(null); // { type: 'image'|'video', dataUrl, name }
+
+  const fileInputRef = React.createRef();
+
+  const handleMediaSelect = (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    const type = file.type.startsWith('video') ? 'video' : 'image';
+    const reader = new FileReader();
+    reader.onload = () => {
+      setReviewMedia({ type, dataUrl: reader.result, name: file.name });
+    };
+    reader.readAsDataURL(file);
+  };
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(reviewsKey);
+      if (raw) setLocalReviews(JSON.parse(raw));
+    } catch (err) {
+      console.warn("Failed to load menu reviews", err);
+    }
+  }, [reviewsKey]);
+
+  const totalMenuReviews = useMemo(() => menu.reviews + localReviews.length, [menu.reviews, localReviews.length]);
+  const computedMenuAverage = useMemo(() => {
+    const localSum = localReviews.reduce((s, r) => s + Number(r.rating || 0), 0);
+    const total = menu.reviews + localReviews.length;
+    if (total === 0) return menu.rating || 0;
+    return ((menu.rating * menu.reviews) + localSum) / total;
+  }, [menu.rating, menu.reviews, localReviews]);
+
+  const handleSubmitMenuReview = (e) => {
+    e.preventDefault();
+    const name = reviewName.trim() || "Anonim";
+    const rating = Number(reviewRating) || 0;
+    const comment = reviewComment.trim();
+    if (rating < 1 || rating > 5) return alert("Rating harus antara 1 dan 5");
+    if (!comment) return alert("Tolong isi komentar ulasan Anda.");
+    const newR = { id: Date.now(), name, rating, comment, date: new Date().toISOString(), media: reviewMedia };
+    const updated = [newR, ...localReviews];
+    setLocalReviews(updated);
+    try { localStorage.setItem(reviewsKey, JSON.stringify(updated)); } catch (err) { console.warn(err); }
+    setReviewName(""); setReviewRating(5); setReviewComment("");
+  };
+
   // Fallback jika menu tidak ditemukan
   if (!menu) {
     return (
@@ -286,16 +338,12 @@ export default function MenuDetailPage() {
               </h1>
 
               <div className="flex items-center gap-4 text-xl">
-                <span className="text-green-600 font-extrabold">
-                  Rp {menu.price}
-                </span>
+                <span className="text-green-600 font-extrabold">Rp {menu.price}</span>
                 <div className="flex items-center gap-1 text-yellow-500 font-semibold">
                   <Star className="w-5 h-5 fill-current" />
-                  <span>{menu.rating}</span>
+                  <span>{computedMenuAverage.toFixed(1)}</span>
                 </div>
-                <span className="text-gray-500 text-base">
-                  | {menu.reviews} Terjual
-                </span>
+                <span className="text-gray-500 text-base">| {totalMenuReviews} Terjual</span>
               </div>
             </div>
 
@@ -361,31 +409,79 @@ export default function MenuDetailPage() {
                 <MessageSquare className="w-6 h-6 text-green-500" /> Penilaian
                 Produk
               </h2>
-              <div className="bg-gray-50 rounded-xl p-4 shadow-inner">
-                {/* Ulasan Mock-up dari gambar */}
+              <div className="bg-gray-50 rounded-xl p-4 shadow-inner space-y-4">
+                {/* Tags */}
                 <div className="flex items-center gap-2 mb-3">
-                  <span className="px-3 py-1 bg-green-200 text-green-800 text-xs font-semibold rounded-full">
-                    Enak banget (1.3 RB)
-                  </span>
-                  <span className="px-3 py-1 bg-yellow-200 text-yellow-800 text-xs font-semibold rounded-full">
-                    Sangat bergizi (800)
-                  </span>
-                  <span className="px-3 py-1 bg-gray-200 text-gray-800 text-xs font-semibold rounded-full">
-                    Kualitas baik (150)
-                  </span>
+                  <span className="px-3 py-1 bg-green-200 text-green-800 text-xs font-semibold rounded-full">Enak banget (1.3 RB)</span>
+                  <span className="px-3 py-1 bg-yellow-200 text-yellow-800 text-xs font-semibold rounded-full">Sangat bergizi (800)</span>
+                  <span className="px-3 py-1 bg-gray-200 text-gray-800 text-xs font-semibold rounded-full">Kualitas baik (150)</span>
                 </div>
 
-                {/* Contoh Review */}
-                <div className="p-4 bg-white rounded-lg shadow-sm">
-                  <p className="text-gray-800 italic mb-2">
-                    "Gila, makanannya juara banget! Rasanya nendang di lidah,
-                    bumbunya meresap sempurna. Porsinya juga pas, bikin kenyang
-                    tapi nggak eneg. Cocok buat yang doyan makan tapi pengen
-                    yang gak ribet. Wajib coba deh, dijamin ketagihan!"
-                  </p>
-                  <p className="text-xs text-gray-500 mt-2">
-                    N******k* | 1 minggu lalu
-                  </p>
+                {/* Review submission form (client-side) */}
+                <form onSubmit={handleSubmitMenuReview} className="bg-white p-4 rounded-lg border border-gray-100">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
+                    <input value={reviewName} onChange={(e) => setReviewName(e.target.value)} placeholder="Nama (opsional)" className="col-span-2 px-3 py-2 border rounded-lg" />
+                    <select value={reviewRating} onChange={(e) => setReviewRating(e.target.value)} className="px-3 py-2 border rounded-lg">
+                      <option value={5}>5 — Sangat Baik</option>
+                      <option value={4}>4 — Bagus</option>
+                      <option value={3}>3 — Cukup</option>
+                      <option value={2}>2 — Kurang</option>
+                      <option value={1}>1 — Buruk</option>
+                    </select>
+                  </div>
+                  <textarea value={reviewComment} onChange={(e) => setReviewComment(e.target.value)} rows={3} placeholder="Tulis komentar singkat tentang menu..." className="w-full px-3 py-2 border rounded-lg mb-3" />
+
+                  {/* Media upload: hidden input + trigger button */}
+                  <div className="flex items-center gap-3 mb-3">
+                    <input ref={fileInputRef} type="file" accept="image/*,video/*" onChange={handleMediaSelect} className="hidden" />
+                    <button type="button" onClick={() => fileInputRef.current && fileInputRef.current.click()} className="px-3 py-2 bg-white border rounded-lg hover:bg-gray-50 text-sm">
+                      Tambah Foto/Video
+                    </button>
+                    {reviewMedia && (
+                      <div className="flex items-center gap-2">
+                        {reviewMedia.type === 'image' ? (
+                          <img src={reviewMedia.dataUrl} alt={reviewMedia.name} className="w-16 h-16 object-cover rounded-md border" />
+                        ) : (
+                          <video src={reviewMedia.dataUrl} className="w-24 h-16 rounded-md border" />
+                        )}
+                        <button type="button" onClick={() => setReviewMedia(null)} className="text-xs text-red-600">Hapus</button>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex justify-end">
+                    <button type="submit" className="bg-green-600 hover:bg-green-700 text-white font-semibold px-4 py-2 rounded-lg">Kirim Ulasan</button>
+                  </div>
+                </form>
+
+                {/* Recent local reviews */}
+                <div className="space-y-3">
+                  <h4 className="font-semibold text-gray-800">Ulasan Lokal Terbaru</h4>
+                  {localReviews.length === 0 ? (
+                    <div className="text-sm text-gray-600">Belum ada ulasan lokal. Jadilah yang pertama!</div>
+                  ) : (
+                    <div className="space-y-3">
+                      {localReviews.map(r => (
+                          <div key={r.id} className="bg-white p-3 rounded-lg border border-gray-100">
+                            <div className="flex items-center justify-between">
+                              <div className="font-semibold text-sm">{r.name}</div>
+                              <div className="flex items-center text-yellow-500 text-sm">{r.rating} <Star className="w-4 h-4 fill-current ml-1"/></div>
+                            </div>
+                            <p className="text-xs text-gray-500 mt-1">{new Date(r.date).toLocaleString()}</p>
+                            <p className="mt-2 text-gray-700 text-sm">{r.comment}</p>
+                            {r.media && (
+                              <div className="mt-3">
+                                {r.media.type === 'image' ? (
+                                  <img src={r.media.dataUrl} alt={r.media.name} className="w-full max-h-60 object-cover rounded-lg" />
+                                ) : (
+                                  <video src={r.media.dataUrl} controls className="w-full max-h-60 rounded-lg" />
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

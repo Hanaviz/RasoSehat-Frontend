@@ -360,12 +360,15 @@ const RegisterStorePage = () => {
   }, []);
 
   const handleFileChange = useCallback((e) => {
-    const file = e.target.files[0];
-    if (file && file.size > MAX_FILE_SIZE) {
-      alert('Ukuran file maksimal 10MB.');
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+    const tooLarge = files.find(f => f.size > MAX_FILE_SIZE);
+    if (tooLarge) {
+      alert(`File ${tooLarge.name} terlalu besar. Maksimal ${Math.round(MAX_FILE_SIZE/1024/1024)} MB per file.`);
       return;
     }
-    handleChange('ktpUpload', file);
+    // Store array of files
+    handleChange('ktpUpload', files);
   }, [handleChange]);
 
   // Optimized: Memoize validation rules
@@ -385,7 +388,7 @@ const RegisterStorePage = () => {
       operatingHours: (val) => !val.trim() ? 'Jam Operasional wajib diisi.' : '',
     },
     3: {
-      ktpUpload: (val) => !val ? 'Wajib unggah KTP/Dokumen identitas.' : '',
+      ktpUpload: (val) => (!val || (Array.isArray(val) && val.length === 0)) ? 'Wajib unggah KTP/Dokumen identitas.' : '',
       salesChannels: (val) => !val.trim() ? 'Saluran pemesanan wajib diisi.' : '',
       healthFocus: (val) => val.length === 0 ? 'Pilih minimal satu fokus kesehatan utama.' : '',
       dominantFat: (val) => !val ? 'Pilih jenis lemak/minyak dominan.' : '',
@@ -585,15 +588,31 @@ const RegisterStorePage = () => {
             <li>Pastikan file yang diunggah tampak jelas dan mudah dibaca.</li>
           </ul>
           
-          <input type="file" id="ktpUpload" accept=".jpg,.jpeg,.png,.pdf" onChange={handleFileChange} className="hidden" />
+          <input type="file" id="ktpUpload" accept=".jpg,.jpeg,.png,.pdf" onChange={handleFileChange} className="hidden" multiple />
           <button 
             onClick={() => document.getElementById('ktpUpload').click()}
             className={`w-full py-3 rounded-lg font-semibold flex items-center justify-center gap-2 transition-all ${
-              formData.ktpUpload ? 'bg-green-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              formData.ktpUpload && formData.ktpUpload.length ? 'bg-green-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
             }`}
           >
-            <Upload size={20} /> {formData.ktpUpload ? formData.ktpUpload.name : 'Unggah KTP / Dokumen Resmi'}
+            <Upload size={20} /> {formData.ktpUpload && formData.ktpUpload.length ? `${formData.ktpUpload.length} file dipilih` : 'Unggah KTP / Dokumen Resmi'}
           </button>
+
+          {/* Show uploaded file list with remove option */}
+          {formData.ktpUpload && formData.ktpUpload.length > 0 && (
+            <div className="mt-3 space-y-2">
+              {formData.ktpUpload.map((f, idx) => (
+                <div key={idx} className="flex items-center justify-between bg-white p-2 rounded-lg border border-gray-200">
+                  <div className="text-sm text-gray-700 truncate">{f.name}</div>
+                  <button type="button" onClick={() => {
+                      const newFiles = [...formData.ktpUpload];
+                      newFiles.splice(idx, 1);
+                      handleChange('ktpUpload', newFiles.length ? newFiles : null);
+                  }} className="text-xs text-red-600 hover:underline">Hapus</button>
+                </div>
+              ))}
+            </div>
+          )}
           {errors.ktpUpload && <p className="text-xs text-red-600 mt-1">{errors.ktpUpload}</p>}
         </div>
 
@@ -677,7 +696,7 @@ const RegisterStorePage = () => {
             <li><strong>Fokus Sehat:</strong> {formData.healthFocus.join(', ') || 'Belum dipilih'}</li>
             <li><strong>Lemak/Minyak Utama:</strong> {formData.dominantFat || 'Belum dipilih'}</li>
             <li><strong>Metode Masak:</strong> {formData.dominantCookingMethod.join(', ') || 'Belum dipilih'}</li>
-            <li><strong>Verifikasi KTP:</strong> {formData.ktpUpload ? 'Sudah diunggah' : 'Belum diunggah'}</li>
+            <li><strong>Verifikasi KTP:</strong> {formData.ktpUpload && formData.ktpUpload.length ? `${formData.ktpUpload.length} file diunggah` : 'Belum diunggah'}</li>
           </ul>
         </div>
 

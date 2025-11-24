@@ -7,34 +7,39 @@ import {
 } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 
-// LAYOUT & PUBLIC PAGES
 import Layout from "./components/Layout";
 import HeroSection from "./pages/Herosection";
 import SignInPage from "./pages/Signin";
 import SignUpPage from "./pages/SignUp";
 
-// PROTECTED PAGES
 import ProfilePage from "./pages/Profile";
 import MenuDetailPage from "./pages/MenuDetailPage";
 import SearchResultsPage from "./pages/SearchResultsPage";
 import CategoryPage from "./pages/CategoryPage";
 import RegisterStorePage from "./pages/RegisterStorePage";
-import AdminDashboardPage from "./pages/AdminDashboardPage"; // Dashboard Admin
+import AdminDashboardPage from "./pages/AdminDashboardPage";
 import MyStorePage from "./pages/MyStorePage";
 import SettingsPage from "./pages/SettingsPage";
 import RestaurantDetailPage from "./pages/RestaurantDetailPage";
 import AddMenuPage from "./pages/AddMenuPage";
 
-// Small frontend-only protection component: redirects to /signin when not authenticated
+import { useAuth } from "./context/AuthContext"; // <-- IMPORT KRITIS
+
 function ProtectedRoute({ children }) {
-  // Ganti dengan logic cek token atau state otentikasi nyata dari Laravel API
-  let isAuth = false;
-  try {
-    isAuth = localStorage.getItem("isAuthenticated") === "true";
-  } catch {
-    isAuth = false;
+  const { isAuthenticated, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        Memuat...
+      </div>
+    );
   }
-  if (!isAuth) return <Navigate to="/signin" replace />;
+
+  if (!isAuthenticated) {
+    return <Navigate to="/signin" replace />;
+  }
+
   return children;
 }
 
@@ -50,27 +55,20 @@ function AppContent() {
         transition={{ duration: 0.32 }}
       >
         <Routes location={location}>
-          
-          {/* 1. UNPROTECTED / PUBLIC ROUTES (Tidak memerlukan login) */}
           <Route path="/signin" element={<SignInPage />} />
           <Route path="/signup" element={<SignUpPage />} />
 
-          {/* Public Content yang menggunakan Layout (Home, Search, Details) */}
-          {/* CATATAN: Karena ProtectedRoute di bawah mencakup /, semua route public 
-             yang menggunakan Layout harus didefinisikan di luar ProtectedRoute
-             atau jika Anda ingin semua route di bawah ini diproteksi, hapus saja 
-             Route yang di luar ProtectedRoute. */}
-
-          {/* Contoh Public Routes yang tetap menggunakan Layout (Meski belum login) */}
           <Route path="/" element={<Layout />}>
             <Route index element={<HeroSection />} />
             <Route path="/search" element={<SearchResultsPage />} />
             <Route path="/category/:categorySlug" element={<CategoryPage />} />
             <Route path="/menu/:slug" element={<MenuDetailPage />} />
-            <Route path="/restaurant/:slug" element={<RestaurantDetailPage />} />
+            <Route
+              path="/restaurant/:slug"
+              element={<RestaurantDetailPage />}
+            />
           </Route>
-          
-          {/* 2. PROTECTED ROUTES (Membutuhkan Login) */}
+
           <Route
             path="/"
             element={
@@ -79,26 +77,26 @@ function AppContent() {
               </ProtectedRoute>
             }
           >
-            {/* Nested Routes yang membutuhkan autentikasi (Diproteksi) */}
-            
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/settings" element={<SettingsPage />} />
 
-            {/* Merchant/Penjual Routes */}
             <Route path="/register-store" element={<RegisterStorePage />} />
-            <Route path="/my-store" element={<MyStorePage />} /> 
-            <Route path="/add-menu" element={<AddMenuPage />} /> 
-            
-            {/* Admin Routes (moved out so admin page does NOT render the site Layout/Navbar) */}
-            {/* Admin page will be protected but rendered without the main Layout component */}
-            
+            <Route path="/my-store" element={<MyStorePage />} />
+            <Route path="/add-menu" element={<AddMenuPage />} />
           </Route>
-          
-          {/* Alias dari /admin ke /admin-dashboard */}
-          <Route path="/admin" element={<Navigate to="/admin-dashboard" replace />} />
-          {/* Protected admin page without the site Layout (no Navbar) */}
-          <Route path="/admin-dashboard" element={<ProtectedRoute><AdminDashboardPage /></ProtectedRoute>} />
-          
+
+          <Route
+            path="/admin"
+            element={<Navigate to="/admin-dashboard" replace />}
+          />
+          <Route
+            path="/admin-dashboard"
+            element={
+              <ProtectedRoute>
+                <AdminDashboardPage />
+              </ProtectedRoute>
+            }
+          />
         </Routes>
       </motion.div>
     </AnimatePresence>

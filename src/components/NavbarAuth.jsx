@@ -949,7 +949,7 @@ export default function NavbarAuth() {
         </div>
       </nav>
 
-      <style jsx>{`
+      <style>{`
         @keyframes slideDown {
           from {
             opacity: 0;
