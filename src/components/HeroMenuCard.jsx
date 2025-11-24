@@ -18,11 +18,11 @@ const HeroMenuCard = ({ menu }) => {
     const [imageLoaded, setImageLoaded] = useState(false);
     
     // Data ini berasal dari mock data di Herosection.jsx
-    const isVerified = menu.isVerified || (menu.id?.charCodeAt(0) % 2 === 0); 
+        const isVerified = Boolean(menu.isVerified) || (typeof menu.id === 'string' ? (menu.id.charCodeAt(0) % 2 === 0) : (Number(menu.id) % 2 === 0));
     const calories = menu.calories || Math.floor(Math.random() * (550 - 250 + 1)) + 250;
     
     // Bersihkan dan format harga
-    const rawPrice = menu.price ? parseInt(menu.price.replace(/[^\d]/g, '')) : 0;
+        const rawPrice = Number(menu.price) || (typeof menu.price === 'string' ? Number(menu.price.replace(/[^0-9.-]+/g, '')) : 0) || 0;
     const formattedPrice = formatRupiah(rawPrice);
 
     // Tentukan kategori kalori
@@ -62,7 +62,9 @@ const HeroMenuCard = ({ menu }) => {
             e.preventDefault();
             e.stopPropagation();
         }
-        navigate(`/menu/${menu.slug}`);
+        // Prefer numeric/id route, fallback to slug when id missing
+        const target = menu.id ?? menu.slug ?? '';
+        navigate(`/menu/${target}`);
     };
 
     const handleNavigateToRestaurant = (e) => {
@@ -75,11 +77,14 @@ const HeroMenuCard = ({ menu }) => {
 
     return (
         <motion.div
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleNavigateToMenu(); }}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             whileHover={{ y: -8 }}
             transition={{ duration: 0.3 }}
-            className="bg-white rounded-2xl shadow-md overflow-hidden border border-gray-100 hover:shadow-2xl transition-all group flex flex-col relative"
+            className="bg-white rounded-2xl shadow-md overflow-hidden border border-gray-100 hover:shadow-2xl transition-all group flex flex-col relative focus:outline-none focus:ring-2 focus:ring-green-500"
         >
             {/* Container Gambar & Overlay */}
             <div 
@@ -153,6 +158,7 @@ const HeroMenuCard = ({ menu }) => {
                     <div className="bg-white/95 backdrop-blur-sm text-gray-800 px-3 py-1.5 rounded-lg shadow-lg flex items-center gap-1.5">
                         <Star className="w-4 h-4 fill-yellow-400 text-yellow-400"/>
                         <span className="text-sm font-bold">{menu.rating.toFixed(1)}</span>
+                            <span className="text-sm font-bold">{(Number(menu.rating) || 0).toFixed(1)}</span>
                     </div>
                 </div>
             </div>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
 import {
   Clock,
@@ -6,65 +6,71 @@ import {
   Star,
   Phone,
   Utensils,
-  Heart,
   AlertTriangle,
   MessageSquare,
-  ChevronDown,
   CheckCircle,
   Save,
   X,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import api from '../utils/api';
 
-// Mock Data - Ganti ini dengan pemanggilan API Laravel nanti
-const mockMenuData = {
-  "buddha-bowl": {
-    name: "Rainbow Buddha Bowl",
-    slug: "buddha-bowl",
-    category: "Vegetarian",
-    healthTag: "Seimbang & Rendah Kolesterol",
-    price: "25.000",
-    rating: 4.8,
-    reviews: 125,
-    description:
-      "Bowl sehati dengan Quinoa organik, campuran sayuran segar, alpukat, buncis, chickpeas, dan dressing tahini lemon mustard. Rasanya ringan, menyegarkan, dan sangat mengenyangkan.",
-    image:
-      "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=800&h=600&fit=crop",
+// Helper to normalize a backend row into the UI menu shape
+function normalizeMenuRow(row, id) {
+  if (!row) return null;
+
+  // Normalize diet_claims into array
+  let dietClaims = [];
+  if (Array.isArray(row.diet_claims)) dietClaims = row.diet_claims;
+  else if (typeof row.diet_claims === 'string') {
+    try {
+      const parsed = JSON.parse(row.diet_claims);
+      dietClaims = Array.isArray(parsed) ? parsed : [parsed];
+    } catch {
+      dietClaims = row.diet_claims ? [row.diet_claims] : [];
+    }
+  }
+
+  const name = row.nama_menu || row.name || 'Menu';
+
+  return {
+    id: row.id ?? id,
+    name,
+    slug: row.slug || name.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, ''),
+    category: row.kategori || dietClaims[0] || 'Umum',
+    healthTag: dietClaims[0] || 'Sehat',
+    price: row.harga ?? row.price ?? '0',
+    rating: Number(row.rating) || 4.5,
+    reviews: Number(row.reviews) || 0,
+    description: row.deskripsi ?? row.description ?? '',
+    image: row.foto ?? row.image ?? 'https://placehold.co/800x600/4ade80/white?text=RasoSehat',
     restaurant: {
-      name: "Healthy Corner",
-      slug: "healthy-corner",
-      address: "Jl. Limau Manih No. 12, Padang",
-      phone: "62812xxxxxxx", // Ganti dengan nomor WA asli
-      distance: "0.5 km",
+      name: row.nama_restoran || row.restaurant_name || 'Restoran',
+      slug: (row.nama_restoran || row.restaurant_name || 'restoran').toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, ''),
+      address: row.alamat || row.address || '',
+      phone: row.no_telepon || row.phone || '',
+      distance: row.distance || '',
     },
     nutrition: {
-      servingSize: "1 porsi (350g)",
-      calories: "420 Kkal",
-      protein: "22g",
-      carbs: "55g",
-      fat: "15g",
-      fiber: "12g",
-      sugar: "6g",
-      sodium: "150mg",
-      cholesterol: "0mg",
+      servingSize: row.porsi || row.serving_size || '1 porsi',
+      calories: row.kalori ?? row.calories ?? 0,
+      protein: row.protein ?? '0',
+      carbs: row.karbohidrat ?? row.carbs ?? '0',
+      fat: row.lemak ?? '0',
+      fiber: row.serat ?? '0',
+      sugar: row.gula ?? '0',
+      sodium: row.sodium ?? '0',
+      cholesterol: row.kolesterol ?? '0',
     },
-    ingredients: [
-      "Quinoa Organik",
-      "Baby Spinach",
-      "Tomat Cherry",
-      "Alpukat",
-      "Buncis Rebus",
-      "Tahini Dressing",
-      "Lemon Mustard",
-    ],
-    cookingMethod:
-      "Semua bahan disajikan mentah/rebus, dressing dibuat tanpa gula tambahan.",
-    allergens: ["Sesame (from Tahini)"],
-    verified: true,
-  },
-};
+    ingredients: (row.ingredients && typeof row.ingredients === 'string' ? row.ingredients.split(',') : row.ingredients) || [],
+    cookingMethod: row.cooking_method || row.metode_masak || '',
+    allergens: (row.allergens && typeof row.allergens === 'string' ? row.allergens.split(',') : row.allergens) || [],
+    diet_claims: dietClaims,
+    verified: row.status_verifikasi === 'disetujui',
+  };
+}
 
-const NutritionModal = ({ data, onClose }) => {
+const NutritionModal = ({ data, onClose, menu }) => {
   const nutritionPoints = [
     {
       label: "Kalori Total",
@@ -150,24 +156,20 @@ const NutritionModal = ({ data, onClose }) => {
             ))}
           </div>
           // Inside NutritionModal, adjust the Verification section:
-          <div className="mt-4 p-4 bg-green-50 rounded-xl border-l-4 border-green-500">
-            <div className="flex items-center gap-2 text-green-700 font-semibold mb-2">
-              <CheckCircle size={20} />
-              <span>Verifikasi RasoSehat: {menu.healthTag}</span>{" "}
-              {/* Tampilkan kategori yang diverifikasi */}
-            </div>
-            <p className="text-sm text-gray-700">
-              Menu ini telah diverifikasi oleh tim kami berdasarkan tinjauan
-              **Bahan Baku** ({menu.ingredients.join(", ")}) dan **Metode
-              Masak** ({menu.cookingMethod}).
-            </p>
-            {/* Tambahkan peringatan jika ada */}
-            {menu.allergens.length > 0 && (
-              <p className="text-xs text-red-500 mt-2">
-                Peringatan: {menu.allergens.join(", ")}
+          {menu && (
+            <div className="mt-4 p-4 bg-green-50 rounded-xl border-l-4 border-green-500">
+              <div className="flex items-center gap-2 text-green-700 font-semibold mb-2">
+                <CheckCircle size={20} />
+                <span>Verifikasi RasoSehat: {menu.healthTag}</span>
+              </div>
+              <p className="text-sm text-gray-700">
+                Menu ini telah diverifikasi oleh tim kami berdasarkan tinjauan bahan baku dan metode masak.
               </p>
-            )}
-          </div>
+              {Array.isArray(menu.allergens) && menu.allergens.length > 0 && (
+                <p className="text-xs text-red-500 mt-2">Peringatan: {menu.allergens.join(', ')}</p>
+              )}
+            </div>
+          )}
         </div>
       </motion.div>
     </div>
@@ -175,12 +177,14 @@ const NutritionModal = ({ data, onClose }) => {
 };
 
 export default function MenuDetailPage() {
-  const { slug } = useParams();
-  const menu = mockMenuData[slug] || mockMenuData["buddha-bowl"]; // Fallback
+  const { id } = useParams();
+  const [menu, setMenu] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [showNutritionModal, setShowNutritionModal] = useState(false);
 
   // --- Client-side reviews for menu (stored in localStorage) ---
-  const reviewsKey = `rs_menu_reviews_${menu.slug}`;
+  const reviewsKey = `rs_menu_reviews_${menu?.slug || id}`;
   const [localReviews, setLocalReviews] = useState([]);
   const [reviewName, setReviewName] = useState("");
   const [reviewRating, setReviewRating] = useState(5);
@@ -209,13 +213,54 @@ export default function MenuDetailPage() {
     }
   }, [reviewsKey]);
 
-  const totalMenuReviews = useMemo(() => menu.reviews + localReviews.length, [menu.reviews, localReviews.length]);
+  // Fetch menu detail from backend by ID
+  // Fetch logic with improved error handling and retry
+  const fetchMenu = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const resp = await api.get(`/menus/${encodeURIComponent(id)}`);
+      const row = resp.data;
+      if (!row) {
+        setError({ type: 'notfound', message: 'Menu tidak ditemukan' });
+        setMenu(null);
+        setLoading(false);
+        return;
+      }
+
+      const mapped = normalizeMenuRow(row, id);
+      setMenu(mapped);
+      setLoading(false);
+    } catch (err) {
+      console.error('Error fetching menu detail', err);
+      if (err?.response?.status === 404) {
+        setError({ type: 'notfound', message: 'Menu tidak ditemukan' });
+      } else if (err?.request) {
+        // network error
+        setError({ type: 'network', message: 'Gagal terhubung ke server. Periksa koneksi Anda.' });
+      } else {
+        setError({ type: 'other', message: 'Terjadi kesalahan saat memuat data.' });
+      }
+      setMenu(null);
+      setLoading(false);
+    }
+  }, [id]);
+
+  useEffect(() => {
+    let mounted = true;
+    if (mounted) fetchMenu();
+    return () => { mounted = false; };
+  }, [fetchMenu]);
+
+  const totalMenuReviews = useMemo(() => (menu?.reviews || 0) + localReviews.length, [menu?.reviews, localReviews]);
   const computedMenuAverage = useMemo(() => {
     const localSum = localReviews.reduce((s, r) => s + Number(r.rating || 0), 0);
-    const total = menu.reviews + localReviews.length;
-    if (total === 0) return menu.rating || 0;
-    return ((menu.rating * menu.reviews) + localSum) / total;
-  }, [menu.rating, menu.reviews, localReviews]);
+    const baseReviews = menu?.reviews || 0;
+    const baseRating = menu?.rating || 0;
+    const total = baseReviews + localReviews.length;
+    if (total === 0) return baseRating || 0;
+    return ((baseRating * baseReviews) + localSum) / total;
+  }, [menu?.rating, menu?.reviews, localReviews]);
 
   const handleSubmitMenuReview = (e) => {
     e.preventDefault();
@@ -231,19 +276,68 @@ export default function MenuDetailPage() {
     setReviewName(""); setReviewRating(5); setReviewComment("");
   };
 
-  // Fallback jika menu tidak ditemukan
+  if (loading) {
+    return (
+      <div className="min-h-screen pt-28 p-8">
+        <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div className="animate-pulse">
+            <div className="w-full h-96 bg-gray-200 rounded-2xl" />
+            <div className="mt-6 space-y-3">
+              <div className="h-6 bg-gray-200 rounded w-1/3" />
+              <div className="h-4 bg-gray-200 rounded w-1/2" />
+              <div className="h-4 bg-gray-200 rounded w-2/3" />
+            </div>
+          </div>
+          <div className="animate-pulse">
+            <div className="h-8 bg-gray-200 rounded w-1/4 mb-4" />
+            <div className="h-12 bg-gray-200 rounded w-3/4 mb-6" />
+            <div className="space-y-3">
+              <div className="h-4 bg-gray-200 rounded" />
+              <div className="h-4 bg-gray-200 rounded w-5/6" />
+              <div className="h-4 bg-gray-200 rounded w-2/3" />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    // Distinguish UI for different error types
+    if (error.type === 'notfound') {
+      return (
+        <div className="min-h-screen pt-28 text-center p-8">
+          <h1 className="text-3xl font-bold text-red-600">404: Menu Tidak Ditemukan</h1>
+          <p className="text-gray-600 mt-4">{error.message}</p>
+          <Link to="/" className="text-green-600 hover:underline">Kembali ke Beranda</Link>
+        </div>
+      );
+    }
+
+    // network or other errors
+    return (
+      <div className="min-h-screen pt-28 text-center p-8">
+        <h1 className="text-2xl font-bold text-red-600">Gagal Memuat</h1>
+        <p className="text-gray-600 mt-4">{error.message}</p>
+        <div className="mt-4 flex items-center justify-center gap-4">
+          <button
+            onClick={() => fetchMenu()}
+            className="px-4 py-2 bg-green-600 text-white rounded-lg"
+          >
+            Coba Lagi
+          </button>
+          <Link to="/" className="text-green-600 hover:underline">Kembali ke Beranda</Link>
+        </div>
+      </div>
+    );
+  }
+
   if (!menu) {
     return (
       <div className="min-h-screen pt-28 text-center p-8">
-        <h1 className="text-3xl font-bold text-red-600">
-          404: Menu Tidak Ditemukan
-        </h1>
-        <p className="text-gray-600 mt-4">
-          Maaf, menu dengan ID {slug} tidak dapat ditemukan. Kembali ke{" "}
-          <Link to="/" className="text-green-600 hover:underline">
-            Beranda
-          </Link>
-          .
+        <h1 className="text-3xl font-bold text-red-600">404: Menu Tidak Ditemukan</h1>
+        <p className="text-gray-600 mt-4">Maaf, menu dengan ID {id} tidak dapat ditemukan. Kembali ke{' '}
+          <Link to="/" className="text-green-600 hover:underline">Beranda</Link>.
         </p>
       </div>
     );
@@ -336,6 +430,17 @@ export default function MenuDetailPage() {
               <h1 className="text-4xl md:text-5xl font-extrabold text-gray-900 leading-tight">
                 {menu.name}
               </h1>
+
+              {/* Diet claims / tags */}
+              {Array.isArray(menu.diet_claims) && menu.diet_claims.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {menu.diet_claims.map((d, i) => (
+                    <span key={i} className="text-xs px-3 py-1 rounded-full bg-green-50 text-green-800 border border-green-100">
+                      {d}
+                    </span>
+                  ))}
+                </div>
+              )}
 
               <div className="flex items-center gap-4 text-xl">
                 <span className="text-green-600 font-extrabold">Rp {menu.price}</span>
