@@ -1,49 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LayoutDashboard, Store, Utensils, CheckCircle, Clock, User, MapPin, Phone, Mail, X, LogOut, MessageSquare, Menu } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import api from '../utils/api';
 
-// Mock Data untuk KPI
-const mockKPI = {
-  totalMerchants: 52,
-  pendingVerification: 7,
-  activeMenus: 128,
-  reviewsToModerate: 15,
-};
-
-// Mock Data untuk Tabel Verifikasi Toko
-const mockPendingMerchants = [
-  { 
-    id: 101, 
-    name: 'Toko Sehat Bundo', 
-    owner: 'Nori Dwi Yulianti', 
-    date: '2025-11-14', 
-    email: 'nori@sehatbundo.com',
-    contact: '+62812XXXXX',
-    address: 'Jl. Pemuda No. 5, Padang Barat',
-    concept: 'Hanya menggunakan minyak zaitun dan gula Stevia. Semua bumbu dibuat dari rempah segar, tanpa pengawet atau MSG. Fokus pada menu masakan rumahan rendah kalori.',
-    docUrl: 'https://placehold.co/300x200/4ade80/white?text=Foto+Dapur',
-    openHours: '09:00 - 21:00'
-  },
-  { 
-    id: 102, 
-    name: 'Vegan Padang Bowl', 
-    owner: 'Ria Fitri', 
-    date: '2025-11-13', 
-    email: 'ria@veganpadang.com',
-    contact: '+62813XXXXX',
-    address: 'Jl. Andalas No. 10, Limau Manih',
-    concept: '100% nabati, fokus pada makanan lokal Padang yang dimodifikasi tanpa santan atau minyak kelapa sawit. Protein dari tempe, tahu, dan jamur.',
-    docUrl: 'https://placehold.co/300x200/4ade80/white?text=Foto+Konsep',
-    openHours: '10:00 - 18:00'
-  },
-];
-
-// Mock Data untuk Tabel Verifikasi Menu
-const mockPendingMenus = [
-  { id: 201, menuName: 'Ayam Rendah Garam', merchant: 'Toko Sehat Bundo', category: 'Tinggi Protein', status: 'Pending Review' },
-  { id: 202, menuName: 'Salad Sayur Kampung', merchant: 'Vegan Padang Bowl', category: 'Vegetarian', status: 'Pending Review' },
-];
+// State will hold live data from backend
 
 // Komponen Card KPI
 const KpiCard = ({ title, value, icon: Icon, color }) => (
@@ -146,14 +107,67 @@ export default function AdminDashboardPage() {
   const [selectedItem, setSelectedItem] = useState(null);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
-  const handleVerify = (id) => {
-    alert(`Item ID ${id} berhasil diverifikasi!`);
-    setSelectedItem(null);
+  const [pendingMerchants, setPendingMerchants] = useState([]);
+  const [pendingMenus, setPendingMenus] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  const apiOrigin = (() => {
+    try {
+      return api.defaults.baseURL.replace(/\/api$/, '');
+    } catch (e) {
+      return 'http://localhost:3000';
+    }
+  })();
+
+  useEffect(() => {
+    // Fetch pending restaurants and menus
+    const fetchPending = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const [resR, resM] = await Promise.all([
+          api.get('/admin/pending/restaurants'),
+          api.get('/admin/pending/menus').catch(() => ({ data: [] }))
+        ]);
+
+        // support both raw array or { data: [...] }
+        const merchants = Array.isArray(resR.data) ? resR.data : (resR.data && resR.data.data ? resR.data.data : []);
+        const menus = Array.isArray(resM.data) ? resM.data : (resM.data && resM.data.data ? resM.data.data : []);
+
+        setPendingMerchants(merchants);
+        setPendingMenus(menus);
+      } catch (e) {
+        console.error('Failed to fetch pending items', e);
+        setError('Gagal memuat data pending. Pastikan Anda login sebagai admin.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPending();
+  }, []);
+
+  const handleVerify = async (id) => {
+    try {
+      await api.put(`/admin/verify/restaurant/${id}`, { status: 'approved' });
+      setPendingMerchants(prev => prev.filter(p => Number(p.id) !== Number(id)));
+      setSelectedItem(null);
+    } catch (e) {
+      console.error('verify error', e);
+      alert('Gagal memverifikasi restoran. Periksa konsol.');
+    }
   };
 
-  const handleReject = (id) => {
-    alert(`Item ID ${id} ditolak. Feedback akan dikirim.`);
-    setSelectedItem(null);
+  const handleReject = async (id) => {
+    try {
+      await api.put(`/admin/verify/restaurant/${id}`, { status: 'rejected' });
+      setPendingMerchants(prev => prev.filter(p => Number(p.id) !== Number(id)));
+      setSelectedItem(null);
+    } catch (e) {
+      console.error('reject error', e);
+      alert('Gagal menolak restoran. Periksa konsol.');
+    }
   };
   
   const handleAdminLogout = () => {
@@ -176,23 +190,39 @@ export default function AdminDashboardPage() {
           </tr>
         </thead>
         <tbody>
-          {mockPendingMerchants.map(m => (
-            <tr key={m.id} className='hover:bg-green-50/50 transition-colors'>
-              <td>{m.id}</td>
-              <td>{m.name}</td>
-              <td>{m.owner}</td>
-              <td>{m.concept.substring(0, 40)}...</td>
-              <td>{m.date}</td>
-              <td>
-                <button 
-                  onClick={() => setSelectedItem({ type: 'merchant', ...m })}
-                  className="bg-green-500 hover:bg-green-600 text-white text-xs px-3 py-1.5 rounded-lg shadow-sm transition-colors"
-                >
-                  Tinjau
-                </button>
-              </td>
-            </tr>
-          ))}
+          {pendingMerchants.map(m => {
+            const row = {
+              id: m.id,
+              name: m.nama_restoran || m.name || '—',
+              owner: m.user_id || m.owner || '—',
+              concept: m.deskripsi || '—',
+              address: m.alamat || '—',
+              date: m.created_at || m.tanggal || '—',
+              contact: m.no_telepon || '—',
+              docUrl: m.foto_ktp || m.dokumen_usaha || null,
+            };
+
+            return (
+              <tr key={row.id} className='hover:bg-green-50/50 transition-colors'>
+                <td>{row.id}</td>
+                <td>{row.name}</td>
+                <td>{row.owner}</td>
+                <td>{(row.concept || '').substring(0, 60)}{row.concept && row.concept.length > 60 ? '...' : ''}</td>
+                <td>{row.date ? new Date(row.date).toLocaleString() : '—'}</td>
+                <td>
+                  <button 
+                    onClick={() => {
+                      const docFull = row.docUrl && String(row.docUrl).startsWith('/') ? apiOrigin + row.docUrl : row.docUrl;
+                      setSelectedItem({ type: 'merchant', ...row, docUrl: docFull });
+                    }}
+                    className="bg-green-500 hover:bg-green-600 text-white text-xs px-3 py-1.5 rounded-lg shadow-sm transition-colors"
+                  >
+                    Tinjau
+                  </button>
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>
@@ -213,13 +243,13 @@ export default function AdminDashboardPage() {
           </tr>
         </thead>
         <tbody>
-          {mockPendingMenus.map(m => (
+          {pendingMenus.map(m => (
             <tr key={m.id} className='hover:bg-yellow-50/50 transition-colors'>
               <td>{m.id}</td>
-              <td>{m.menuName}</td>
-              <td>{m.merchant}</td>
-              <td>{m.category}</td>
-              <td><span className='text-yellow-600 font-medium'>{m.status}</span></td>
+              <td>{m.nama_menu || m.namaMenu || m.menuName}</td>
+              <td>{m.nama_restoran || m.restoran_nama || m.merchant}</td>
+              <td>{m.kategori || '-'}</td>
+              <td><span className='text-yellow-600 font-medium'>{m.status_verifikasi || m.status || '-'}</span></td>
               <td>
                 <button 
                   onClick={() => setSelectedItem({ type: 'menu', ...m })}
@@ -264,9 +294,9 @@ export default function AdminDashboardPage() {
           <Store size={20} className={activeTab === 'merchants' ? 'text-green-700' : 'text-white'}/>
         </div>
         <span className="flex-1">Verifikasi Toko</span>
-        {mockPendingMerchants.length > 0 && (
+        {pendingMerchants.length > 0 && (
           <span className='px-2.5 py-1 bg-red-500 text-white rounded-full text-xs font-bold shadow-md'>
-            {mockPendingMerchants.length}
+            {pendingMerchants.length}
           </span>
         )}
       </button>
@@ -283,9 +313,9 @@ export default function AdminDashboardPage() {
           <Utensils size={20} className={activeTab === 'menus' ? 'text-green-700' : 'text-white'}/>
         </div>
         <span className="flex-1">Verifikasi Menu</span>
-        {mockPendingMenus.length > 0 && (
+        {pendingMenus.length > 0 && (
           <span className='px-2.5 py-1 bg-yellow-500 text-white rounded-full text-xs font-bold shadow-md'>
-            {mockPendingMenus.length}
+            {pendingMenus.length}
           </span>
         )}
       </button>
@@ -371,10 +401,10 @@ export default function AdminDashboardPage() {
 
             {/* KPI Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-              <KpiCard title="Toko Menunggu" value={mockKPI.pendingVerification} icon={Store} color="text-red-500 border-red-500"/>
-              <KpiCard title="Menu Baru (Audit)" value={mockPendingMenus.length} icon={Utensils} color="text-yellow-500 border-yellow-500"/>
-              <KpiCard title="Total Menu Aktif" value={mockKPI.activeMenus} icon={CheckCircle} color="text-green-600 border-green-600"/>
-              <KpiCard title="Total Toko Terdaftar" value={mockKPI.totalMerchants} icon={User} color="text-blue-500 border-blue-500"/>
+              <KpiCard title="Toko Menunggu" value={pendingMerchants.length} icon={Store} color="text-red-500 border-red-500"/>
+              <KpiCard title="Menu Baru (Audit)" value={pendingMenus.length} icon={Utensils} color="text-yellow-500 border-yellow-500"/>
+              <KpiCard title="Total Menu Aktif" value={pendingMenus.length} icon={CheckCircle} color="text-green-600 border-green-600"/>
+              <KpiCard title="Total Toko Terdaftar" value={pendingMerchants.length} icon={User} color="text-blue-500 border-blue-500"/>
             </div>
 
             {/* Kontainer Utama Tab */}
@@ -386,14 +416,14 @@ export default function AdminDashboardPage() {
                   className={`tab text-gray-700 font-semibold ${activeTab === 'merchants' ? 'tab-active !bg-green-600 !text-white shadow-lg' : 'hover:bg-green-200'}`}
                   onClick={() => setActiveTab('merchants')}
                 >
-                  Toko ({mockPendingMerchants.length})
+                  Toko ({pendingMerchants.length})
                 </a>
                 <a 
                   role="tab" 
                   className={`tab text-gray-700 font-semibold ${activeTab === 'menus' ? 'tab-active !bg-green-600 !text-white shadow-lg' : 'hover:bg-green-200'}`}
                   onClick={() => setActiveTab('menus')}
                 >
-                  Menu ({mockPendingMenus.length})
+                  Menu ({pendingMenus.length})
                 </a>
                 <a 
                   role="tab" 
@@ -422,8 +452,8 @@ export default function AdminDashboardPage() {
                           <Store size={18}/> Aktivitas Toko
                         </h4>
                         <div className='space-y-2 text-sm text-gray-700'>
-                          <p className='flex justify-between'><span>Menunggu Verifikasi</span> <span className='font-bold text-red-600'>{mockPendingMerchants.length}</span></p>
-                          <p className='flex justify-between'><span>Total Terdaftar</span> <span className='font-bold text-green-600'>{mockKPI.totalMerchants}</span></p>
+                          <p className='flex justify-between'><span>Menunggu Verifikasi</span> <span className='font-bold text-red-600'>{pendingMerchants.length}</span></p>
+                          <p className='flex justify-between'><span>Total Terdaftar</span> <span className='font-bold text-green-600'>{pendingMerchants.length}</span></p>
                           <p className='flex justify-between'><span>Toko Aktif Bulan Ini</span> <span className='font-bold text-blue-600'>48</span></p>
                         </div>
                       </div>
@@ -433,8 +463,8 @@ export default function AdminDashboardPage() {
                           <Utensils size={18}/> Aktivitas Menu
                         </h4>
                         <div className='space-y-2 text-sm text-gray-700'>
-                          <p className='flex justify-between'><span>Menunggu Audit</span> <span className='font-bold text-yellow-600'>{mockPendingMenus.length}</span></p>
-                          <p className='flex justify-between'><span>Total Menu Aktif</span> <span className='font-bold text-green-600'>{mockKPI.activeMenus}</span></p>
+                          <p className='flex justify-between'><span>Menunggu Audit</span> <span className='font-bold text-yellow-600'>{pendingMenus.length}</span></p>
+                          <p className='flex justify-between'><span>Total Menu Aktif</span> <span className='font-bold text-green-600'>{pendingMenus.length}</span></p>
                           <p className='flex justify-between'><span>Menu Ditolak</span> <span className='font-bold text-red-600'>5</span></p>
                         </div>
                       </div>

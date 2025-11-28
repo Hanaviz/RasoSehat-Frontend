@@ -36,9 +36,9 @@ function ProtectedRoute({ children }) {
     );
   }
 
-  if (!isAuthenticated) {
-    return <Navigate to="/signin" replace />;
-  }
+  // if (!isAuthenticated) {
+  //   return <Navigate to="/signin" replace />;
+  // }
 
   return children;
 }
@@ -57,6 +57,9 @@ function AppContent() {
         <Routes location={location}>
           <Route path="/signin" element={<SignInPage />} />
           <Route path="/signup" element={<SignUpPage />} />
+          <Route path="/add-menu" element={<AddMenuPage />} />
+          <Route path="/my-store" element={<MyStorePage />} />
+          <Route path="/register-store" element={<RegisterStorePage />} />
 
           <Route path="/" element={<Layout />}>
             <Route index element={<HeroSection />} />
@@ -80,9 +83,7 @@ function AppContent() {
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/settings" element={<SettingsPage />} />
 
-            <Route path="/register-store" element={<RegisterStorePage />} />
-            <Route path="/my-store" element={<MyStorePage />} />
-            <Route path="/add-menu" element={<AddMenuPage />} />
+            {/* moved /register-store to public routes so users can register a store without login */}
           </Route>
 
           <Route

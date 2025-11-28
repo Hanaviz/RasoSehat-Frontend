@@ -20,10 +20,19 @@ export const AuthProvider = ({ children }) => {
                 try {
                     // Coba ambil data user dari endpoint /user
                     const response = await api.get(`/user`);
-                    setUser(response.data);
+                    // Backend mengembalikan { user: { ... } } -- gunakan properti user jika ada
+                    const fetchedUser = response.data?.user ?? response.data;
+                    setUser(fetchedUser);
                 } catch (error) {
-                    console.error('Token invalid or expired. Logging out.');
-                    handleLogoutLocal();
+                    // If server responded with 401/403, token is invalid -> clear local auth
+                    const status = error.response?.status;
+                    if (status === 401 || status === 403) {
+                        console.error('Token invalid or expired. Logging out.');
+                        handleLogoutLocal();
+                    } else {
+                        // Network error or server down - do not immediately log user out.
+                        console.error('Could not verify token due to network/server error; keeping local token until next attempt.', error?.message || error);
+                    }
                 }
             } else {
                 delete api.defaults.headers.common['Authorization'];
@@ -47,11 +56,11 @@ export const AuthProvider = ({ children }) => {
     const handleRegister = async (data) => {
         try {
             const response = await api.post(`${BASE_URL}/register`, data);
-            return { success: true, message: response.data.message || 'Pendaftaran berhasil' };
+            return { success: true, message: response.data?.message || 'Pendaftaran berhasil' };
         } catch (error) {
-             return {
+            return {
                 success: false,
-                message: error.response?.data?.message || 'Pendaftaran Gagal. Periksa data dan koneksi.'
+                message: error.response?.data?.message || error.message || 'Pendaftaran Gagal. Periksa data dan koneksi.'
             };
         }
     }
@@ -70,12 +79,12 @@ export const AuthProvider = ({ children }) => {
             api.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
 
             setIsLoading(false);
-            return { success: true };
+            return { success: true, message: response.data?.message || 'Login berhasil' };
         } catch (error) {
             setIsLoading(false);
             return {
                 success: false,
-                message: error.response?.data?.message || 'Login Gagal. Cek kredensial dan koneksi.'
+                message: error.response?.data?.message || error.message || 'Login Gagal. Cek kredensial dan koneksi.'
             };
         }
     };
@@ -94,9 +103,12 @@ export const AuthProvider = ({ children }) => {
     };
     
     // Value yang diekspos ke komponen lain
+    // Note: isAuthenticated should reflect presence of a valid `user` object.
     const authContextValue = {
         user,
-        isAuthenticated: !!user && !isLoading,
+        // Consider user authenticated when we have a verified `user` object.
+        // Using only token could cause incorrect state when token hasn't been verified.
+        isAuthenticated: !!user,
         isLoading,
         token,
         login: handleLogin,

@@ -1,7 +1,10 @@
 import React, { useState, useCallback, useMemo, memo } from 'react';
+import api from '../utils/api';
 // eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronLeft, MapPin, CheckCircle, Upload, BookOpen, AlertTriangle, X } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 // =========================================================================
 // OPTIMIZED REGISTER STORE PAGE - FIXED INPUT LAG
@@ -316,12 +319,12 @@ const COOKING_METHODS = [
 
 const BUSINESS_TYPES = [
   {
-    value: 'Perorangan',
+    value: 'perorangan',
     title: 'Bisnis Perorangan',
     description: 'Pilih ini jika Anda menjalankan usaha atas nama pribadi. Cukup gunakan KTP untuk pendaftaran.'
   },
   {
-    value: 'Korporasi',
+    value: 'korporasi',
     title: 'Perusahaan/Korporasi',
     description: 'Membutuhkan dokumen legal seperti NIB/SIUP/akta pendirian.'
   }
@@ -331,9 +334,11 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const MIN_PHONE_LENGTH = 8;
 
 const RegisterStorePage = () => {
+  const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
-    businessType: 'Perorangan',
+    businessType: 'perorangan',
     storeName: '',
     shortDescription: '',
     storeCategory: '',
@@ -419,11 +424,93 @@ const RegisterStorePage = () => {
       alert("Anda harus menyetujui Komitmen Kualitas untuk mendaftar.");
       return;
     }
+
+    // Ensure user is authenticated before attempting server-side registration
+    if (!isAuthenticated && !localStorage.getItem('access_token')) {
+      alert('Anda harus login terlebih dahulu sebelum mendaftar toko. Silakan login.');
+      navigate('/signin');
+      return;
+    }
     
-    console.log("Data Pendaftaran Toko Final:", formData);
-    alert("Pendaftaran Berhasil! Toko Anda akan ditinjau Admin (2x24 jam).");
-    // navigate('/profile');
-  }, [formData]);
+    // Integrated flow: create restaurant (step1), update step2, upload files (step3), submit final
+    (async () => {
+      try {
+        // Step 1: create restoran (requires Authorization header)
+        const payload1 = {
+          nama_restoran: formData.storeName,
+          alamat: formData.addressFull
+        };
+
+        const res1 = await api.post('/restaurants', payload1);
+        const created = res1?.data?.data || res1?.data || res1;
+        const restoranId = created?.id;
+        if (!restoranId) {
+          console.error('Create restaurant unexpected response', res1);
+          alert('Gagal membuat restoran (unexpected response). Cek konsol.');
+          return;
+        }
+
+        // Step 2: update details
+        const [lat, lng] = (formData.mapsLatLong || '').split(',').map(s => s && s.trim()).filter(Boolean);
+        const payload2 = {
+          deskripsi: formData.shortDescription,
+          latitude: lat || null,
+          longitude: lng || null,
+          no_telepon: formData.phonePrimary,
+          jenis_usaha: (formData.businessType || '').toString().toLowerCase(),
+          mapsLatLong: formData.mapsLatLong,
+          owner_name: formData.ownerName,
+          phone_admin: formData.phoneAdmin,
+          operating_hours: formData.operatingHours,
+          sales_channels: formData.salesChannels,
+          social_media: formData.socialMedia,
+          store_category: formData.storeCategory,
+          commitment_checked: formData.commitmentChecked ? 1 : 0,
+          health_focus: formData.healthFocus,
+          dominant_cooking_method: formData.dominantCookingMethod,
+          dominant_fat: formData.dominantFat,
+          slug: formData.storeName ? formData.storeName.toLowerCase().replace(/\s+/g,'-').replace(/[^a-z0-9-]/g,'') : null
+        };
+        await api.put(`/restaurants/${restoranId}/step-2`, payload2);
+
+        // Step 3: upload files (multipart)
+        if (formData.ktpUpload && formData.ktpUpload.length > 0) {
+          const fd = new FormData();
+          // backend expects fields: foto_ktp, npwp, dokumen_usaha
+          formData.ktpUpload.forEach((file, idx) => {
+            // attach as foto_ktp if only KTP; if multiple types were supported, map accordingly
+            fd.append('foto_ktp', file, file.name || `ktp_${idx}`);
+          });
+
+          try {
+            // Let the browser/axios set the Content-Type with proper boundary
+            await api.put(`/restaurants/${restoranId}/step-3`, fd);
+          } catch (e) {
+            console.warn('Upload step3 failed (non-fatal):', e);
+          }
+        }
+
+        // Submit final for admin verification
+        await api.put(`/restaurants/${restoranId}/submit`);
+
+        alert('Pendaftaran Berhasil! Toko Anda dikirim untuk verifikasi admin.');
+        // Optionally navigate to MyStore or profile
+        // navigate('/my-store');
+      } catch (err) {
+        console.error('final submit error', err);
+        const status = err?.response?.status;
+        const message = err?.response?.data?.message || err.message || 'Terjadi kesalahan saat mendaftar.';
+        if (status === 401 || status === 403) {
+          alert('Sesi habis atau token tidak valid. Silakan login kembali.');
+          // Clear local token and redirect to signin
+          if (typeof localStorage !== 'undefined') localStorage.removeItem('access_token');
+          navigate('/signin');
+          return;
+        }
+        alert('Gagal mengirim pendaftaran: ' + message);
+      }
+    })();
+  }, [formData, isAuthenticated, navigate]);
 
   // Optimized: Toggle array items helper
   const toggleArrayItem = useCallback((field, item) => {

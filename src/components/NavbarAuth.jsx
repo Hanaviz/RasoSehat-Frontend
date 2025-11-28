@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import debounce from 'lodash/debounce';
+import { useAuth } from '../context/AuthContext';
 
 export default function NavbarAuth() {
   const navigate = useNavigate();
@@ -10,6 +11,8 @@ export default function NavbarAuth() {
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [showStoreMenu, setShowStoreMenu] = useState(false);
+  const [showStoreMenuMobile, setShowStoreMenuMobile] = useState(false);
   
   // Search states
   const [searchQuery, setSearchQuery] = useState("");
@@ -19,14 +22,16 @@ export default function NavbarAuth() {
   const searchContainerRef = useRef(null);
   const notificationRef = useRef(null);
   const profileRef = useRef(null);
+  const storeRef = useRef(null);
 
-  // Mock user data (Ganti dengan data dari Auth Context/API)
-  const userData = {
-    name: "Ahmad Rizki",
-    email: "ahmad.rizki@example.com",
-    avatar: "https://ui-avatars.com/api/?name=Ahmad+Rizki&background=16a34a&color=fff",
-    isStoreMember: true // Set true jika user sudah punya toko
-  };
+  // Use authentication context for real user data
+  const { user, logout, isPenjual } = useAuth();
+
+  // Fallback UI values when user is not yet available
+  const displayName = user?.name || 'Pengguna';
+  const displayEmail = user?.email || '';
+  const avatarUrl = user?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=16a34a&color=fff`;
+  const isStoreMember = !!isPenjual;
 
   // Mock notifications
   const [notifications, setNotifications] = useState([
@@ -62,26 +67,20 @@ export default function NavbarAuth() {
   const unreadCount = notifications.filter(n => !n.isRead).length;
 
   // LOGOUT HANDLER BARU
-  const handleLogout = () => {
-    // 1. (REAL APP): Panggil API Laravel untuk menghapus token (Sanctum)
-    // 2. (REAL APP): Hapus state/token otentikasi lokal di React Context/Redux
-
-    // Simulasi logout
-
+  const handleLogout = async () => {
     try {
-      localStorage.removeItem('isAuthenticated');
-    } catch {
-      // ignore (localStorage may be unavailable in some envs)
+      // Call context logout which clears token and user
+      await logout();
+    } catch (e) {
+      console.error('Logout error', e);
     }
-    console.log("User logged out successfully.");
-    
-    // Tutup semua dropdown/menu
+
+    // Close menus
     setShowProfileMenu(false);
     setIsMobileMenuOpen(false);
 
-    // 3. Arahkan ke Halaman Login
+    // Navigate to signin
     navigate('/signin');
-    // PERHATIAN: Di aplikasi nyata, Anda juga harus mengatur isAuthenticated = false secara global.
   };
   // END LOGOUT HANDLER
 
@@ -105,6 +104,9 @@ export default function NavbarAuth() {
       }
       if (profileRef.current && !profileRef.current.contains(event.target)) {
         setShowProfileMenu(false);
+      }
+      if (storeRef.current && !storeRef.current.contains(event.target)) {
+        setShowStoreMenu(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -403,52 +405,85 @@ export default function NavbarAuth() {
             <div className="mb-6 p-4 bg-green-50 rounded-xl">
               <div className="flex items-center gap-3">
                 <img 
-                  src={userData.avatar} 
-                  alt={userData.name}
+                  src={avatarUrl} 
+                  alt={displayName}
                   className="w-12 h-12 rounded-full ring-2 ring-green-500"
                 />
                 <div className="flex-1 min-w-0">
-                  <h4 className="font-semibold text-gray-800 truncate">{userData.name}</h4>
-                  <p className="text-sm text-gray-500 truncate">{userData.email}</p>
+                  <h4 className="font-semibold text-gray-800 truncate">{displayName}</h4>
+                  <p className="text-sm text-gray-500 truncate">{displayEmail}</p>
                 </div>
               </div>
             </div>
 
             <div className="space-y-2">
-              <Link
-                to="/profile"
+              <button
+                type="button"
                 className="flex items-center gap-3 w-full px-4 py-3 text-left text-gray-700 hover:bg-gray-50 rounded-lg transition-colors duration-200"
-                onClick={() => setIsMobileMenuOpen(false)}
+                onClick={() => { setIsMobileMenuOpen(false); navigate('/profile'); }}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                 </svg>
                 <span className="font-medium">Profil Saya</span>
-              </Link>
+              </button>
 
-              {!userData.isStoreMember ? (
-                <Link
-                  to="/register-store"
-                  className="flex items-center gap-3 w-full px-4 py-3 text-left text-green-600 bg-green-50 hover:bg-green-100 rounded-lg transition-colors duration-200"
-                  onClick={() => setIsMobileMenuOpen(false)}
+              {/* Mobile: Kelola Toko button that expands to Daftarkan Toko / Masuk Toko */}
+              <div>
+                <button
+                  onClick={() => setShowStoreMenuMobile((s) => !s)}
+                  className="flex items-center justify-between w-full gap-3 px-4 py-3 text-left text-gray-700 hover:bg-gray-50 rounded-lg transition-colors duration-200"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                  <div className="flex items-center gap-3">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                    </svg>
+                    <span className="font-medium">Kelola Toko</span>
+                  </div>
+                  <svg className={`w-4 h-4 transition-transform ${showStoreMenuMobile ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                    <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z" clipRule="evenodd" />
                   </svg>
-                  <span className="font-semibold">Daftar Sebagai Penjual</span>
-                </Link>
-              ) : (
-                <Link
-                  to="/my-store"
-                  className="flex items-center gap-3 w-full px-4 py-3 text-left text-gray-700 hover:bg-gray-50 rounded-lg transition-colors duration-200"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                  </svg>
-                  <span className="font-medium">Daftarkan Toko</span>
-                </Link>
-              )}
+                </button>
+
+                {showStoreMenuMobile && (
+                  <div className="mt-2 space-y-2 px-2">
+                    <Link
+                      to="/register-store"
+                      onClick={() => {
+                        setIsMobileMenuOpen(false);
+                        setShowStoreMenuMobile(false);
+                      }}
+                      className="block px-4 py-3 text-green-600 bg-green-50 rounded-lg hover:bg-green-100"
+                    >
+                      Daftarkan Toko
+                    </Link>
+
+                    <Link
+                      to="/store-signin"
+                      onClick={() => {
+                        setIsMobileMenuOpen(false);
+                        setShowStoreMenuMobile(false);
+                      }}
+                      className="block px-4 py-3 text-gray-700 rounded-lg hover:bg-gray-50"
+                    >
+                      Masuk Toko
+                    </Link>
+                  </div>
+                )}
+              </div>
+
+              {/* Mobile: Settings link */}
+              <button
+                type="button"
+                className="flex items-center gap-3 w-full px-4 py-3 text-left text-gray-700 hover:bg-gray-50 rounded-lg transition-colors duration-200"
+                onClick={() => { setIsMobileMenuOpen(false); navigate('/settings'); }}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                <span className="font-medium">Pengaturan</span>
+              </button>
 
               <div className="border-t border-gray-200 my-2"></div>
 
@@ -721,44 +756,47 @@ export default function NavbarAuth() {
                 </svg>
               </button>
 
-              {/* Store Button - Desktop Only */}
-              {!userData.isStoreMember ? (
-                <Link
-                  to="/register-store"
-                  className={`hidden md:flex group relative overflow-hidden transition-all duration-300 font-semibold whitespace-nowrap rounded-lg items-center gap-2 ${
-                    isScrolled 
-                      ? "bg-green-50 text-green-600 px-3 md:px-4 py-1.5 text-sm hover:shadow-md border border-green-200"
-                      : "bg-white/90 backdrop-blur-sm text-green-600 px-3 md:px-4 py-2 text-sm hover:shadow-lg"
+              {/* Store Button - Desktop: dropdown with Daftarkan Toko / Masuk Toko */}
+              <div className="relative hidden md:block" ref={storeRef}>
+                <button
+                  onClick={() => setShowStoreMenu((s) => !s)}
+                  aria-expanded={showStoreMenu}
+                  className={`hidden md:flex items-center gap-2 relative overflow-hidden transition-all duration-300 font-semibold whitespace-nowrap rounded-lg px-3 md:px-4 py-2 text-sm ${
+                    isScrolled ? 'bg-white text-green-600 hover:shadow-md border border-green-200' : 'bg-white/90 backdrop-blur-sm text-green-600 hover:shadow-lg'
                   }`}
                 >
                   <span className="absolute inset-0 overflow-hidden rounded-lg">
-                    <span className="absolute inset-0 bg-green-600/0 group-hover:bg-green-600/5 transition-colors duration-200"></span>
+                    <span className="absolute inset-0 bg-green-600/0 group-hover:bg-green-600/5 transition-colors duration-200" />
                   </span>
-                  
-                  <svg xmlns="http://www.w3.org/2000/svg" className={`${isScrolled ? 'w-4 h-4' : 'w-5 h-5'} transition-all duration-300 group-hover:scale-110 relative z-10`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg xmlns="http://www.w3.org/2000/svg" className={`${isScrolled ? 'w-4 h-4' : 'w-5 h-5'} transition-all duration-300 relative z-10`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                   </svg>
-                  <span className="relative z-10">Daftarkan Toko</span>
-                </Link>
-              ) : (
-                <Link
-                  to="/register-store "
-                  className={`hidden md:flex group relative overflow-hidden transition-all duration-300 font-semibold whitespace-nowrap rounded-lg items-center gap-2 ${
-                    isScrolled 
-                      ? "bg-white text-green-600 px-3 md:px-4 py-1.5 text-sm hover:shadow-md border border-green-200"
-                      : "bg-white/90 backdrop-blur-sm text-green-600 px-3 md:px-4 py-2 text-sm hover:shadow-lg"
-                  }`}
-                >
-                  <span className="absolute inset-0 overflow-hidden rounded-lg">
-                    <span className="absolute inset-0 bg-green-600/0 group-hover:bg-green-600/5 transition-colors duration-200"></span>
-                  </span>
-                  
-                  <svg xmlns="http://www.w3.org/2000/svg" className={`${isScrolled ? 'w-4 h-4' : 'w-5 h-5'} transition-all duration-300 group-hover:scale-110 relative z-10`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                  <span className="relative z-10">Kelola Toko</span>
+                  <svg className={`w-4 h-4 ml-1 relative z-10 ${showStoreMenu ? 'rotate-180' : ''} transition-transform`} viewBox="0 0 20 20" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                    <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z" clipRule="evenodd" />
                   </svg>
-                  <span className="relative z-10">Daftarkan Toko </span>
-                </Link>
-              )}
+                </button>
+
+                {showStoreMenu && (
+                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-50 animate-slideDown">
+                    <Link
+                      to="/register-store"
+                      onClick={() => setShowStoreMenu(false)}
+                      className="block px-4 py-3 text-gray-700 hover:bg-gray-50"
+                    >
+                      Daftarkan Toko
+                    </Link>
+
+                    <Link
+                      to="/store-signin"
+                      onClick={() => setShowStoreMenu(false)}
+                      className="block px-4 py-3 text-gray-700 hover:bg-gray-50"
+                    >
+                      Masuk Toko
+                    </Link>
+                  </div>
+                )}
+              </div>
 
               {/* Notification Button - Desktop */}
               <div className="hidden md:block relative" ref={notificationRef}>
@@ -860,8 +898,8 @@ export default function NavbarAuth() {
                   }`}
                 >
                   <img 
-                    src={userData.avatar} 
-                    alt={userData.name}
+                    src={avatarUrl} 
+                    alt={displayName}
                     className={`rounded-full ring-2 transition-all duration-300 ${
                       isScrolled 
                         ? "w-8 h-8 ring-green-500"
@@ -878,41 +916,41 @@ export default function NavbarAuth() {
                   <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-50 animate-slideDown">
                     <div className="p-4 border-b border-gray-100 bg-gradient-to-r from-green-50 to-green-100">
                       <div className="flex items-center gap-3">
-                        <img 
-                          src={userData.avatar} 
-                          alt={userData.name}
+                          <img 
+                          src={avatarUrl} 
+                          alt={displayName}
                           className="w-12 h-12 rounded-full ring-2 ring-green-500"
                         />
                         <div className="flex-1 min-w-0">
-                          <h4 className="font-semibold text-gray-800 truncate">{userData.name}</h4>
-                          <p className="text-sm text-gray-500 truncate">{userData.email}</p>
+                          <h4 className="font-semibold text-gray-800 truncate">{displayName}</h4>
+                          <p className="text-sm text-gray-500 truncate">{displayEmail}</p>
                         </div>
                       </div>
                     </div>
                     
                     <div className="py-2">
-                      <Link
-                        to="/profile"
+                      <button
+                        type="button"
                         className="flex items-center gap-3 px-4 py-2.5 text-gray-700 hover:bg-gray-50 transition-colors duration-150"
-                        onClick={() => setShowProfileMenu(false)}
+                        onClick={() => { setShowProfileMenu(false); navigate('/profile'); }}
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                         </svg>
                         <span className="font-medium">Profil Saya</span>
-                      </Link>
+                      </button>
 
-                      <Link
-                        to="/settings"
+                      <button
+                        type="button"
                         className="flex items-center gap-3 px-4 py-2.5 text-gray-700 hover:bg-gray-50 transition-colors duration-150"
-                        onClick={() => setShowProfileMenu(false)}
+                        onClick={() => { setShowProfileMenu(false); navigate('/settings'); }}
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                         </svg>
                         <span className="font-medium">Pengaturan</span>
-                      </Link>
+                      </button>
 
 
                     </div>
