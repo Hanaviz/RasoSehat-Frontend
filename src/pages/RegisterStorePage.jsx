@@ -342,6 +342,7 @@ const RegisterStorePage = () => {
     storeName: '',
     shortDescription: '',
     storeCategory: '',
+    ownerEmail: '',
     ownerName: '',
     phonePrimary: '',
     phoneAdmin: '',
@@ -386,6 +387,12 @@ const RegisterStorePage = () => {
     },
     2: {
       ownerName: (val) => !val.trim() ? 'Nama Penanggung Jawab wajib diisi.' : '',
+      ownerEmail: (val) => {
+        if (!val || !val.trim()) return 'Email verifikasi wajib diisi.';
+        // simple email regex
+        const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/i;
+        return re.test(val) ? '' : 'Format email tidak valid.';
+      },
       phonePrimary: (val) => !val.trim() || val.length < MIN_PHONE_LENGTH ? 'Nomor HP utama tidak valid.' : '',
       phoneAdmin: (val) => !val.trim() || val.length < MIN_PHONE_LENGTH ? 'Nomor HP notifikasi tidak valid.' : '',
       addressFull: (val) => !val.trim() ? 'Alamat lengkap wajib diisi.' : '',
@@ -460,6 +467,7 @@ const RegisterStorePage = () => {
           jenis_usaha: (formData.businessType || '').toString().toLowerCase(),
           mapsLatLong: formData.mapsLatLong,
           owner_name: formData.ownerName,
+          owner_email: formData.ownerEmail,
           phone_admin: formData.phoneAdmin,
           operating_hours: formData.operatingHours,
           sales_channels: formData.salesChannels,
@@ -493,9 +501,8 @@ const RegisterStorePage = () => {
         // Submit final for admin verification
         await api.put(`/restaurants/${restoranId}/submit`);
 
-        alert('Pendaftaran Berhasil! Toko Anda dikirim untuk verifikasi admin.');
-        // Optionally navigate to MyStore or profile
-        // navigate('/my-store');
+        // Navigate to a pending page so user sees the submit confirmation
+        navigate('/store-verification-pending');
       } catch (err) {
         console.error('final submit error', err);
         const status = err?.response?.status;
@@ -601,6 +608,16 @@ const RegisterStorePage = () => {
           onChange={(e) => handleChange('ownerName', e.target.value)}
           error={errors.ownerName}
           placeholder="Nama lengkap"
+        />
+        <InputField
+          id="ownerEmail"
+          label="Email Verifikasi"
+          helperText="Tuliskan alamat email aktif lengkap untuk verifikasi toko"
+          type="email"
+          value={formData.ownerEmail}
+          onChange={(e) => handleChange('ownerEmail', e.target.value)}
+          error={errors.ownerEmail}
+          placeholder="contoh: pemilik@tokoku.id"
         />
         <InputField
           id="phonePrimary"

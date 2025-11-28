@@ -45,9 +45,16 @@ const VerificationModal = ({ type, data, onClose, onVerify, onReject }) => (
             <div className='bg-gray-50 rounded-xl p-4 space-y-3 border border-gray-200'>
               <h4 className='font-bold text-lg text-gray-800 border-b pb-2 flex items-center gap-2'><User size={20}/> Detail Kepemilikan</h4>
               <p className='text-sm flex items-center gap-2'><User size={16}/> <strong>Nama Pemilik:</strong> {data.owner}</p>
-              <p className='text-sm flex items-center gap-2'><Mail size={16}/> <strong>Email:</strong> {data.email}</p>
+              <p className='text-sm flex items-center gap-2'><Mail size={16}/> <strong>Email:</strong> {data.ownerEmail || data.email || '-'}</p>
               <p className='text-sm flex items-center gap-2'><Phone size={16}/> <strong>Kontak WA:</strong> {data.contact}</p>
-              <p className='text-sm flex items-center gap-2'><Clock size={16}/> <strong>Jam Buka:</strong> {data.openHours}</p>
+              <p className='text-sm flex items-center gap-2'><Clock size={16}/> <strong>Jam Buka:</strong> {data.openHours || data.operatingHours || '-'}</p>
+              <p className='text-sm flex items-center gap-2'><strong>Saluran Pemesanan:</strong> {data.salesChannels || '-'}</p>
+              <p className='text-sm flex items-center gap-2'><strong>Website / Sosial Media:</strong> {data.socialMedia || '-'}</p>
+              <p className='text-sm flex items-center gap-2'><strong>Kategori Toko:</strong> {data.storeCategory || '-'}</p>
+              <p className='text-sm flex items-center gap-2'><strong>Fokus Kesehatan:</strong> {(data.healthFocus && data.healthFocus.length) ? data.healthFocus.join(', ') : '-'}</p>
+              <p className='text-sm flex items-center gap-2'><strong>Jenis Lemak Dominan:</strong> {data.dominantFat || '-'}</p>
+              <p className='text-sm flex items-center gap-2'><strong>Metode Masak:</strong> {(data.cookingMethods && data.cookingMethods.length) ? data.cookingMethods.join(', ') : '-'}</p>
+              <p className='text-sm flex items-start gap-2'><MapPin size={16} className='flex-shrink-0 mt-1'/> <strong>Koordinat Maps:</strong> {data.mapsLatLong || '-'}</p>
               <p className='text-sm flex items-start gap-2'><MapPin size={16} className='flex-shrink-0 mt-1'/> <strong>Alamat:</strong> {data.address}</p>
               <p className='text-sm flex items-start gap-2'><Clock size={16} className='flex-shrink-0 mt-1'/> <strong>Tanggal Pengajuan:</strong> {data.date}</p>
             </div>
@@ -58,12 +65,30 @@ const VerificationModal = ({ type, data, onClose, onVerify, onReject }) => (
               <p className='text-gray-700 italic border-l-2 pl-3 border-green-500 text-sm leading-relaxed'>
                 {data.concept}
               </p>
-              <h4 className='font-bold text-sm text-gray-800 mt-4'>Bukti Visual (Mock):</h4>
-              <img 
-                src={data.docUrl} 
-                alt="Dokumen Pendukung" 
-                className="w-full rounded-lg border border-gray-300"
-              />
+              <h4 className='font-bold text-sm text-gray-800 mt-4'>Document</h4>
+              <div className='space-y-3'>
+                {data.documents && data.documents.length > 0 ? (
+                  data.documents.map((doc, idx) => (
+                    <div key={idx} className='flex items-center gap-3'>
+                        {String(doc).match(/\.(jpg|jpeg|png)$/i) ? (
+                        <img src={String(doc).startsWith('/') ? window.location.origin + doc : doc} alt={`doc-${idx}`} className='w-28 h-20 object-cover rounded border' />
+                      ) : (
+                        <div className='w-28 h-20 flex items-center justify-center rounded border bg-white text-xs text-gray-600'>File</div>
+                      )}
+                      <div className='flex flex-col'>
+                        <a href={String(doc).startsWith('/') ? window.location.origin + doc : doc} target='_blank' rel='noreferrer' className='text-sm text-green-700 underline'>Lihat / Unduh</a>
+                        <span className='text-xs text-gray-500'>{String(doc).split('/').pop()}</span>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  data.docUrl ? (
+                    <img src={data.docUrl} alt="Dokumen Pendukung" className="w-full rounded-lg border border-gray-300" />
+                  ) : (
+                    <p className='text-sm text-gray-600'>Tidak ada dokumen yang diunggah.</p>
+                  )
+                )}
+              </div>
             </div>
           </div>
         )}
@@ -109,16 +134,8 @@ export default function AdminDashboardPage() {
 
   const [pendingMerchants, setPendingMerchants] = useState([]);
   const [pendingMenus, setPendingMenus] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-
-  const apiOrigin = (() => {
-    try {
-      return api.defaults.baseURL.replace(/\/api$/, '');
-    } catch (e) {
-      return 'http://localhost:3000';
-    }
-  })();
+  const [_loading, setLoading] = useState(false);
+  const [_error, setError] = useState(null);
 
   useEffect(() => {
     // Fetch pending restaurants and menus
@@ -191,15 +208,38 @@ export default function AdminDashboardPage() {
         </thead>
         <tbody>
           {pendingMerchants.map(m => {
+            // Prefer backend-provided `documents` array when available (normalized by backend)
+            const backendDocs = Array.isArray(m.documents) ? m.documents : null;
+            const documentsJson = (() => {
+              if (!m) return null;
+              if (m.documents_json) {
+                try { return typeof m.documents_json === 'string' ? JSON.parse(m.documents_json) : m.documents_json; } catch { return null; }
+              }
+              return null;
+            })();
+
+            const derivedDocs = backendDocs ? backendDocs : ((documentsJson && (Array.isArray(documentsJson.foto_ktp) || Array.isArray(documentsJson.dokumen_usaha)))
+              ? [...(documentsJson.foto_ktp || []), ...(documentsJson.dokumen_usaha || []), ...(documentsJson.npwp || [])]
+              : []);
+
             const row = {
               id: m.id,
               name: m.nama_restoran || m.name || '—',
-              owner: m.user_id || m.owner || '—',
+              owner: m.owner_name || m.user_id || m.owner || '—',
+              ownerEmail: m.owner_email || m.ownerEmail || m.email || '-',
               concept: m.deskripsi || '—',
-              address: m.alamat || '—',
+              address: m.alamat || m.address || '—',
               date: m.created_at || m.tanggal || '—',
-              contact: m.no_telepon || '—',
-              docUrl: m.foto_ktp || m.dokumen_usaha || null,
+              contact: m.no_telepon || m.phone_admin || m.contact || '—',
+              operatingHours: m.operating_hours || m.openHours || null,
+              salesChannels: m.sales_channels || null,
+              socialMedia: m.social_media || null,
+              storeCategory: m.store_category || null,
+              healthFocus: (m.health_focus && typeof m.health_focus === 'string') ? (() => { try { return JSON.parse(m.health_focus); } catch { return [m.health_focus]; } })() : (m.health_focus || []),
+              dominantFat: m.dominant_fat || m.dominantFat || null,
+              cookingMethods: (m.dominant_cooking_method && typeof m.dominant_cooking_method === 'string') ? (() => { try { return JSON.parse(m.dominant_cooking_method); } catch { return [m.dominant_cooking_method]; } })() : (m.dominant_cooking_method || m.dominantCookingMethod || []),
+              mapsLatLong: m.maps_latlong || m.mapsLatLong || null,
+              documents: (derivedDocs && derivedDocs.length) ? derivedDocs : ([m.foto_ktp, m.dokumen_usaha, m.npwp].filter(Boolean)),
             };
 
             return (
@@ -212,8 +252,26 @@ export default function AdminDashboardPage() {
                 <td>
                   <button 
                     onClick={() => {
-                      const docFull = row.docUrl && String(row.docUrl).startsWith('/') ? apiOrigin + row.docUrl : row.docUrl;
-                      setSelectedItem({ type: 'merchant', ...row, docUrl: docFull });
+                      setSelectedItem({
+                        type: 'merchant',
+                        id: row.id,
+                        name: row.name,
+                        owner: row.owner,
+                        ownerEmail: row.ownerEmail,
+                        contact: row.contact,
+                        openHours: row.operatingHours,
+                        address: row.address,
+                        date: row.date,
+                        concept: row.concept,
+                        salesChannels: row.salesChannels,
+                        socialMedia: row.socialMedia,
+                        storeCategory: row.storeCategory,
+                        healthFocus: row.healthFocus,
+                        dominantFat: row.dominantFat,
+                        cookingMethods: row.cookingMethods,
+                        mapsLatLong: row.mapsLatLong,
+                        documents: row.documents,
+                      });
                     }}
                     className="bg-green-500 hover:bg-green-600 text-white text-xs px-3 py-1.5 rounded-lg shadow-sm transition-colors"
                   >

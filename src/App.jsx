@@ -17,6 +17,7 @@ import MenuDetailPage from "./pages/MenuDetailPage";
 import SearchResultsPage from "./pages/SearchResultsPage";
 import CategoryPage from "./pages/CategoryPage";
 import RegisterStorePage from "./pages/RegisterStorePage";
+import StoreVerificationPending from "./pages/StoreVerificationPending";
 import AdminDashboardPage from "./pages/AdminDashboardPage";
 import MyStorePage from "./pages/MyStorePage";
 import SettingsPage from "./pages/SettingsPage";
@@ -60,6 +61,7 @@ function AppContent() {
           <Route path="/add-menu" element={<AddMenuPage />} />
           <Route path="/my-store" element={<MyStorePage />} />
           <Route path="/register-store" element={<RegisterStorePage />} />
+          <Route path="/store-verification-pending" element={<StoreVerificationPending />} />
 
           <Route path="/" element={<Layout />}>
             <Route index element={<HeroSection />} />
