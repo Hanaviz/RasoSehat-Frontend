@@ -15,22 +15,21 @@ export const AuthProvider = ({ children }) => {
     useEffect(() => {
         const fetchUser = async () => {
             if (token) {
-                // Set header untuk request
                 api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
                 try {
-                    // Coba ambil data user dari endpoint /user
-                    const response = await api.get(`/user`);
-                    // Backend mengembalikan { user: { ... } } -- gunakan properti user jika ada
-                    const fetchedUser = response.data?.user ?? response.data;
+                    // Verify token via /auth/user (returns minimal payload)
+                    await api.get(`${BASE_URL}/user`);
+                    // Then fetch full profile so UI has complete data
+                    const profileRes = await api.get(`${BASE_URL}/profile`);
+                    const data = profileRes.data?.data ?? profileRes.data ?? {};
+                    const fetchedUser = { id: data.id, name: data.name, email: data.email, role: data.role, avatar: data.avatar };
                     setUser(fetchedUser);
                 } catch (error) {
-                    // If server responded with 401/403, token is invalid -> clear local auth
                     const status = error.response?.status;
                     if (status === 401 || status === 403) {
                         console.error('Token invalid or expired. Logging out.');
                         handleLogoutLocal();
                     } else {
-                        // Network error or server down - do not immediately log user out.
                         console.error('Could not verify token due to network/server error; keeping local token until next attempt.', error?.message || error);
                     }
                 }
@@ -40,7 +39,7 @@ export const AuthProvider = ({ children }) => {
             }
             setIsLoading(false);
         };
-        
+
         fetchUser();
     }, [token]);
     
@@ -64,6 +63,22 @@ export const AuthProvider = ({ children }) => {
             };
         }
     }
+
+    // 2b. Refresh full profile from /auth/profile and update context user
+    const refreshProfile = async () => {
+        if (!token) return null;
+        try {
+            const res = await api.get('/auth/profile');
+            const data = res.data?.data ?? res.data;
+            // normalize similar shape as earlier
+            const fetchedUser = { id: data.id, name: data.name, email: data.email, role: data.role, avatar: data.avatar };
+            setUser(fetchedUser);
+            return fetchedUser;
+        } catch (err) {
+            console.error('Failed to refresh profile', err);
+            return null;
+        }
+    };
 
     // 3. LOGIN HANDLER (Memanggil POST /api/auth/login)
     const handleLogin = async (credentials) => {
@@ -114,6 +129,7 @@ export const AuthProvider = ({ children }) => {
         login: handleLogin,
         register: handleRegister, // <-- Expose fungsi register
         logout: handleLogout,
+        refreshProfile,
         // Helper untuk cek role
         isAdmin: user?.role === 'admin',
         isPenjual: user?.role === 'penjual',

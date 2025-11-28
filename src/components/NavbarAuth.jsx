@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import debounce from 'lodash/debounce';
 import { useAuth } from '../context/AuthContext';
+import { makeImageUrl } from '../utils/api';
 
 export default function NavbarAuth() {
   const navigate = useNavigate();
@@ -30,7 +31,7 @@ export default function NavbarAuth() {
   // Fallback UI values when user is not yet available
   const displayName = user?.name || 'Pengguna';
   const displayEmail = user?.email || '';
-  const avatarUrl = user?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=16a34a&color=fff`;
+  const avatarUrl = user?.avatar ? makeImageUrl(user.avatar) : `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=16a34a&color=fff`;
   const isStoreMember = !!isPenjual;
 
   // Mock notifications

@@ -4,6 +4,9 @@ import { LayoutDashboard, Store, Utensils, CheckCircle, Clock, User, MapPin, Pho
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../utils/api';
 
+// Determine backend origin from API base URL so document links point to backend
+const API_ORIGIN = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api').replace(/\/api\/?$/i, '');
+
 // State will hold live data from backend
 
 // Komponen Card KPI
@@ -71,12 +74,12 @@ const VerificationModal = ({ type, data, onClose, onVerify, onReject }) => (
                   data.documents.map((doc, idx) => (
                     <div key={idx} className='flex items-center gap-3'>
                         {String(doc).match(/\.(jpg|jpeg|png)$/i) ? (
-                        <img src={String(doc).startsWith('/') ? window.location.origin + doc : doc} alt={`doc-${idx}`} className='w-28 h-20 object-cover rounded border' />
+                        <img src={String(doc).startsWith('/') ? API_ORIGIN + doc : doc} alt={`doc-${idx}`} className='w-28 h-20 object-cover rounded border' />
                       ) : (
                         <div className='w-28 h-20 flex items-center justify-center rounded border bg-white text-xs text-gray-600'>File</div>
                       )}
                       <div className='flex flex-col'>
-                        <a href={String(doc).startsWith('/') ? window.location.origin + doc : doc} target='_blank' rel='noreferrer' className='text-sm text-green-700 underline'>Lihat / Unduh</a>
+                        <a href={String(doc).startsWith('/') ? API_ORIGIN + doc : doc} target='_blank' rel='noreferrer' className='text-sm text-green-700 underline'>Lihat / Unduh</a>
                         <span className='text-xs text-gray-500'>{String(doc).split('/').pop()}</span>
                       </div>
                     </div>
@@ -208,19 +211,42 @@ export default function AdminDashboardPage() {
         </thead>
         <tbody>
           {pendingMerchants.map(m => {
-            // Prefer backend-provided `documents` array when available (normalized by backend)
-            const backendDocs = Array.isArray(m.documents) ? m.documents : null;
-            const documentsJson = (() => {
-              if (!m) return null;
-              if (m.documents_json) {
-                try { return typeof m.documents_json === 'string' ? JSON.parse(m.documents_json) : m.documents_json; } catch { return null; }
-              }
-              return null;
-            })();
+            // Robust document parsing: support multiple shapes stored in DB or returned by API
+            const parseDocuments = (item) => {
+              try {
+                if (!item) return [];
+                // If API already returned an array
+                if (Array.isArray(item.documents)) return item.documents.filter(Boolean);
 
-            const derivedDocs = backendDocs ? backendDocs : ((documentsJson && (Array.isArray(documentsJson.foto_ktp) || Array.isArray(documentsJson.dokumen_usaha)))
-              ? [...(documentsJson.foto_ktp || []), ...(documentsJson.dokumen_usaha || []), ...(documentsJson.npwp || [])]
-              : []);
+                // If API returned a JSON string in `documents`
+                if (typeof item.documents === 'string') {
+                  try {
+                    const parsed = JSON.parse(item.documents);
+                    if (Array.isArray(parsed)) return parsed.filter(Boolean);
+                    if (parsed && typeof parsed === 'object') {
+                      return ([...(Array.isArray(parsed.foto_ktp) ? parsed.foto_ktp : []), ...(Array.isArray(parsed.dokumen_usaha) ? parsed.dokumen_usaha : []), ...(Array.isArray(parsed.npwp) ? parsed.npwp : [])]).filter(Boolean);
+                    }
+                  } catch { void 0; }
+                }
+
+                // Try documents_json field
+                let dj = item.documents_json;
+                if (typeof dj === 'string') {
+                  try { dj = JSON.parse(dj); } catch { void 0; }
+                }
+                if (Array.isArray(dj)) return dj.filter(Boolean);
+                if (dj && typeof dj === 'object') {
+                  return ([...(Array.isArray(dj.foto_ktp) ? dj.foto_ktp : []), ...(Array.isArray(dj.dokumen_usaha) ? dj.dokumen_usaha : []), ...(Array.isArray(dj.npwp) ? dj.npwp : [])]).filter(Boolean);
+                }
+
+                // Fallback to single-file columns
+                return [item.foto_ktp, item.dokumen_usaha, item.npwp].filter(Boolean);
+              } catch {
+                return [];
+              }
+            };
+
+            const derivedDocs = parseDocuments(m);
 
             const row = {
               id: m.id,
@@ -251,27 +277,37 @@ export default function AdminDashboardPage() {
                 <td>{row.date ? new Date(row.date).toLocaleString() : '—'}</td>
                 <td>
                   <button 
-                    onClick={() => {
-                      setSelectedItem({
-                        type: 'merchant',
-                        id: row.id,
-                        name: row.name,
-                        owner: row.owner,
-                        ownerEmail: row.ownerEmail,
-                        contact: row.contact,
-                        openHours: row.operatingHours,
-                        address: row.address,
-                        date: row.date,
-                        concept: row.concept,
-                        salesChannels: row.salesChannels,
-                        socialMedia: row.socialMedia,
-                        storeCategory: row.storeCategory,
-                        healthFocus: row.healthFocus,
-                        dominantFat: row.dominantFat,
-                        cookingMethods: row.cookingMethods,
-                        mapsLatLong: row.mapsLatLong,
-                        documents: row.documents,
-                      });
+                    onClick={async () => {
+                      // try to fetch fresh, normalized restaurant object from server
+                      try {
+                        const res = await api.get(`/admin/restaurant/${row.id}`);
+                        const r = res.data;
+                        setSelectedItem({ type: 'merchant', ...r });
+                        return;
+                      } catch (e) {
+                        // fallback to row-derived data if API call fails
+                        console.warn('Could not fetch restaurant detail, using row data fallback', e);
+                        setSelectedItem({
+                          type: 'merchant',
+                          id: row.id,
+                          name: row.name,
+                          owner: row.owner,
+                          ownerEmail: row.ownerEmail,
+                          contact: row.contact,
+                          openHours: row.operatingHours,
+                          address: row.address,
+                          date: row.date,
+                          concept: row.concept,
+                          salesChannels: row.salesChannels,
+                          socialMedia: row.socialMedia,
+                          storeCategory: row.storeCategory,
+                          healthFocus: row.healthFocus,
+                          dominantFat: row.dominantFat,
+                          cookingMethods: row.cookingMethods,
+                          mapsLatLong: row.mapsLatLong,
+                          documents: row.documents,
+                        });
+                      }
                     }}
                     className="bg-green-500 hover:bg-green-600 text-white text-xs px-3 py-1.5 rounded-lg shadow-sm transition-colors"
                   >

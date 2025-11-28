@@ -1,16 +1,13 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Camera, Edit2, Save, X, Mail, Phone, Calendar, User } from "lucide-react";
+import api from '../utils/api';
+// derive backend origin from api base URL so relative upload paths can be resolved
+const API_ORIGIN = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api').replace(/\/api\/?$/i, '');
+import { useAuth } from '../context/AuthContext';
 
 export default function ProfilePage() {
-  // Mock user data
-  const [userData, setUserData] = useState({
-    username: "Justin",
-    birthDate: "",
-    gender: "",
-    email: "",
-    phone: "",
-    avatar: "https://ui-avatars.com/api/?name=Justin&background=16a34a&color=fff&size=400"
-  });
+  // Real user data loaded from API
+  const [userData, setUserData] = useState(null);
 
   const [isEditing, setIsEditing] = useState({
     username: false,
@@ -21,8 +18,10 @@ export default function ProfilePage() {
   });
 
   const [tempData, setTempData] = useState({ ...userData });
-  const [previewImage, setPreviewImage] = useState(userData.avatar);
+  const [previewImage, setPreviewImage] = useState('');
   const fileInputRef = useRef(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const { refreshProfile } = useAuth();
 
   // Handle image selection
   const handleImageChange = (e) => {
@@ -46,6 +45,24 @@ export default function ProfilePage() {
         setPreviewImage(reader.result);
       };
       reader.readAsDataURL(file);
+      // store file for upload
+      setTempData(prev => ({ ...prev, avatarFile: file }));
+    }
+  };
+
+  // build absolute URL for images served by backend
+  const makeImageUrl = (u) => {
+    if (!u) return '';
+    try {
+      const s = String(u);
+      // already absolute
+      if (/^https?:\/\//i.test(s)) return encodeURI(s);
+      // if starts with / treat as relative to API origin
+      if (s.startsWith('/')) return encodeURI(API_ORIGIN + s);
+      // otherwise attempt to return encoded string
+      return encodeURI(s);
+    } catch (e) {
+      return '';
     }
   };
 
@@ -53,12 +70,97 @@ export default function ProfilePage() {
   const toggleEdit = (field) => {
     if (isEditing[field]) {
       // Save changes
-      setUserData({ ...userData, [field]: tempData[field] });
+      handleSaveField(field, tempData[field]);
     } else {
       // Start editing
       setTempData({ ...userData });
     }
     setIsEditing({ ...isEditing, [field]: !isEditing[field] });
+  };
+
+  // Fetch profile on mount
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const res = await api.get('/auth/profile');
+        const data = res.data && res.data.data ? res.data.data : res.data || {};
+        // normalize keys to match local state
+        const normalized = {
+          username: data.username || data.name || data.full_name || data.nama || '',
+          birthDate: data.birth_date || data.tanggal_lahir || data.birthDate || '',
+          gender: data.gender || data.jenis_kelamin || '',
+          email: data.email || '',
+          phone: data.phone || data.nomorHP || data.nomor_hp || '',
+          avatar: data.avatar || data.avatar_url || (data.email ? `https://ui-avatars.com/api/?name=${encodeURIComponent(data.email)}&background=16a34a&color=fff&size=400` : ''),
+          id: data.id || data.user_id || null,
+        };
+        setUserData(normalized);
+        setTempData(normalized);
+        setPreviewImage(makeImageUrl(normalized.avatar || ''));
+      } catch (e) {
+        console.error('Failed to load profile', e);
+        // fallback to empty user
+        setUserData({ username: '', birthDate: '', gender: '', email: '', phone: '', avatar: '' });
+        setTempData({ username: '', birthDate: '', gender: '', email: '', phone: '', avatar: '' });
+      }
+    };
+    fetchProfile();
+  }, []);
+
+  // Save a single field to backend
+  const handleSaveField = async (field, value) => {
+    if (!userData) return;
+    setIsSaving(true);
+    try {
+      // Build payload with backend column names only (avoid sending UI-only keys)
+      const payload = {};
+      if (field === 'username') payload.name = value;
+      else if (field === 'birthDate') payload.birth_date = value;
+      else if (field === 'phone') payload.phone = value;
+      else if (field === 'gender') payload.gender = value;
+      else if (field === 'email') payload.email = value;
+
+      const res = await api.put('/auth/profile', payload).catch(err => { throw err; });
+      // optimistic update
+      setUserData(prev => ({ ...prev, [field]: value }));
+      // refresh auth context user if available
+      try { refreshProfile(); } catch (e) { /* ignore */ }
+    } catch (e) {
+      console.error('Failed to save profile field', e);
+      const msg = e?.response?.data?.message || e.message || 'Gagal menyimpan perubahan. Periksa koneksi dan coba lagi.';
+      alert(msg);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Save avatar (file upload)
+  const handleSaveAvatar = async () => {
+    if (!tempData || !tempData.avatarFile) {
+      alert('Pilih gambar terlebih dahulu.');
+      return;
+    }
+    setIsSaving(true);
+    try {
+      const fd = new FormData();
+      fd.append('avatar', tempData.avatarFile);
+      const res = await api.post('/auth/avatar', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      const avatarUrl = res.data && (res.data.avatar || res.data.avatar_url || (res.data.data && res.data.data.avatar));
+      if (avatarUrl) {
+        setUserData(prev => ({ ...prev, avatar: avatarUrl }));
+        setPreviewImage(makeImageUrl(avatarUrl));
+        setTempData(prev => ({ ...prev, avatarFile: null }));
+        alert('Foto profil berhasil diperbarui.');
+        try { refreshProfile(); } catch (e) { /* ignore */ }
+      } else {
+        alert('Profil diperbarui, namun tidak menerima URL avatar dari server.');
+      }
+    } catch (e) {
+      console.error('Failed to upload avatar', e);
+      alert('Gagal mengunggah avatar. Periksa koneksi dan coba lagi.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   // Handle cancel edit
@@ -77,6 +179,15 @@ export default function ProfilePage() {
     // In real app, validate and send to backend
     alert('Kata sandi berhasil diubah!');
   };
+
+  // show loading state until userData is fetched
+  if (userData === null) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center text-gray-600">Memuat profil...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-green-50 pt-24 md:pt-28 py-8 px-4 sm:px-6 lg:px-8">
@@ -151,16 +262,14 @@ export default function ProfilePage() {
                 </p>
               </div>
 
-              {/* Save Button */}
+              {/* Save Avatar Button */}
               <button
-                onClick={() => {
-                  setUserData({ ...userData, avatar: previewImage });
-                  alert('Foto profil berhasil diperbarui!');
-                }}
-                className="mt-6 w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-semibold py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center gap-2 group"
+                onClick={handleSaveAvatar}
+                disabled={isSaving}
+                className={`mt-6 w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-semibold py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center gap-2 group ${isSaving ? 'opacity-60 cursor-not-allowed' : ''}`}
               >
-                <Save className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                Buat Kata Sandi
+                <Save className="w-5 h-5" />
+                {isSaving ? 'Menyimpan...' : 'Simpan Foto Profil'}
               </button>
             </div>
           </div>

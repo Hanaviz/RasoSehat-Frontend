@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, memo } from 'react';
+import React, { useState, useCallback, useMemo, memo, useEffect, useRef } from 'react';
 import api from '../utils/api';
 // eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from 'framer-motion';
@@ -373,9 +373,43 @@ const RegisterStorePage = () => {
       alert(`File ${tooLarge.name} terlalu besar. Maksimal ${Math.round(MAX_FILE_SIZE/1024/1024)} MB per file.`);
       return;
     }
-    // Store array of files
-    handleChange('ktpUpload', files);
-  }, [handleChange]);
+    // Validate mime types (accept images + pdf)
+    const allowed = ['image/jpeg','image/jpg','image/png','image/webp','application/pdf'];
+    const bad = files.find(f => !allowed.includes(f.type));
+    if (bad) {
+      alert(`File ${bad.name} tidak didukung. Hanya JPG/PNG/WEBP/PDF yang diperbolehkan.`);
+      return;
+    }
+
+    // Append to existing files (support multiple selections across picks)
+    const existing = formData.ktpUpload && Array.isArray(formData.ktpUpload) ? formData.ktpUpload : [];
+    handleChange('ktpUpload', [...existing, ...files]);
+  }, [handleChange, formData.ktpUpload]);
+
+  // Previews for image files (object URLs) to show thumbnails before upload
+  const [previews, setPreviews] = useState([]);
+  const prevPreviewUrlsRef = useRef([]);
+  useEffect(() => {
+    // revoke previously created URLs
+    prevPreviewUrlsRef.current.forEach(u => { if (u) URL.revokeObjectURL(u); });
+    prevPreviewUrlsRef.current = [];
+
+    if (!formData.ktpUpload || !Array.isArray(formData.ktpUpload) || formData.ktpUpload.length === 0) {
+      setPreviews([]);
+      return;
+    }
+
+    const next = formData.ktpUpload.map(f => ({
+      name: f.name,
+      type: f.type,
+      size: f.size,
+      url: f.type && f.type.startsWith && f.type.startsWith('image/') ? URL.createObjectURL(f) : null
+    }));
+    setPreviews(next);
+    prevPreviewUrlsRef.current = next.map(n => n.url).filter(Boolean);
+    // cleanup when component unmounts
+    return () => { prevPreviewUrlsRef.current.forEach(u => { if (u) URL.revokeObjectURL(u); }); };
+  }, [formData.ktpUpload]);
 
   // Optimized: Memoize validation rules
   const validationRules = useMemo(() => ({
@@ -702,17 +736,34 @@ const RegisterStorePage = () => {
             <Upload size={20} /> {formData.ktpUpload && formData.ktpUpload.length ? `${formData.ktpUpload.length} file dipilih` : 'Unggah KTP / Dokumen Resmi'}
           </button>
 
-          {/* Show uploaded file list with remove option */}
+          {/* Show uploaded file previews with remove option */}
           {formData.ktpUpload && formData.ktpUpload.length > 0 && (
-            <div className="mt-3 space-y-2">
+            <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
               {formData.ktpUpload.map((f, idx) => (
-                <div key={idx} className="flex items-center justify-between bg-white p-2 rounded-lg border border-gray-200">
-                  <div className="text-sm text-gray-700 truncate">{f.name}</div>
-                  <button type="button" onClick={() => {
-                      const newFiles = [...formData.ktpUpload];
-                      newFiles.splice(idx, 1);
-                      handleChange('ktpUpload', newFiles.length ? newFiles : null);
-                  }} className="text-xs text-red-600 hover:underline">Hapus</button>
+                <div key={idx} className="flex items-center gap-3 bg-white p-2 rounded-lg border border-gray-200">
+                  <div className="w-20 h-16 flex items-center justify-center bg-gray-50 rounded overflow-hidden">
+                    {previews[idx] && previews[idx].url ? (
+                      <img src={previews[idx].url} alt={f.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="text-xs text-gray-600 text-center px-1">
+                        <div className="font-semibold">{f.type === 'application/pdf' ? 'PDF' : 'File'}</div>
+                        <div className="text-[11px]">{Math.round(f.size/1024)} KB</div>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm text-gray-700 truncate">{f.name}</div>
+                    <div className="text-xs text-gray-500">{f.type} • {Math.round(f.size/1024)} KB</div>
+                  </div>
+                  <div>
+                    <button type="button" onClick={() => {
+                        const newFiles = [...formData.ktpUpload];
+                        // revoke object URL if exists
+                        if (previews[idx] && previews[idx].url) URL.revokeObjectURL(previews[idx].url);
+                        newFiles.splice(idx, 1);
+                        handleChange('ktpUpload', newFiles.length ? newFiles : null);
+                    }} className="text-xs text-red-600 hover:underline">Hapus</button>
+                  </div>
                 </div>
               ))}
             </div>

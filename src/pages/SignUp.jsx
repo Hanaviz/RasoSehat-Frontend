@@ -72,6 +72,16 @@ export default function SignUpPage() { // <-- NAMA COMPONENT DIPERBAIKI (TADI MA
         // Data lain (Tanggal Lahir, Gender) dapat ditambahkan ke tabel users/profile nanti
     };
 
+    // Include birth date and gender if available
+    const { day, month, year } = formData.tanggalLahir;
+    if (day && month && year) {
+      // Build YYYY-MM-DD
+      const dd = String(day).padStart(2, '0');
+      const mm = String(month).padStart(2, '0');
+      registrationData.birth_date = `${year}-${mm}-${dd}`;
+    }
+    if (formData.jenisKelamin) registrationData.gender = formData.jenisKelamin;
+
     const result = await register(registrationData); // <-- PANGGIL FUNGSI REGISTER DARI CONTEXT
 
     setIsLoading(false);
