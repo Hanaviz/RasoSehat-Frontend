@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useLocation, Outlet } from 'react-router-dom';
 // Import komponen yang diperlukan
-import Navbar from './navbar'; 
 import NavbarAuth from './NavbarAuth'; 
 import Footer from './Footer'; 
 
@@ -32,8 +31,8 @@ export default function Layout() {
     return <Outlet />; 
   }
 
-  // Menentukan Navbar mana yang akan digunakan
-  const CurrentNavbar = isAuthenticated ? NavbarAuth : Navbar;
+  // Menentukan Navbar yang akan digunakan
+  const CurrentNavbar = NavbarAuth;
 
   return (
     // Flex container untuk memastikan footer selalu berada di bawah (sticky footer pattern)

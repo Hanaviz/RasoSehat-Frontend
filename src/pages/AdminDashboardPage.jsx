@@ -23,24 +23,26 @@ const KpiCard = ({ title, value, icon: Icon, color }) => (
 );
 
 // Komponen Modal Detail Verifikasi
-const VerificationModal = ({ type, data, onClose, onVerify, onReject }) => (
-  <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={onClose}>
-    <motion.div
-      initial={{ y: 50, opacity: 0 }}
-      animate={{ y: 0, opacity: 1 }}
-      exit={{ y: 50, opacity: 0 }}
-      transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-      className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl" 
-      onClick={(e) => e.stopPropagation()}
-    >
-      <div className="p-5 border-b flex justify-between items-center bg-green-600 rounded-t-2xl">
-        <h3 className="text-xl font-bold text-white">{type === 'merchant' ? `Tinjauan Toko: ${data.name}` : `Audit Menu: ${data.menuName}`}</h3>
-        <button onClick={onClose} className="p-1 rounded-full text-white hover:bg-white/20 transition-colors">
-          <X size={24} />
-        </button>
-      </div>
-      
-      <div className="p-6 space-y-6 max-h-[80vh] overflow-y-auto">
+const VerificationModal = ({ type, data, onClose, onVerify, onReject }) => {
+  const [note, setNote] = React.useState('');
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={onClose}>
+      <motion.div
+        initial={{ y: 50, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        exit={{ y: 50, opacity: 0 }}
+        transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl" 
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="p-5 border-b flex justify-between items-center bg-green-600 rounded-t-2xl">
+          <h3 className="text-xl font-bold text-white">{type === 'merchant' ? `Tinjauan Toko: ${data.name}` : `Audit Menu: ${data.menuName}`}</h3>
+          <button onClick={onClose} className="p-1 rounded-full text-white hover:bg-white/20 transition-colors">
+            <X size={24} />
+          </button>
+        </div>
+        
+        <div className="p-6 space-y-6 max-h-[80vh] overflow-y-auto">
         {/* Bagian 1: Detail Toko */}
         {type === 'merchant' && (
           <div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
@@ -110,6 +112,8 @@ const VerificationModal = ({ type, data, onClose, onVerify, onReject }) => (
           <label className='block text-sm font-semibold text-gray-700 mb-2'>Catatan Admin (Wajib diisi jika Tolak):</label>
           <textarea 
             rows="3" 
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
             placeholder="Tuliskan feedback atau permintaan koreksi kepada Merchant di sini..."
             className="w-full p-3 border rounded-lg focus:ring-green-500 focus:border-green-500"
           />
@@ -118,16 +122,17 @@ const VerificationModal = ({ type, data, onClose, onVerify, onReject }) => (
 
       {/* Footer Aksi */}
       <div className="p-5 flex justify-end gap-3 border-t">
-        <button onClick={() => onReject(data.id)} className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white font-semibold rounded-lg shadow-md flex items-center gap-2 transition-colors">
-          <X size={20} /> Tolak
+        <button onClick={() => onReject(data.id, note)} className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white font-semibold rounded-lg shadow-md flex items-center gap-2 transition-colors">
+          <X size={20} /> Tolak & Kirim Catatan
         </button>
-        <button onClick={() => onVerify(data.id)} className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg shadow-md flex items-center gap-2 transition-colors">
-          <CheckCircle size={20} /> Verifikasi & Setujui
+        <button onClick={() => onVerify(data.id, note)} className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg shadow-md flex items-center gap-2 transition-colors">
+          <CheckCircle size={20} /> Verifikasi & Kirim Undangan
         </button>
       </div>
     </motion.div>
-  </div>
-);
+    </div>
+  );
+};
 
 export default function AdminDashboardPage() {
   const navigate = useNavigate();
@@ -168,22 +173,29 @@ export default function AdminDashboardPage() {
     fetchPending();
   }, []);
 
-  const handleVerify = async (id) => {
+  const handleVerify = async (id, note = '') => {
     try {
-      await api.put(`/admin/verify/restaurant/${id}`, { status: 'approved' });
+      await api.patch(`/admin/restaurants/${id}/verify`, { status: 'approved', note });
       setPendingMerchants(prev => prev.filter(p => Number(p.id) !== Number(id)));
       setSelectedItem(null);
+      alert('Restoran berhasil diverifikasi dan pemilik telah diberi tahu.');
     } catch (e) {
       console.error('verify error', e);
       alert('Gagal memverifikasi restoran. Periksa konsol.');
     }
   };
 
-  const handleReject = async (id) => {
+  const handleReject = async (id, note = '') => {
+    if (!note || !note.trim()) {
+      alert('Mohon isi catatan admin ketika menolak permohonan.');
+      return;
+    }
+
     try {
-      await api.put(`/admin/verify/restaurant/${id}`, { status: 'rejected' });
+      await api.patch(`/admin/restaurants/${id}/verify`, { status: 'rejected', note });
       setPendingMerchants(prev => prev.filter(p => Number(p.id) !== Number(id)));
       setSelectedItem(null);
+      alert('Permohonan ditolak dan catatan telah dikirimkan ke pemilik.');
     } catch (e) {
       console.error('reject error', e);
       alert('Gagal menolak restoran. Periksa konsol.');

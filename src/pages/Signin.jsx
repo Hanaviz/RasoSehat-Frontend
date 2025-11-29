@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff } from 'lucide-react';
@@ -14,7 +14,21 @@ export default function SignInPage() {
   const [errorMessage, setErrorMessage] = useState(''); // <-- Tambah state error
   
   const navigate = useNavigate();
-  const { login } = useAuth(); // <-- Ambil fungsi login dari AuthContext
+  const { login, isAuthenticated, user, isLoading: authLoading } = useAuth(); // <-- Ambil fungsi login dari AuthContext
+  const [mode, setMode] = useState('pengguna'); // 'pengguna' or 'penjual'
+
+  useEffect(() => {
+    // Wait until AuthContext finished verifying token to avoid premature redirects
+    if (authLoading) return;
+    if (isAuthenticated && user?.role === 'penjual') {
+      navigate('/my-store');
+      return;
+    }
+    if (isAuthenticated && user?.role && user.role !== 'penjual') {
+      // authenticated non-seller -> navigate into app (search page)
+      navigate('/home');
+    }
+  }, [authLoading, isAuthenticated, user, navigate]);
 
   const handleSubmit = async (e) => { // <-- JADIKAN ASYNC
     e.preventDefault(); // Mencegah reload form
@@ -32,13 +46,16 @@ export default function SignInPage() {
         const result = await login(credentials); // <-- PANGGIL FUNGSI LOGIN DARI CONTEXT
 
         if (result.success) {
-            setIsSuccess(true);
-            
-            // Hapus logika localStorage & setTimeout mock
-            setTimeout(() => {
-                navigate('/'); // Arahkan ke beranda setelah berhasil
-            }, 700);
-
+          setIsSuccess(true);
+          setTimeout(() => {
+            const roleFromResponse = result.user?.role || user?.role;
+            if (roleFromResponse === 'penjual' || mode === 'penjual') {
+              navigate('/my-store');
+            } else {
+              // After login for normal users, go to the public root (HeroSection)
+              navigate('/');
+            }
+          }, 700);
         } else {
             // Tampilkan pesan error dari backend
             setErrorMessage(result.message || 'Login gagal. Periksa koneksi.');
@@ -113,8 +130,12 @@ export default function SignInPage() {
               transition={{ type: 'spring', stiffness: 300, damping: 22 }}
             >
               <div className="text-center space-y-2">
+                <div className="flex items-center justify-center gap-3">
+                  <button type="button" onClick={() => setMode('pengguna')} className={`px-3 py-1 rounded-md font-semibold ${mode==='pengguna' ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-700'}`}>Masuk sebagai Pengguna</button>
+                  <button type="button" onClick={() => setMode('penjual')} className={`px-3 py-1 rounded-md font-semibold ${mode==='penjual' ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-700'}`}>Masuk sebagai Penjual</button>
+                </div>
                 <h2 className="text-3xl font-bold text-gray-800 fade-in-up delay-1">Selamat Datang</h2>
-                <p className="text-gray-600 fade-in-up delay-2">Temukan makanan sehat di sekitar anda</p>
+                <p className="text-gray-600 fade-in-up delay-2">{mode === 'penjual' ? 'Masuk untuk mengelola toko Anda' : 'Temukan makanan sehat di sekitar anda'}</p>
               </div>
 
               {/* Error Message */}
@@ -211,9 +232,9 @@ export default function SignInPage() {
               <div className="pt-4 border-t border-gray-200 text-center">
                 <p className="text-gray-600 text-sm">
                   Belum punya akun?{' '}
-                  <Link to="/signup" className="text-green-600 hover:text-green-700 font-semibold transition-colors">
-                    Daftar sekarang
-                  </Link>
+                  <Link to="/signup" className="text-green-600 hover:text-green-700 font-semibold transition-colors">Daftar sekarang</Link>
+                  {' '}·{' '}
+                  <Link to="/register-store" className="text-green-600 hover:text-green-700 font-semibold transition-colors">Daftarkan toko</Link>
                 </p>
               </div>
             </motion.div>

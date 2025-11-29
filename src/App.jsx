@@ -8,9 +8,9 @@ import {
 import { AnimatePresence, motion } from "framer-motion";
 
 import Layout from "./components/Layout";
-import HeroSection from "./pages/Herosection";
 import SignInPage from "./pages/Signin";
 import SignUpPage from "./pages/SignUp";
+import StoreSignUp from "./pages/StoreSignUp";
 
 import ProfilePage from "./pages/Profile";
 import MenuDetailPage from "./pages/MenuDetailPage";
@@ -24,8 +24,11 @@ import SettingsPage from "./pages/SettingsPage";
 import RestaurantDetailPage from "./pages/RestaurantDetailPage";
 import AddMenuPage from "./pages/AddMenuPage";
 
-import { useAuth } from "./context/AuthContext"; // <-- IMPORT KRITIS
+import HeroSectionPage from "./pages/Herosection"; // pastikan file ini ada!
+import { useAuth } from "./context/AuthContext";
 
+
+/* ---------------------- PROTECTED ROUTE ---------------------- */
 function ProtectedRoute({ children }) {
   const { isAuthenticated, isLoading } = useAuth();
 
@@ -37,15 +40,18 @@ function ProtectedRoute({ children }) {
     );
   }
 
-  // if (!isAuthenticated) {
-  //   return <Navigate to="/signin" replace />;
-  // }
+  if (!isAuthenticated) {
+    return <Navigate to="/signin" replace />;
+  }
 
   return children;
 }
 
+
+/* ---------------------- ANIMATED ROUTER WRAPPER ---------------------- */
 function AppContent() {
   const location = useLocation();
+
   return (
     <AnimatePresence mode="wait">
       <motion.div
@@ -56,42 +62,38 @@ function AppContent() {
         transition={{ duration: 0.32 }}
       >
         <Routes location={location}>
+          {/* ---------- AUTH PAGES ---------- */}
           <Route path="/signin" element={<SignInPage />} />
           <Route path="/signup" element={<SignUpPage />} />
-          <Route path="/add-menu" element={<AddMenuPage />} />
-          <Route path="/my-store" element={<MyStorePage />} />
+          <Route path="/store-signup" element={<StoreSignUp />} />
+
+          {/* ---------- STORE FLOW ---------- */}
+          <Route path="/my-store" element={<ProtectedRoute><MyStorePage /></ProtectedRoute>} />
           <Route path="/register-store" element={<RegisterStorePage />} />
           <Route path="/store-verification-pending" element={<StoreVerificationPending />} />
+          <Route path="/add-menu" element={<AddMenuPage />} />
 
+          {/* ---------- MAIN LAYOUT (SESUDAH LOGIN MASUK HOME) ---------- */}
           <Route path="/" element={<Layout />}>
-            <Route index element={<HeroSection />} />
-            <Route path="/search" element={<SearchResultsPage />} />
-            <Route path="/category/:categorySlug" element={<CategoryPage />} />
-            <Route path="/menu/:slug" element={<MenuDetailPage />} />
-            <Route
-              path="/restaurant/:slug"
-              element={<RestaurantDetailPage />}
-            />
+            {/* Login adalah halaman utama */}
+            <Route index element={<Navigate to="/signin" replace />} />
+
+            {/* Halaman home yang muncul setelah login */}
+            <Route path="home" element={<ProtectedRoute><HeroSectionPage /></ProtectedRoute>} />
+
+            {/* Page lainnya */}
+            <Route path="search" element={<SearchResultsPage />} />
+            <Route path="category/:categorySlug" element={<CategoryPage />} />
+            <Route path="menu/:slug" element={<MenuDetailPage />} />
+            <Route path="restaurant/:slug" element={<RestaurantDetailPage />} />
           </Route>
 
-          <Route
-            path="/"
-            element={
-              <ProtectedRoute>
-                <Layout />
-              </ProtectedRoute>
-            }
-          >
-            <Route path="/profile" element={<ProfilePage />} />
-            <Route path="/settings" element={<SettingsPage />} />
+          {/* ---------- USER PAGES ---------- */}
+          <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
+          <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
 
-            {/* moved /register-store to public routes so users can register a store without login */}
-          </Route>
-
-          <Route
-            path="/admin"
-            element={<Navigate to="/admin-dashboard" replace />}
-          />
+          {/* ---------- ADMIN ---------- */}
+          <Route path="/admin" element={<Navigate to="/admin-dashboard" replace />} />
           <Route
             path="/admin-dashboard"
             element={
@@ -106,6 +108,8 @@ function AppContent() {
   );
 }
 
+
+/* ---------------------- ROOT APP ---------------------- */
 function App() {
   return (
     <Router>

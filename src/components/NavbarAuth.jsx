@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import debounce from 'lodash/debounce';
 import { useAuth } from '../context/AuthContext';
 import { makeImageUrl } from '../utils/api';
+import api from '../utils/api';
 
 export default function NavbarAuth() {
   const navigate = useNavigate();
@@ -34,38 +35,34 @@ export default function NavbarAuth() {
   const avatarUrl = user?.avatar ? makeImageUrl(user.avatar) : `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=16a34a&color=fff`;
   const isStoreMember = !!isPenjual;
 
-  // Mock notifications
-  const [notifications, setNotifications] = useState([
-    {
-      id: 1,
-      type: "info",
-      title: "Menu Baru Ditambahkan",
-      message: "Restoran Healthy Corner menambahkan menu Buddha Bowl baru",
-      time: "5 menit lalu",
-      isRead: false,
-      icon: "🆕"
-    },
-    {
-      id: 2,
-      type: "update",
-      title: "Update Informasi",
-      message: "Jam operasional Restoran Sehat berubah menjadi 08.00-21.00",
-      time: "1 jam lalu",
-      isRead: false,
-      icon: "⏰"
-    },
-    {
-      id: 3,
-      type: "tips",
-      title: "Tips Kesehatan",
-      message: "Konsumsi sayuran hijau minimal 3 porsi per hari untuk kesehatan optimal",
-      time: "2 jam lalu",
-      isRead: true,
-      icon: "💡"
-    }
-  ]);
+  // Notifications loaded from backend
+  const [notifications, setNotifications] = useState([]);
 
-  const unreadCount = notifications.filter(n => !n.isRead).length;
+  // Fetch notifications from backend (protected route)
+  const fetchNotifications = async () => {
+    try {
+      const res = await api.get('/notifications');
+      if (res?.data?.data) {
+        // normalize: ensure boolean is_read is numeric -> boolean
+        const mapped = res.data.data.map(n => ({
+          ...n,
+          is_read: n.is_read === 1 || n.is_read === true,
+        }));
+        setNotifications(mapped);
+      }
+    } catch (err) {
+      console.error('failed to fetch notifications', err?.response?.data || err.message || err);
+    }
+  };
+
+  // Polling every 15s
+  useEffect(() => {
+    fetchNotifications();
+    const id = setInterval(fetchNotifications, 15000);
+    return () => clearInterval(id);
+  }, []);
+
+  const unreadCount = notifications.filter(n => !n.is_read).length;
 
   // LOGOUT HANDLER BARU
   const handleLogout = async () => {
@@ -201,16 +198,24 @@ export default function NavbarAuth() {
     }
   };
 
-  // Mark notification as read
-  const markAsRead = (id) => {
-    setNotifications(notifications.map(n => 
-      n.id === id ? { ...n, isRead: true } : n
-    ));
+  // Mark notification as read (backend + update local state)
+  const markAsRead = async (id) => {
+    try {
+      await api.patch(`/notifications/${id}/read`);
+      setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n));
+    } catch (err) {
+      console.error('markAsRead failed', err?.response?.data || err.message || err);
+    }
   };
 
   // Mark all notifications as read
-  const markAllAsRead = () => {
-    setNotifications(notifications.map(n => ({ ...n, isRead: true })));
+  const markAllAsRead = async () => {
+    try {
+      await api.post('/notifications/mark-all-read');
+      setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+    } catch (err) {
+      console.error('markAllAsRead failed', err?.response?.data || err.message || err);
+    }
   };
 
   // Render suggestion item
@@ -842,12 +847,12 @@ export default function NavbarAuth() {
                           <p className="text-sm">Tidak ada notifikasi</p>
                         </div>
                       ) : (
-                        notifications.map((notification) => (
+                            notifications.map((notification) => (
                           <button
                             key={notification.id}
                             onClick={() => markAsRead(notification.id)}
                             className={`w-full p-4 text-left hover:bg-gray-50 transition-colors duration-150 border-b border-gray-50 ${
-                              !notification.isRead ? 'bg-green-50/30' : ''
+                              !notification.is_read ? 'bg-green-50/30' : ''
                             }`}
                           >
                             <div className="flex gap-3">
@@ -856,10 +861,10 @@ export default function NavbarAuth() {
                               </div>
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-start justify-between gap-2">
-                                  <h4 className={`font-medium ${!notification.isRead ? 'text-gray-900' : 'text-gray-700'}`}>
+                                  <h4 className={`font-medium ${!notification.is_read ? 'text-gray-900' : 'text-gray-700'}`}>
                                     {notification.title}
                                   </h4>
-                                  {!notification.isRead && (
+                                  {!notification.is_read && (
                                     <span className="w-2 h-2 bg-green-500 rounded-full flex-shrink-0 mt-1.5"></span>
                                   )}
                                 </div>
