@@ -44,10 +44,25 @@ export default function NavbarAuth() {
       const res = await api.get('/notifications');
       if (res?.data?.data) {
         // normalize: ensure boolean is_read is numeric -> boolean
-        const mapped = res.data.data.map(n => ({
-          ...n,
-          is_read: n.is_read === 1 || n.is_read === true,
-        }));
+        const mapped = res.data.data.map(n => {
+          // parse data field if it's a JSON string
+          let parsed = null;
+          try {
+            parsed = n.data && typeof n.data === 'string' ? JSON.parse(n.data) : n.data || null;
+          } catch (e) {
+            parsed = n.data || null;
+          }
+
+          const isRead = n.is_read === 1 || n.is_read === true;
+          const time = n.time || (n.created_at ? new Date(n.created_at).toLocaleString() : null);
+
+          return {
+            ...n,
+            data: parsed,
+            is_read: isRead,
+            time,
+          };
+        });
         setNotifications(mapped);
       }
     } catch (err) {
@@ -847,37 +862,65 @@ export default function NavbarAuth() {
                           <p className="text-sm">Tidak ada notifikasi</p>
                         </div>
                       ) : (
-                            notifications.map((notification) => (
-                          <button
-                            key={notification.id}
-                            onClick={() => markAsRead(notification.id)}
-                            className={`w-full p-4 text-left hover:bg-gray-50 transition-colors duration-150 border-b border-gray-50 ${
-                              !notification.is_read ? 'bg-green-50/30' : ''
-                            }`}
-                          >
-                            <div className="flex gap-3">
-                              <div className="flex-shrink-0 text-2xl">
-                                {notification.icon}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-start justify-between gap-2">
-                                  <h4 className={`font-medium ${!notification.is_read ? 'text-gray-900' : 'text-gray-700'}`}>
-                                    {notification.title}
-                                  </h4>
-                                  {!notification.is_read && (
-                                    <span className="w-2 h-2 bg-green-500 rounded-full flex-shrink-0 mt-1.5"></span>
-                                  )}
+                        notifications.map((notification) => {
+                          // choose icon and color based on type
+                          const type = (notification.type || '').toLowerCase();
+                          let Icon = (
+                            <svg className="w-6 h-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M12 20h.01" />
+                            </svg>
+                          );
+                          let bg = '';
+                          if (type === 'success' || (notification.data && notification.data.status === 'disetujui')) {
+                            Icon = (
+                              <svg className="w-6 h-6 text-green-600" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                              </svg>
+                            );
+                            bg = 'bg-green-50/40';
+                          } else if (type === 'warning' || (notification.data && notification.data.status === 'ditolak')) {
+                            Icon = (
+                              <svg className="w-6 h-6 text-yellow-600" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86l.94 4.56a1 1 0 00.98.78h4.8c.89 0 1.26 1.08.54 1.54L13.5 16.5a1 1 0 00-.36 1.1l1.2 3.6" />
+                              </svg>
+                            );
+                            bg = 'bg-yellow-50/40';
+                          } else {
+                            Icon = (
+                              <svg className="w-6 h-6 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M12 20h.01" />
+                              </svg>
+                            );
+                          }
+
+                          return (
+                            <button
+                              key={notification.id}
+                              onClick={() => {
+                                // navigate to detail page and mark as read
+                                setShowNotifications(false);
+                                navigate(`/notifications/${notification.id}`);
+                                markAsRead(notification.id);
+                              }}
+                              className={`w-full p-3 text-left hover:bg-gray-50 transition-colors duration-150 border-b border-gray-50 ${!notification.is_read ? 'ring-1 ring-green-200' : ''}`}
+                            >
+                              <div className="flex gap-3 items-start">
+                                <div className={`flex-shrink-0 p-2 rounded-full ${bg}`}>
+                                  {Icon}
                                 </div>
-                                <p className="text-sm text-gray-500 mt-1 line-clamp-2">
-                                  {notification.message}
-                                </p>
-                                <p className="text-xs text-gray-400 mt-2">
-                                  {notification.time}
-                                </p>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-start justify-between gap-2">
+                                    <h4 className={`font-medium ${!notification.is_read ? 'text-gray-900' : 'text-gray-700'}`}>
+                                      {notification.title}
+                                    </h4>
+                                    <div className="text-xs text-gray-400 whitespace-nowrap">{notification.created_at ? new Date(notification.created_at).toLocaleString() : (notification.time || '')}</div>
+                                  </div>
+                                  <p className="text-sm text-gray-500 mt-1 line-clamp-2">{notification.message}</p>
+                                </div>
                               </div>
-                            </div>
-                          </button>
-                        ))
+                            </button>
+                          );
+                        })
                       )}
                     </div>
                     

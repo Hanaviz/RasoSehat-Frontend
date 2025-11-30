@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff } from 'lucide-react';
 import HeroSidebar from '../components/HeroSidebar';
-import { useAuth } from '../context/AuthContext'; // <-- IMPORT BARU
+import { useAuth } from '../context/AuthContext';
 
 export default function SignInPage() {
   const [email, setEmail] = useState('');
@@ -11,29 +11,27 @@ export default function SignInPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
-  const [errorMessage, setErrorMessage] = useState(''); // <-- Tambah state error
+  const [errorMessage, setErrorMessage] = useState('');
   
   const navigate = useNavigate();
-  const { login, isAuthenticated, user, isLoading: authLoading } = useAuth(); // <-- Ambil fungsi login dari AuthContext
-  const [mode, setMode] = useState('pengguna'); // 'pengguna' or 'penjual'
+  const { login, isAuthenticated, user, isLoading: authLoading } = useAuth();
+  const [mode, setMode] = useState('pengguna');
 
   useEffect(() => {
-    // Wait until AuthContext finished verifying token to avoid premature redirects
     if (authLoading) return;
     if (isAuthenticated && user?.role === 'penjual') {
       navigate('/my-store');
       return;
     }
     if (isAuthenticated && user?.role && user.role !== 'penjual') {
-      // authenticated non-seller -> navigate into app (search page)
       navigate('/home');
     }
   }, [authLoading, isAuthenticated, user, navigate]);
 
-  const handleSubmit = async (e) => { // <-- JADIKAN ASYNC
-    e.preventDefault(); // Mencegah reload form
+  const handleSubmit = async (e) => {
+    e.preventDefault();
     
-    setErrorMessage(''); // Reset error message
+    setErrorMessage('');
     if (!email || !password) {
       setErrorMessage('Mohon isi email dan password');
       return;
@@ -43,7 +41,7 @@ export default function SignInPage() {
     
     try {
         const credentials = { email, password };
-        const result = await login(credentials); // <-- PANGGIL FUNGSI LOGIN DARI CONTEXT
+        const result = await login(credentials);
 
         if (result.success) {
           setIsSuccess(true);
@@ -52,19 +50,16 @@ export default function SignInPage() {
             if (roleFromResponse === 'penjual' || mode === 'penjual') {
               navigate('/my-store');
             } else {
-              // After login for normal users, go to the public root (HeroSection)
               navigate('/');
             }
           }, 700);
         } else {
-            // Tampilkan pesan error dari backend
             setErrorMessage(result.message || 'Login gagal. Periksa koneksi.');
             setIsLoading(false);
             setIsSuccess(false);
         }
 
     } catch (error) {
-        // Ini menangani error jika server Express tidak terjangkau
         setErrorMessage('Gagal terhubung ke server. Coba lagi.');
         setIsLoading(false);
         setIsSuccess(false);
@@ -86,7 +81,6 @@ export default function SignInPage() {
       variants={pageVariants}
       transition={{ duration: 0.36 }}
     >
-      {/* Inline styles for small, local animations to keep component self-contained */}
       <style>{`
         @keyframes fadeUp { from { opacity: 0; transform: translateY(12px);} to { opacity: 1; transform: translateY(0);} }
         .fade-in-up { animation: fadeUp .5s cubic-bezier(.2,.9,.2,1) both; }
@@ -102,18 +96,18 @@ export default function SignInPage() {
         .decorative-blob { filter: blur(34px); opacity: .12; pointer-events: none; }
         @media (max-width: 1023px) { .decorative-blob { display: none; } }
       `}</style>
-      {/* Left Side - Hero Sidebar */}
+
       <HeroSidebar />
 
-      {/* Right Side - Sign In Form */}
       <div className="w-full lg:w-1/2 flex items-center justify-center p-6 bg-gray-50 relative">
         {/* decorative blurred blob behind the form (desktop) */}
         <div className="absolute -left-12 -top-12 w-44 h-44 rounded-full bg-gradient-to-tr from-green-300 to-green-500 decorative-blob" style={{mixBlendMode: 'screen'}} />
+        
         <div className="w-full max-w-md">
           {/* Mobile Logo */}
           <div className="lg:hidden flex items-center justify-center gap-3 mb-8">
             <div className="w-12 h-12 bg-green-600 rounded-full flex items-center justify-center">
-              <svg viewBox="0 0 24 24" fill="none" className="w-8 h-8">
+              <svg viewBox="0 0 24 24" fill="none" className="w-9 h-9">
                 <path d="M12 2C13.1 2 14 2.9 14 4C14 5.1 13.1 6 12 6C10.9 6 10 5.1 10 4C10 2.9 10.9 2 12 2M12 16C13.1 16 14 16.9 14 18C14 19.1 13.1 20 12 20C10.9 20 10 19.1 10 18C10 16.9 10.9 16 12 16M18 8C19.1 8 20 8.9 20 10C20 11.1 19.1 12 18 12C16.9 12 16 11.1 16 10C16 8.9 16.9 8 18 8M6 8C7.1 8 8 8.9 8 10C8 11.1 7.1 12 6 12C4.9 12 4 11.1 4 10C4 8.9 4.9 8 6 8Z" fill="white"/>
                 <circle cx="12" cy="10" r="6" stroke="white" strokeWidth="1.5" fill="none"/>
               </svg>
@@ -125,14 +119,35 @@ export default function SignInPage() {
 
           {/* Form */}
           <form onSubmit={handleSubmit}>
-            <motion.div className="bg-white rounded-2xl shadow-xl p-8 space-y-6 card-hover relative z-20"
+            <motion.div className="bg-white rounded-2xl shadow-xl p-8 space-y-6 card-hover"
               whileHover={{ translateY: -4 }}
               transition={{ type: 'spring', stiffness: 300, damping: 22 }}
             >
               <div className="text-center space-y-2">
                 <div className="flex items-center justify-center gap-3">
-                  <button type="button" onClick={() => setMode('pengguna')} className={`px-3 py-1 rounded-md font-semibold ${mode==='pengguna' ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-700'}`}>Masuk sebagai Pengguna</button>
-                  <button type="button" onClick={() => setMode('penjual')} className={`px-3 py-1 rounded-md font-semibold ${mode==='penjual' ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-700'}`}>Masuk sebagai Penjual</button>
+                  <button
+                    type="button"
+                    onClick={() => setMode('pengguna')}
+                    aria-pressed={mode === 'pengguna'}
+                    className={`inline-flex items-center gap-2 px-4 py-2 rounded-full font-semibold transition-transform duration-150 focus:outline-none focus:ring-4 focus:ring-green-200/60 shadow-sm transform ${mode === 'pengguna' ? 'bg-green-600 text-white scale-[1.02] shadow-lg' : 'bg-white text-gray-700 border border-gray-200 hover:shadow-md hover:scale-[1.01]'}`}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 -ml-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5.5 20a4.5 4.5 0 018.98 0M12 12a4 4 0 10-8 0 4 4 0 008 0z" />
+                    </svg>
+                    <span className="text-sm">Pengguna</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setMode('penjual')}
+                    aria-pressed={mode === 'penjual'}
+                    className={`inline-flex items-center gap-2 px-4 py-2 rounded-full font-semibold transition-transform duration-150 focus:outline-none focus:ring-4 focus:ring-green-200/60 shadow-sm transform ${mode === 'penjual' ? 'bg-green-600 text-white scale-[1.02] shadow-lg' : 'bg-white text-gray-700 border border-gray-200 hover:shadow-md hover:scale-[1.01]'}`}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 -ml-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M3 7h18M5 7v10a2 2 0 002 2h10a2 2 0 002-2V7M8 7V5a4 4 0 018 0v2" />
+                    </svg>
+                    <span className="text-sm">Penjual</span>
+                  </button>
                 </div>
                 <h2 className="text-3xl font-bold text-gray-800 fade-in-up delay-1">Selamat Datang</h2>
                 <p className="text-gray-600 fade-in-up delay-2">{mode === 'penjual' ? 'Masuk untuk mengelola toko Anda' : 'Temukan makanan sehat di sekitar anda'}</p>
@@ -191,7 +206,7 @@ export default function SignInPage() {
                 </div>
 
                 <motion.button
-                  type="submit" // <-- Ubah ke type submit
+                  type="submit"
                   disabled={isLoading || isSuccess}
                   className="w-full bg-gradient-to-r from-green-600 to-green-500 text-white py-3 rounded-lg font-semibold hover:from-green-700 hover:to-green-600 transition-all duration-300 transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl btn-press fade-in-up delay-4"
                   whileTap={{ scale: 0.995 }}

@@ -13,6 +13,8 @@ import SignUpPage from "./pages/SignUp";
 import StoreSignUp from "./pages/StoreSignUp";
 
 import ProfilePage from "./pages/Profile";
+import NotificationsPage from "./pages/NotificationsPage";
+import NotificationDetail from "./pages/NotificationDetail";
 import MenuDetailPage from "./pages/MenuDetailPage";
 import SearchResultsPage from "./pages/SearchResultsPage";
 import CategoryPage from "./pages/CategoryPage";
@@ -90,6 +92,8 @@ function AppContent() {
 
           {/* ---------- USER PAGES ---------- */}
           <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
+          <Route path="/notifications" element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
+          <Route path="/notifications/:id" element={<ProtectedRoute><NotificationDetail /></ProtectedRoute>} />
           <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
 
           {/* ---------- ADMIN ---------- */}
