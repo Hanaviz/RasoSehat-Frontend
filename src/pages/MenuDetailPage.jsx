@@ -1,14 +1,14 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
-import { Clock, MapPin, Star, Phone, Utensils, AlertTriangle, MessageSquare, CheckCircle, Save, X } from "lucide-react";
+import { Clock, MapPin, Star, Phone, Utensils, AlertTriangle, CheckCircle, Save, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import api from '../utils/api';
+import MenuReviewSection from '../components/MenuReviewSection';
 
-// Normalizer: map backend row -> UI-friendly menu object
+// Normalizer
 function normalizeMenuRow(row, idFallback) {
   if (!row) return null;
 
-  // diet_claims: can be array, JSON-string, comma-separated string, or null
   let dietClaims = [];
   if (Array.isArray(row.diet_claims)) dietClaims = row.diet_claims;
   else if (typeof row.diet_claims === 'string') {
@@ -43,7 +43,7 @@ function normalizeMenuRow(row, idFallback) {
     nutrition: {
       servingSize: row.porsi || row.serving_size || '1 porsi',
       calories: row.kalori ?? row.calories ?? 0,
-      protein: row.protein ?? row.protein ?? '0',
+      protein: row.protein ?? '0',
       carbs: row.karbohidrat ?? row.carbs ?? '0',
       fat: row.lemak ?? '0',
       fiber: row.serat ?? '0',
@@ -51,10 +51,15 @@ function normalizeMenuRow(row, idFallback) {
       sodium: row.sodium ?? '0',
       cholesterol: row.kolesterol ?? '0',
     },
-    // backend may use `bahan_baku` or `ingredients`
-    ingredients: (row.bahan_baku && typeof row.bahan_baku === 'string' ? row.bahan_baku.split(',').map(s => s.trim()) : (row.ingredients || [])) || [],
+    ingredients: (row.bahan_baku && typeof row.bahan_baku === 'string'
+      ? row.bahan_baku.split(',').map(s => s.trim())
+      : row.ingredients || []
+    ) || [],
     cookingMethod: row.metode_masak || row.cooking_method || '',
-    allergens: (row.allergens && typeof row.allergens === 'string' ? row.allergens.split(',').map(s => s.trim()) : row.allergens) || [],
+    allergens: (row.allergens && typeof row.allergens === 'string'
+      ? row.allergens.split(',').map(s => s.trim())
+      : row.allergens
+    ) || [],
     diet_claims: dietClaims,
     verified: row.status_verifikasi === 'disetujui' || row.verified === true,
   };
@@ -69,26 +74,28 @@ const NutritionModal = ({ data, onClose, menu }) => {
     { label: "Gula", value: data.sugar, unit: "g", color: "text-red-600" },
     { label: "Kolesterol", value: data.cholesterol, unit: "mg", color: "text-green-600" },
     { label: "Serat", value: data.fiber, unit: "g", color: "text-green-500" },
-    { label: "Natrium (Sodium)", value: data.sodium, unit: "mg", color: "text-gray-500" },
+    { label: "Natrium", value: data.sodium, unit: "mg", color: "text-gray-500" },
   ];
 
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={onClose}>
       <motion.div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden"
         initial={{ y: 50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 50, opacity: 0 }} onClick={(e) => e.stopPropagation()}>
-        <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-green-500">
+        <div className="p-6 border-b flex justify-between items-center bg-green-500">
           <h3 className="text-xl font-bold text-white">Detail Gizi per {data.servingSize}</h3>
-          <button onClick={onClose} className="p-1 rounded-full text-white hover:bg-white/20 transition-colors"><X size={24} /></button>
+          <button onClick={onClose} className="p-1 rounded-full text-white hover:bg-white/20 transition-colors">
+            <X size={24} />
+          </button>
         </div>
 
         <div className="p-6 max-h-[80vh] overflow-y-auto">
           <div className="grid grid-cols-2 gap-4 mb-6">
             {nutritionPoints.map((point, index) => (
-              <div key={index} className="flex flex-col p-3 bg-gray-50 rounded-lg border border-gray-200">
-                <span className="text-xs font-semibold text-gray-500">{point.label}</span>
+              <div key={index} className="flex flex-col p-3 bg-gray-50 rounded-lg border">
+                <span className="text-xs text-gray-500">{point.label}</span>
                 <span className={`text-xl font-extrabold ${point.color}`}>
                   {point.value}
-                  <span className="text-base font-normal ml-1 text-gray-700">{point.unit}</span>
+                  <span className="text-base ml-1 text-gray-700">{point.unit}</span>
                 </span>
               </div>
             ))}
@@ -100,7 +107,6 @@ const NutritionModal = ({ data, onClose, menu }) => {
                 <CheckCircle size={20} />
                 <span>Verifikasi RasoSehat: {menu.healthTag}</span>
               </div>
-              <p className="text-sm text-gray-700">Menu ini telah diverifikasi oleh tim kami berdasarkan tinjauan bahan baku dan metode masak.</p>
               {Array.isArray(menu.allergens) && menu.allergens.length > 0 && (
                 <p className="text-xs text-red-500 mt-2">Peringatan: {menu.allergens.join(', ')}</p>
               )}
@@ -113,69 +119,36 @@ const NutritionModal = ({ data, onClose, menu }) => {
 };
 
 export default function MenuDetailPage() {
-  // The app route is /menu/:slug in App.jsx; sometimes we navigate with numeric id.
-  // Accept either `id` or `slug` from useParams, and treat a numeric param as an ID.
   const { id: idParam, slug: slugParam } = useParams();
   const [menu, setMenu] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showNutritionModal, setShowNutritionModal] = useState(false);
 
-  // local reviews stored keyed by menu slug or id
-  const reviewsKey = `rs_menu_reviews_${menu?.slug || idParam || slugParam}`;
-  const [localReviews, setLocalReviews] = useState([]);
-  const [reviewName, setReviewName] = useState("");
-  const [reviewRating, setReviewRating] = useState(5);
-  const [reviewComment, setReviewComment] = useState("");
-  const [reviewMedia, setReviewMedia] = useState(null);
-  const fileInputRef = React.createRef();
-
-  const handleMediaSelect = (e) => {
-    const file = e.target.files && e.target.files[0];
-    if (!file) return;
-    const type = file.type.startsWith('video') ? 'video' : 'image';
-    const reader = new FileReader();
-    reader.onload = () => setReviewMedia({ type, dataUrl: reader.result, name: file.name });
-    reader.readAsDataURL(file);
-  };
-
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(reviewsKey);
-      if (raw) setLocalReviews(JSON.parse(raw));
-    } catch (err) { console.warn("Failed to load menu reviews", err); }
-  }, [reviewsKey]);
-
-  // Fetch detail using id (numeric) or slug (string)
   const fetchMenu = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       let resp;
-      // if idParam or slugParam contains a numeric value -> treat as ID
       const numericCandidate = idParam ?? slugParam;
       if (numericCandidate && /^\d+$/.test(String(numericCandidate))) {
         resp = await api.get(`/menus/${encodeURIComponent(numericCandidate)}`);
       } else if (slugParam) {
         resp = await api.get(`/menus/slug/${encodeURIComponent(slugParam)}`);
       } else {
-        setError({ type: 'notfound', message: 'ID atau slug menu tidak diberikan' });
-        setMenu(null);
+        setError({ type: 'notfound', message: 'ID atau slug menu tidak valid' });
         setLoading(false);
         return;
       }
 
-      // Backend may return the menu object directly, or wrap it as { data: ... } or { menu: ... }
       const row = resp?.data?.data ?? resp?.data?.menu ?? resp?.data;
       if (!row) {
         setError({ type: 'notfound', message: 'Menu tidak ditemukan' });
-        setMenu(null);
         setLoading(false);
         return;
       }
 
-      const mapped = normalizeMenuRow(row, idParam ?? slugParam);
-      setMenu(mapped);
+      setMenu(normalizeMenuRow(row, idParam ?? slugParam));
       setLoading(false);
     } catch (err) {
       console.error('Error fetching menu detail', err);
@@ -193,34 +166,8 @@ export default function MenuDetailPage() {
   }, [idParam, slugParam]);
 
   useEffect(() => {
-    let mounted = true;
-    if (mounted) fetchMenu();
-    return () => { mounted = false; };
+    fetchMenu();
   }, [fetchMenu]);
-
-  const totalMenuReviews = useMemo(() => (menu?.reviews || 0) + localReviews.length, [menu?.reviews, localReviews]);
-  const computedMenuAverage = useMemo(() => {
-    const localSum = localReviews.reduce((s, r) => s + Number(r.rating || 0), 0);
-    const baseReviews = menu?.reviews || 0;
-    const baseRating = menu?.rating || 0;
-    const total = baseReviews + localReviews.length;
-    if (total === 0) return baseRating || 0;
-    return ((baseRating * baseReviews) + localSum) / total;
-  }, [menu?.rating, menu?.reviews, localReviews]);
-
-  const handleSubmitMenuReview = (e) => {
-    e.preventDefault();
-    const name = reviewName.trim() || "Anonim";
-    const rating = Number(reviewRating) || 0;
-    const comment = reviewComment.trim();
-    if (rating < 1 || rating > 5) return alert("Rating harus antara 1 dan 5");
-    if (!comment) return alert("Tolong isi komentar ulasan Anda.");
-    const newR = { id: Date.now(), name, rating, comment, date: new Date().toISOString(), media: reviewMedia };
-    const updated = [newR, ...localReviews];
-    setLocalReviews(updated);
-    try { localStorage.setItem(reviewsKey, JSON.stringify(updated)); } catch (err) { console.warn(err); }
-    setReviewName(""); setReviewRating(5); setReviewComment("");
-  };
 
   if (loading) {
     return (
@@ -282,29 +229,35 @@ export default function MenuDetailPage() {
     );
   }
 
-  const waLink = `https://wa.me/${menu.restaurant.phone}?text=Halo%20${menu.restaurant.name},%20Saya%20tertarik%20dengan%20menu%20${menu.name}%20yang%20ada%20di%20RasoSehat.`;
+  const waLink = `https://wa.me/${menu.restaurant.phone}?text=Halo%20${menu.restaurant.name},%20Saya%20tertarik%20dengan%20menu%20${menu.name}.`;
 
   return (
-    <div className="min-h-screen bg-white pt-24 md:pt-28 pb-12">
+    <div className="min-h-screen bg-white pt-24 pb-12">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 md:gap-12">
+          {/* LEFT — Image + Restaurant Info */}
           <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.5 }} className="lg:sticky lg:top-28 h-fit">
             <div className="relative rounded-3xl overflow-hidden shadow-2xl border-4 border-green-500/50">
               <img src={menu.image} alt={menu.name} className="w-full h-96 object-cover" />
             </div>
 
+            {/* Seller Info */}
             <div className="mt-8 bg-white rounded-2xl p-6 shadow-xl border border-gray-100">
               <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
                 <Utensils className="w-6 h-6 text-green-500" /> Informasi Penjual
               </h3>
+
               <Link to={`/restaurant/${menu.restaurant.slug}`} className="text-base font-semibold text-gray-700 mb-2 hover:text-green-600 transition-colors underline">
                 {menu.restaurant.name}
               </Link>
+
               <div className="space-y-3">
                 <div className="flex items-center gap-3 text-gray-600">
                   <MapPin className="w-5 h-5 text-red-500 flex-shrink-0" />
                   <p className="text-sm">{menu.restaurant.address} - ({menu.restaurant.distance})</p>
                 </div>
+
                 <div className="flex items-center gap-3 text-gray-600">
                   <Clock className="w-5 h-5 text-yellow-500 flex-shrink-0" />
                   <p className="text-sm font-semibold">Buka (Tutup jam 21:00)</p>
@@ -315,6 +268,7 @@ export default function MenuDetailPage() {
                 <a href={waLink} target="_blank" rel="noopener noreferrer" className="bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition-all duration-300 shadow-lg shadow-green-500/50 hover:scale-[1.01]">
                   <Phone className="w-5 h-5" /> Hubungi (WA)
                 </a>
+
                 <button className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition-colors duration-300 hover:scale-[1.01]">
                   <MapPin className="w-5 h-5" /> Lihat Lokasi
                 </button>
@@ -322,11 +276,13 @@ export default function MenuDetailPage() {
             </div>
           </motion.div>
 
+          {/* RIGHT — Menu Info */}
           <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.5, delay: 0.1 }} className="space-y-8">
             <div className="space-y-4">
               <span className={`px-4 py-1 rounded-full text-sm font-bold shadow-md ${menu.category === "Vegetarian" ? "bg-green-100 text-green-700 border border-green-300" : "bg-blue-100 text-blue-700 border border-blue-300"}`}>
                 {menu.category}
               </span>
+
               <h1 className="text-4xl md:text-5xl font-extrabold text-gray-900 leading-tight">{menu.name}</h1>
 
               {Array.isArray(menu.diet_claims) && menu.diet_claims.length > 0 && (
@@ -337,14 +293,17 @@ export default function MenuDetailPage() {
 
               <div className="flex items-center gap-4 text-xl">
                 <span className="text-green-600 font-extrabold">Rp {menu.price}</span>
+
                 <div className="flex items-center gap-1 text-yellow-500 font-semibold">
                   <Star className="w-5 h-5 fill-current" />
-                  <span>{computedMenuAverage.toFixed(1)}</span>
+                  <span>{menu.rating.toFixed(1)}</span>
                 </div>
-                <span className="text-gray-500 text-base">| {totalMenuReviews} Terjual</span>
+
+                <span className="text-gray-500 text-base">| {menu.reviews} Terjual</span>
               </div>
             </div>
 
+            {/* Description */}
             <div className="space-y-6">
               <h2 className="text-xl font-bold text-gray-800 border-b pb-2">Deskripsi dan Komposisi</h2>
               <p className="text-gray-700 leading-relaxed">{menu.description}</p>
@@ -376,71 +335,23 @@ export default function MenuDetailPage() {
               </button>
             </div>
 
+            {/* REVIEWS (NEW COMPONENT) */}
             <div>
-              <h2 className="text-2xl font-bold text-gray-800 mb-4 flex items-center gap-2"><MessageSquare className="w-6 h-6 text-green-500" /> Penilaian Produk</h2>
-              <div className="bg-gray-50 rounded-xl p-4 shadow-inner space-y-4">
-                {/* review tags, form, local reviews (unchanged) */}
-                <div className="flex items-center gap-2 mb-3">
-                  <span className="px-3 py-1 bg-green-200 text-green-800 text-xs font-semibold rounded-full">Enak banget (1.3 RB)</span>
-                  <span className="px-3 py-1 bg-yellow-200 text-yellow-800 text-xs font-semibold rounded-full">Sangat bergizi (800)</span>
-                  <span className="px-3 py-1 bg-gray-200 text-gray-800 text-xs font-semibold rounded-full">Kualitas baik (150)</span>
-                </div>
-
-                <form onSubmit={handleSubmitMenuReview} className="bg-white p-4 rounded-lg border border-gray-100">
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
-                    <input value={reviewName} onChange={(e) => setReviewName(e.target.value)} placeholder="Nama (opsional)" className="col-span-2 px-3 py-2 border rounded-lg" />
-                    <select value={reviewRating} onChange={(e) => setReviewRating(e.target.value)} className="px-3 py-2 border rounded-lg">
-                      <option value={5}>5 — Sangat Baik</option>
-                      <option value={4}>4 — Bagus</option>
-                      <option value={3}>3 — Cukup</option>
-                      <option value={2}>2 — Kurang</option>
-                      <option value={1}>1 — Buruk</option>
-                    </select>
-                  </div>
-                  <textarea value={reviewComment} onChange={(e) => setReviewComment(e.target.value)} rows={3} placeholder="Tulis komentar singkat tentang menu..." className="w-full px-3 py-2 border rounded-lg mb-3" />
-                  <div className="flex items-center gap-3 mb-3">
-                    <input ref={fileInputRef} type="file" accept="image/*,video/*" onChange={handleMediaSelect} className="hidden" />
-                    <button type="button" onClick={() => fileInputRef.current && fileInputRef.current.click()} className="px-3 py-2 bg-white border rounded-lg hover:bg-gray-50 text-sm">Tambah Foto/Video</button>
-                    {reviewMedia && (
-                      <div className="flex items-center gap-2">
-                        {reviewMedia.type === 'image' ? <img src={reviewMedia.dataUrl} alt={reviewMedia.name} className="w-16 h-16 object-cover rounded-md border" /> : <video src={reviewMedia.dataUrl} className="w-24 h-16 rounded-md border" />}
-                        <button type="button" onClick={() => setReviewMedia(null)} className="text-xs text-red-600">Hapus</button>
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex justify-end">
-                    <button type="submit" className="bg-green-600 hover:bg-green-700 text-white font-semibold px-4 py-2 rounded-lg">Kirim Ulasan</button>
-                  </div>
-                </form>
-
-                <div className="space-y-3">
-                  <h4 className="font-semibold text-gray-800">Ulasan Lokal Terbaru</h4>
-                  {localReviews.length === 0 ? <div className="text-sm text-gray-600">Belum ada ulasan lokal. Jadilah yang pertama!</div> : (
-                    <div className="space-y-3">
-                      {localReviews.map(r => (
-                        <div key={r.id} className="bg-white p-3 rounded-lg border border-gray-100">
-                          <div className="flex items-center justify-between">
-                            <div className="font-semibold text-sm">{r.name}</div>
-                            <div className="flex items-center text-yellow-500 text-sm">{r.rating} <Star className="w-4 h-4 fill-current ml-1" /></div>
-                          </div>
-                          <p className="text-xs text-gray-500 mt-1">{new Date(r.date).toLocaleString()}</p>
-                          <p className="mt-2 text-gray-700 text-sm">{r.comment}</p>
-                          {r.media && (
-                            <div className="mt-3">{r.media.type === 'image' ? <img src={r.media.dataUrl} alt={r.media.name} className="w-full max-h-60 object-cover rounded-lg" /> : <video src={r.media.dataUrl} controls className="w-full max-h-60 rounded-lg" />}</div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
+              <MenuReviewSection menuId={menu.id} />
             </div>
           </motion.div>
         </div>
       </div>
 
+      {/* Nutrition Modal */}
       <AnimatePresence>
-        {showNutritionModal && <NutritionModal data={menu.nutrition} onClose={() => setShowNutritionModal(false)} menu={menu} />}
+        {showNutritionModal && (
+          <NutritionModal
+            data={menu.nutrition}
+            onClose={() => setShowNutritionModal(false)}
+            menu={menu}
+          />
+        )}
       </AnimatePresence>
     </div>
   );

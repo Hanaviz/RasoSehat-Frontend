@@ -10,7 +10,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import Layout from "./components/Layout";
 import SignInPage from "./pages/Signin";
 import SignUpPage from "./pages/SignUp";
-import StoreSignUp from "./pages/StoreSignUp";
+// legacy seller-specific pages removed: StoreSignUp/StoreSignIn replaced by unified register-store
 
 import ProfilePage from "./pages/Profile";
 import NotificationsPage from "./pages/NotificationsPage";
@@ -67,7 +67,7 @@ function AppContent() {
           {/* ---------- AUTH PAGES ---------- */}
           <Route path="/signin" element={<SignInPage />} />
           <Route path="/signup" element={<SignUpPage />} />
-          <Route path="/store-signup" element={<StoreSignUp />} />
+          {/* legacy /store-signup redirect removed - use /register-store directly */}
 
           {/* ---------- STORE FLOW ---------- */}
           <Route path="/my-store" element={<ProtectedRoute><MyStorePage /></ProtectedRoute>} />

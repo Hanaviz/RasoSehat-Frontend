@@ -264,7 +264,7 @@ export default function HeroSection() {
 					{/* ... (Kode Carousel) */}
 					<div className="relative rounded-2xl overflow-hidden shadow-xl group">
 						{/* PENGURANGAN TINGGI CAROUSEL */}
-						<div className="relative h-56 sm:h-72 md:h-96 lg:h-[420px] overflow-hidden">
+						<div className="relative h-56 sm:h-72 md:h-96 lg:h-[430px] overflow-hidden">
 							{heroSlides.map((slide, index) => (
 								<div
 									key={slide.id}

@@ -678,8 +678,8 @@ export default function AdminDashboardPage() {
             type={selectedItem.type} 
             data={selectedItem} 
             onClose={() => setSelectedItem(null)}
-            onVerify={() => handleVerify(selectedItem.id)}
-            onReject={() => handleReject(selectedItem.id)}
+            onVerify={handleVerify}
+            onReject={handleReject}
           />
         )}
       </AnimatePresence>

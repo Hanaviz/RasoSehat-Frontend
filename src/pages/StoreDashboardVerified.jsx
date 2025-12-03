@@ -114,12 +114,36 @@ const MyMenuCard = ({ menu }) => (
 );
 
 
-export default function StoreDashboardVerified() {
+export default function StoreDashboardVerified({ store = null, menus: menusProp = null }) {
     const [searchTerm, setSearchTerm] = useState('');
-    const { name, location, stats, menus } = mockStoreData;
-    
+
+    // Use provided store/menus when available, otherwise fall back to mock data
+    const name = (store && (store.nama_restoran || store.name)) || mockStoreData.name;
+    const location = (store && (store.alamat || store.location)) || mockStoreData.location;
+
+    // stats: keep mock stats but adapt menuViews to number of menus when possible
+    const stats = { ...mockStoreData.stats };
+
+    // Normalize menus returned from backend to the UI shape expected by this component
+    const mappedMenus = (Array.isArray(menusProp) && menusProp.length > 0)
+        ? menusProp.map(m => ({
+            id: m.id,
+            name: m.nama_menu || m.name || m.nama_restoran || 'Menu',
+            slug: m.slug || (m.nama_menu ? String(m.nama_menu).toLowerCase().replace(/\s+/g,'-') : ''),
+            image: m.foto || m.image || m.foto_ktp || '',
+            description: m.deskripsi || m.description || '',
+            price: (m.harga || m.price) ? String(m.harga || m.price) : '0',
+            rating: m.rating || 0,
+            prepTime: m.prep_time || m.prepTime || '',
+            healthTag: (m.diet_claims && Array.isArray(m.diet_claims) && m.diet_claims[0]) || ''
+        }))
+        : mockStoreData.menus;
+
+    // adapt stats menuViews to mappedMenus length for a bit more realistic numbers
+    stats.menuViews = mappedMenus.length ? mappedMenus.length * 10 : stats.menuViews;
+
     // Filter menu berdasarkan searchTerm
-    const filteredMenus = menus.filter(menu =>
+    const filteredMenus = mappedMenus.filter(menu =>
         menu.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
 

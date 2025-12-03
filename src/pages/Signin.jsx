@@ -15,18 +15,17 @@ export default function SignInPage() {
   
   const navigate = useNavigate();
   const { login, isAuthenticated, user, isLoading: authLoading } = useAuth();
-  const [mode, setMode] = useState('pengguna');
+  // single unified signin flow (no separate "penjual" toggle)
 
   useEffect(() => {
     if (authLoading) return;
-    if (isAuthenticated && user?.role === 'penjual') {
-      navigate('/my-store');
-      return;
-    }
-    if (isAuthenticated && user?.role && user.role !== 'penjual') {
-      navigate('/home');
+    if (isAuthenticated) {
+      if (user?.role === 'penjual') navigate('/my-store');
+      else navigate('/home');
     }
   }, [authLoading, isAuthenticated, user, navigate]);
+
+  // No separate mode selection — unified user signin
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -47,10 +46,10 @@ export default function SignInPage() {
           setIsSuccess(true);
           setTimeout(() => {
             const roleFromResponse = result.user?.role || user?.role;
-            if (roleFromResponse === 'penjual' || mode === 'penjual') {
+            if (roleFromResponse === 'penjual') {
               navigate('/my-store');
             } else {
-              navigate('/');
+              navigate('/home');
             }
           }, 700);
         } else {
@@ -124,33 +123,8 @@ export default function SignInPage() {
               transition={{ type: 'spring', stiffness: 300, damping: 22 }}
             >
               <div className="text-center space-y-2">
-                <div className="flex items-center justify-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setMode('pengguna')}
-                    aria-pressed={mode === 'pengguna'}
-                    className={`inline-flex items-center gap-2 px-4 py-2 rounded-full font-semibold transition-transform duration-150 focus:outline-none focus:ring-4 focus:ring-green-200/60 shadow-sm transform ${mode === 'pengguna' ? 'bg-green-600 text-white scale-[1.02] shadow-lg' : 'bg-white text-gray-700 border border-gray-200 hover:shadow-md hover:scale-[1.01]'}`}
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 -ml-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M5.5 20a4.5 4.5 0 018.98 0M12 12a4 4 0 10-8 0 4 4 0 008 0z" />
-                    </svg>
-                    <span className="text-sm">Pengguna</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setMode('penjual')}
-                    aria-pressed={mode === 'penjual'}
-                    className={`inline-flex items-center gap-2 px-4 py-2 rounded-full font-semibold transition-transform duration-150 focus:outline-none focus:ring-4 focus:ring-green-200/60 shadow-sm transform ${mode === 'penjual' ? 'bg-green-600 text-white scale-[1.02] shadow-lg' : 'bg-white text-gray-700 border border-gray-200 hover:shadow-md hover:scale-[1.01]'}`}
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 -ml-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M3 7h18M5 7v10a2 2 0 002 2h10a2 2 0 002-2V7M8 7V5a4 4 0 018 0v2" />
-                    </svg>
-                    <span className="text-sm">Penjual</span>
-                  </button>
-                </div>
                 <h2 className="text-3xl font-bold text-gray-800 fade-in-up delay-1">Selamat Datang</h2>
-                <p className="text-gray-600 fade-in-up delay-2">{mode === 'penjual' ? 'Masuk untuk mengelola toko Anda' : 'Temukan makanan sehat di sekitar anda'}</p>
+                <p className="text-gray-600 fade-in-up delay-2">Temukan makanan sehat di sekitar Anda</p>
               </div>
 
               {/* Error Message */}

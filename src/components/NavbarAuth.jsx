@@ -13,8 +13,7 @@ export default function NavbarAuth() {
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
-  const [showStoreMenu, setShowStoreMenu] = useState(false);
-  const [showStoreMenuMobile, setShowStoreMenuMobile] = useState(false);
+  
   
   // Search states
   const [searchQuery, setSearchQuery] = useState("");
@@ -24,16 +23,17 @@ export default function NavbarAuth() {
   const searchContainerRef = useRef(null);
   const notificationRef = useRef(null);
   const profileRef = useRef(null);
-  const storeRef = useRef(null);
+  
 
   // Use authentication context for real user data
-  const { user, logout, isPenjual } = useAuth();
+  const { user, logout } = useAuth();
+  // isPenjual removed; use user.role === 'penjual' instead
 
   // Fallback UI values when user is not yet available
   const displayName = user?.name || 'Pengguna';
   const displayEmail = user?.email || '';
   const avatarUrl = user?.avatar ? makeImageUrl(user.avatar) : `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=16a34a&color=fff`;
-  const isStoreMember = !!isPenjual;
+  const isStoreMember = !!(user && user.role === 'penjual');
 
   // Notifications loaded from backend
   const [notifications, setNotifications] = useState([]);
@@ -118,9 +118,7 @@ export default function NavbarAuth() {
       if (profileRef.current && !profileRef.current.contains(event.target)) {
         setShowProfileMenu(false);
       }
-      if (storeRef.current && !storeRef.current.contains(event.target)) {
-        setShowStoreMenu(false);
-      }
+      // removed store dropdown click-outside handling (single button UX)
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
@@ -449,48 +447,26 @@ export default function NavbarAuth() {
                 <span className="font-medium">Profil Saya</span>
               </button>
 
-              {/* Mobile: Kelola Toko button that expands to Daftarkan Toko / Masuk Toko */}
+              {/* Mobile: single adaptive button for store actions */}
               <div>
                 <button
-                  onClick={() => setShowStoreMenuMobile((s) => !s)}
+                  onClick={() => {
+                    setIsMobileMenuOpen(false);
+                    if (isStoreMember) navigate('/my-store');
+                    else navigate('/register-store');
+                  }}
                   className="flex items-center justify-between w-full gap-3 px-4 py-3 text-left text-gray-700 hover:bg-gray-50 rounded-lg transition-colors duration-200"
                 >
                   <div className="flex items-center gap-3">
                     <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                     </svg>
-                    <span className="font-medium">Kelola Toko</span>
+                    <span className="font-medium">{isStoreMember ? 'Kelola Toko' : 'Daftarkan Toko'}</span>
                   </div>
-                  <svg className={`w-4 h-4 transition-transform ${showStoreMenuMobile ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                  <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
                     <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z" clipRule="evenodd" />
                   </svg>
                 </button>
-
-                {showStoreMenuMobile && (
-                  <div className="mt-2 space-y-2 px-2">
-                    <Link
-                      to="/register-store"
-                      onClick={() => {
-                        setIsMobileMenuOpen(false);
-                        setShowStoreMenuMobile(false);
-                      }}
-                      className="block px-4 py-3 text-green-600 bg-green-50 rounded-lg hover:bg-green-100"
-                    >
-                      Daftarkan Toko
-                    </Link>
-
-                    <Link
-                      to="/store-signin"
-                      onClick={() => {
-                        setIsMobileMenuOpen(false);
-                        setShowStoreMenuMobile(false);
-                      }}
-                      className="block px-4 py-3 text-gray-700 rounded-lg hover:bg-gray-50"
-                    >
-                      Masuk Toko
-                    </Link>
-                  </div>
-                )}
               </div>
 
               {/* Mobile: Settings link */}
@@ -777,11 +753,13 @@ export default function NavbarAuth() {
                 </svg>
               </button>
 
-              {/* Store Button - Desktop: dropdown with Daftarkan Toko / Masuk Toko */}
-              <div className="relative hidden md:block" ref={storeRef}>
+              {/* Store Button - Desktop: single adaptive button (no dropdown) */}
+              <div className="relative hidden md:block">
                 <button
-                  onClick={() => setShowStoreMenu((s) => !s)}
-                  aria-expanded={showStoreMenu}
+                  onClick={() => {
+                    if (isStoreMember) navigate('/my-store');
+                    else navigate('/register-store');
+                  }}
                   className={`hidden md:flex items-center gap-2 relative overflow-hidden transition-all duration-300 font-semibold whitespace-nowrap rounded-lg px-3 md:px-4 py-2 text-sm ${
                     isScrolled ? 'bg-white text-green-600 hover:shadow-md border border-green-200' : 'bg-white/90 backdrop-blur-sm text-green-600 hover:shadow-lg'
                   }`}
@@ -790,33 +768,10 @@ export default function NavbarAuth() {
                     <span className="absolute inset-0 bg-green-600/0 group-hover:bg-green-600/5 transition-colors duration-200" />
                   </span>
                   <svg xmlns="http://www.w3.org/2000/svg" className={`${isScrolled ? 'w-4 h-4' : 'w-5 h-5'} transition-all duration-300 relative z-10`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                   </svg>
-                  <span className="relative z-10">Kelola Toko</span>
-                  <svg className={`w-4 h-4 ml-1 relative z-10 ${showStoreMenu ? 'rotate-180' : ''} transition-transform`} viewBox="0 0 20 20" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-                    <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z" clipRule="evenodd" />
-                  </svg>
+                  <span className="relative z-10">{isStoreMember ? 'Kelola Toko' : 'Daftarkan Toko'}</span>
                 </button>
-
-                {showStoreMenu && (
-                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-50 animate-slideDown">
-                    <Link
-                      to="/register-store"
-                      onClick={() => setShowStoreMenu(false)}
-                      className="block px-4 py-3 text-gray-700 hover:bg-gray-50"
-                    >
-                      Daftarkan Toko
-                    </Link>
-
-                    <Link
-                      to="/store-signin"
-                      onClick={() => setShowStoreMenu(false)}
-                      className="block px-4 py-3 text-gray-700 hover:bg-gray-50"
-                    >
-                      Masuk Toko
-                    </Link>
-                  </div>
-                )}
               </div>
 
               {/* Notification Button - Desktop */}

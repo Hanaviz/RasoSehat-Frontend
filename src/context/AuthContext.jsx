@@ -132,7 +132,7 @@ export const AuthProvider = ({ children }) => {
         refreshProfile,
         // Helper untuk cek role
         isAdmin: user?.role === 'admin',
-        isPenjual: user?.role === 'penjual',
+        // isPenjual deprecated: please use user?.role === 'penjual'
     };
 
     return (

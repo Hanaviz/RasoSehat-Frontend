@@ -59,9 +59,9 @@ export default function NotificationDetail() {
     const restId = notification?.data?.restaurant_id;
     if (restId && !actionUsed) {
       setActionUsed(true);
-      // Mark notification read and navigate to store signup with param
+      // Mark notification read and navigate to unified register-store page with param
       handleMarkRead();
-      navigate(`/store-signup?restaurantId=${encodeURIComponent(restId)}`);
+      navigate(`/register-store?restaurantId=${encodeURIComponent(restId)}`);
     }
   };
 
