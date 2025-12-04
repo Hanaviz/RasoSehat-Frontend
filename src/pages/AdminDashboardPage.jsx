@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { LayoutDashboard, Store, Utensils, CheckCircle, Clock, User, MapPin, Phone, Mail, X, LogOut, MessageSquare, Menu } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../utils/api';
+import AdminUserManagement from '../components/AdminUserManagement';
 
 // Determine backend origin from API base URL so document links point to backend
 const API_ORIGIN = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api').replace(/\/api\/?$/i, '');
@@ -387,6 +388,20 @@ export default function AdminDashboardPage() {
         </div>
         <span className="flex-1">Ringkasan</span>
       </button>
+
+      <button 
+        onClick={() => setActiveTab('users')} 
+        className={`group w-full text-left flex items-center gap-4 px-4 py-3.5 rounded-xl font-semibold transition-all duration-200 ${
+          activeTab === 'users' 
+            ? 'bg-white text-green-700 shadow-lg scale-105' 
+            : 'text-white hover:bg-green-600/50 hover:translate-x-1'
+        }`}
+      >
+        <div className={`p-2 rounded-lg ${activeTab === 'users' ? 'bg-green-100' : 'bg-green-600/30'}`}>
+          <User size={20} className={activeTab === 'users' ? 'text-green-700' : 'text-white'}/>
+        </div>
+        <span className="flex-1">Manajemen Pengguna</span>
+      </button>
       
       <button 
         onClick={() => setActiveTab('merchants')} 
@@ -519,14 +534,21 @@ export default function AdminDashboardPage() {
               <div role="tablist" className="tabs tabs-boxed mb-6 bg-gradient-to-r from-green-50 to-green-100 md:hidden flex-wrap p-1">
                 <a 
                   role="tab" 
-                  className={`tab text-gray-700 font-semibold ${activeTab === 'merchants' ? 'tab-active !bg-green-600 !text-white shadow-lg' : 'hover:bg-green-200'}`}
+                  className={`tab text-gray-700 font-semibold text-xs ${activeTab === 'users' ? 'tab-active !bg-green-600 !text-white shadow-lg' : 'hover:bg-green-200'}`}
+                  onClick={() => setActiveTab('users')}
+                >
+                  Pengguna
+                </a>
+                <a 
+                  role="tab" 
+                  className={`tab text-gray-700 font-semibold text-xs ${activeTab === 'merchants' ? 'tab-active !bg-green-600 !text-white shadow-lg' : 'hover:bg-green-200'}`}
                   onClick={() => setActiveTab('merchants')}
                 >
                   Toko ({pendingMerchants.length})
                 </a>
                 <a 
                   role="tab" 
-                  className={`tab text-gray-700 font-semibold ${activeTab === 'menus' ? 'tab-active !bg-green-600 !text-white shadow-lg' : 'hover:bg-green-200'}`}
+                  className={`tab text-gray-700 font-semibold text-xs ${activeTab === 'menus' ? 'tab-active !bg-green-600 !text-white shadow-lg' : 'hover:bg-green-200'}`}
                   onClick={() => setActiveTab('menus')}
                 >
                   Menu ({pendingMenus.length})
@@ -618,6 +640,10 @@ export default function AdminDashboardPage() {
                   <div className="p-4 text-center text-gray-600">
                     Fitur Moderasi Ulasan akan ditambahkan di fase selanjutnya.
                   </div>
+                )}
+
+                {activeTab === 'users' && (
+                  <AdminUserManagement />
                 )}
               </motion.div>
             </div>
