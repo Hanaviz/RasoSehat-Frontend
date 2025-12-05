@@ -5,11 +5,11 @@ import api from '../utils/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Store, TrendingUp, Clock, CheckCircle, XCircle, Edit3, Trash2, 
-  Plus, Star, MapPin, Phone, Globe, Package, ChevronRight, AlertCircle 
+  Plus, Star, MapPin, Phone, Globe, Package, ChevronRight, AlertCircle, LogOut 
 } from 'lucide-react';
 
 export default function MyStorePage() {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, logout } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [restaurant, setRestaurant] = useState(null);
@@ -251,15 +251,26 @@ export default function MyStorePage() {
                 </div>
               </div>
 
-              {/* Right: Edit Button */}
-              <motion.button 
-                className="inline-flex items-center gap-2 px-6 py-3 bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white rounded-xl font-semibold transition-all"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                <Edit3 className="w-4 h-4" />
-                Edit Toko
-              </motion.button>
+              {/* Right: Buttons */}
+              <div className="flex gap-2">
+                <motion.button 
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white rounded-xl font-semibold transition-all"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  <Edit3 className="w-4 h-4" />
+                  Edit Toko
+                </motion.button>
+                <motion.button 
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-semibold transition-all"
+                  onClick={() => { logout(); navigate('/login'); }}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  <LogOut className="w-4 h-4" />
+                  Logout
+                </motion.button>
+              </div>
             </div>
           </div>
         </motion.div>

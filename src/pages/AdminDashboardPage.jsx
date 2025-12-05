@@ -4,6 +4,7 @@ import { LayoutDashboard, Store, Utensils, CheckCircle, Clock, User, MapPin, Pho
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../utils/api';
 import AdminUserManagement from '../components/AdminUserManagement';
+import { useAuth } from '../context/AuthContext';
 
 // Determine backend origin from API base URL so document links point to backend
 const API_ORIGIN = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api').replace(/\/api\/?$/i, '');
@@ -101,10 +102,95 @@ const VerificationModal = ({ type, data, onClose, onVerify, onReject }) => {
 
         {/* Bagian 2: Detail Menu */}
         {type === 'menu' && (
-          <div className='p-4 bg-gray-50 rounded-lg border border-gray-200 space-y-3'>
-            <h4 className='font-bold text-lg text-gray-800'>Detail Audit Menu {data.menuName}</h4>
-            <p className='text-gray-700 italic'>[Placeholder untuk detail Gizi, Bahan, dan Metode Masak dari Menu]</p>
-            <p className='text-xs text-red-500'>*Implementasi detail menu memerlukan integrasi API yang lengkap.*</p>
+          <div className='p-4 bg-gray-50 rounded-lg border border-gray-200 space-y-4'>
+            <h4 className='font-bold text-lg text-gray-800'>Detail Audit Menu {data.nama_menu || data.menuName}</h4>
+            
+            {/* Informasi Dasar */}
+            <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+              <div>
+                <label className='block text-sm font-semibold text-gray-700'>Nama Menu</label>
+                <p className='text-gray-900'>{data.nama_menu || 'N/A'}</p>
+              </div>
+              <div>
+                <label className='block text-sm font-semibold text-gray-700'>Deskripsi</label>
+                <p className='text-gray-900'>{data.deskripsi || 'N/A'}</p>
+              </div>
+              <div>
+                <label className='block text-sm font-semibold text-gray-700'>Harga</label>
+                <p className='text-gray-900'>Rp {data.harga ? Number(data.harga).toLocaleString('id-ID') : 'N/A'}</p>
+              </div>
+              <div>
+                <label className='block text-sm font-semibold text-gray-700'>Status Verifikasi</label>
+                <p className='text-gray-900'>{data.status_verifikasi || 'N/A'}</p>
+              </div>
+            </div>
+
+            {/* Bahan Baku dan Metode Masak */}
+            <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+              <div>
+                <label className='block text-sm font-semibold text-gray-700'>Bahan Baku</label>
+                <p className='text-gray-900'>{data.bahan_baku || 'N/A'}</p>
+              </div>
+              <div>
+                <label className='block text-sm font-semibold text-gray-700'>Metode Masak</label>
+                <p className='text-gray-900'>{data.metode_masak || 'N/A'}</p>
+              </div>
+            </div>
+
+            {/* Klaim Diet */}
+            <div>
+              <label className='block text-sm font-semibold text-gray-700'>Klaim Diet</label>
+              <p className='text-gray-900'>
+                {data.diet_claims ? (Array.isArray(data.diet_claims) ? data.diet_claims.join(', ') : data.diet_claims) : 'N/A'}
+              </p>
+            </div>
+
+            {/* Nilai Gizi */}
+            <div>
+              <label className='block text-sm font-semibold text-gray-700 mb-2'>Nilai Gizi per Porsi</label>
+              <div className='grid grid-cols-2 md:grid-cols-4 gap-4'>
+                <div>
+                  <span className='text-xs text-gray-500'>Kalori</span>
+                  <p className='font-semibold'>{data.kalori || 0} kkal</p>
+                </div>
+                <div>
+                  <span className='text-xs text-gray-500'>Protein</span>
+                  <p className='font-semibold'>{data.protein || 0} g</p>
+                </div>
+                <div>
+                  <span className='text-xs text-gray-500'>Lemak</span>
+                  <p className='font-semibold'>{data.lemak || 0} g</p>
+                </div>
+                <div>
+                  <span className='text-xs text-gray-500'>Gula</span>
+                  <p className='font-semibold'>{data.gula || 0} g</p>
+                </div>
+                <div>
+                  <span className='text-xs text-gray-500'>Serat</span>
+                  <p className='font-semibold'>{data.serat || 0} g</p>
+                </div>
+                <div>
+                  <span className='text-xs text-gray-500'>Lemak Jenuh</span>
+                  <p className='font-semibold'>{data.lemak_jenuh || 0} g</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Foto */}
+            {data.foto && (
+              <div>
+                <label className='block text-sm font-semibold text-gray-700 mb-2'>Foto Menu</label>
+                <img src={data.foto.startsWith('/') ? `${API_ORIGIN}${data.foto}` : data.foto} alt="Foto Menu" className="w-32 h-32 object-cover rounded-lg border" />
+              </div>
+            )}
+
+            {/* Catatan Admin */}
+            {data.catatan_admin && (
+              <div>
+                <label className='block text-sm font-semibold text-gray-700'>Catatan Admin Sebelumnya</label>
+                <p className='text-gray-900'>{data.catatan_admin}</p>
+              </div>
+            )}
           </div>
         )}
 
@@ -137,6 +223,7 @@ const VerificationModal = ({ type, data, onClose, onVerify, onReject }) => {
 
 export default function AdminDashboardPage() {
   const navigate = useNavigate();
+  const { isAuthenticated, isAdmin, isLoading } = useAuth();
   const [activeTab, setActiveTab] = useState('merchants');
   const [selectedItem, setSelectedItem] = useState(null);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
@@ -147,8 +234,18 @@ export default function AdminDashboardPage() {
   const [_error, setError] = useState(null);
 
   useEffect(() => {
-    // Fetch pending restaurants and menus
+    // Only fetch if we know user is an authenticated admin
     const fetchPending = async () => {
+      // If still determining auth state, wait
+      if (isLoading) return;
+
+      if (!isAuthenticated || !isAdmin) {
+        // redirect to sign-in for non-admin users
+        console.warn('[AdminDashboard] blocked: user not admin or not authenticated');
+        navigate('/signin');
+        return;
+      }
+
       setLoading(true);
       setError(null);
       try {
@@ -165,6 +262,13 @@ export default function AdminDashboardPage() {
         setPendingMenus(menus);
       } catch (e) {
         console.error('Failed to fetch pending items', e);
+        // If 403 from server, treat as unauthorized and redirect
+        const status = e?.response?.status;
+        if (status === 401 || status === 403) {
+          setError('Akses ditolak: Anda tidak memiliki izin admin. Silakan login sebagai admin.');
+          navigate('/signin');
+          return;
+        }
         setError('Gagal memuat data pending. Pastikan Anda login sebagai admin.');
       } finally {
         setLoading(false);
@@ -176,30 +280,50 @@ export default function AdminDashboardPage() {
 
   const handleVerify = async (id, note = '') => {
     try {
+      // If verifying a menu, call the menu verify endpoint and remove from pendingMenus
+      if (selectedItem && selectedItem.type === 'menu') {
+        await api.put(`/admin/verify/menu/${id}`, { status: 'approved' });
+        setPendingMenus(prev => prev.filter(m => Number(m.id) !== Number(id)));
+        setSelectedItem(null);
+        alert('Menu berhasil diverifikasi.');
+        return;
+      }
+
+      // Otherwise treat as restaurant verification
       await api.patch(`/admin/restaurants/${id}/verify`, { status: 'approved', note });
       setPendingMerchants(prev => prev.filter(p => Number(p.id) !== Number(id)));
       setSelectedItem(null);
       alert('Restoran berhasil diverifikasi dan pemilik telah diberi tahu.');
     } catch (e) {
       console.error('verify error', e);
-      alert('Gagal memverifikasi restoran. Periksa konsol.');
+      alert('Gagal memverifikasi. Periksa konsol.');
     }
   };
 
   const handleReject = async (id, note = '') => {
-    if (!note || !note.trim()) {
+    // For restaurant rejection, note is required
+    if ((!note || !note.trim()) && (!selectedItem || selectedItem.type !== 'menu')) {
       alert('Mohon isi catatan admin ketika menolak permohonan.');
       return;
     }
 
     try {
+      if (selectedItem && selectedItem.type === 'menu') {
+        // Menu verify endpoint doesn't currently accept a note in backend, send status only
+        await api.put(`/admin/verify/menu/${id}`, { status: 'rejected' });
+        setPendingMenus(prev => prev.filter(m => Number(m.id) !== Number(id)));
+        setSelectedItem(null);
+        alert('Menu ditolak.');
+        return;
+      }
+
       await api.patch(`/admin/restaurants/${id}/verify`, { status: 'rejected', note });
       setPendingMerchants(prev => prev.filter(p => Number(p.id) !== Number(id)));
       setSelectedItem(null);
       alert('Permohonan ditolak dan catatan telah dikirimkan ke pemilik.');
     } catch (e) {
       console.error('reject error', e);
-      alert('Gagal menolak restoran. Periksa konsol.');
+      alert('Gagal memproses penolakan. Periksa konsol.');
     }
   };
   

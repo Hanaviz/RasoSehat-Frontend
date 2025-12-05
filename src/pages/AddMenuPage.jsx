@@ -1,7 +1,9 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronLeft, Upload, Utensils, Zap, ShoppingBag, Leaf, DollarSign, CheckCircle, Clock } from 'lucide-react';
-import { useNavigate } from 'react-router-dom'; 
+import { useNavigate } from 'react-router-dom';
+import api from '../utils/api';
+import { useAuth } from '../context/AuthContext'; 
 
 // --- Reusable UI Components ---
 
@@ -65,10 +67,8 @@ const MultiSelectTag = ({ label, options, selected, onToggle, helper }) => (
 );
 
 // --- Data Konfigurasi ---
-const CATEGORIES = ['Salad', 'Smoothie', 'Masakan Padang Sehat', 'Keto', 'Vegan', 'Camilan Sehat'];
 const DIET_CLAIMS = ['Rendah Kalori', 'Rendah Gula', 'Tinggi Protein', 'Rendah Lemak Jenuh', 'Vegan', 'Vegetarian', 'Gluten-Free'];
 const COOKING_METHODS = ['Panggang', 'Kukus', 'Rebus', 'Tumis (Minim Minyak)', 'Air Fryer', 'Goreng'];
-const ALLERGENS = ['Kacang', 'Gluten', 'Susu', 'Telur', 'Kerang', 'Seafood'];
 
 
 // =================================================================
@@ -77,28 +77,48 @@ const ALLERGENS = ['Kacang', 'Gluten', 'Susu', 'Telur', 'Kerang', 'Seafood'];
 
 export default function AddMenuPage() {
     const navigate = useNavigate();
+    const { user } = useAuth();
     const [step, setStep] = useState(1);
+    const [categories, setCategories] = useState([]);
+    const [restaurant, setRestaurant] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
     const [formData, setFormData] = useState({
-        nama: '',
+        nama_menu: '',
         deskripsi: '',
-        harga: '',
-        porsi: '',
-        kategori: '',
-        foto: null,
-        
-        // Nutrisi & Verifikasi
+        bahan_baku: '',
+        metode_masak: '',
+        diet_claims: [],
         kalori: '',
         protein: '',
         gula: '',
         lemak: '',
-        bahanBaku: '',
-        metodeMasak: '',
-        dietClaims: [],
-        allergens: [],
-        // Tambahan yang direkomendasikan
-        lemakJenuh: '', 
-        serat: '', 
+        serat: '',
+        lemak_jenuh: '',
+        harga: '',
+        foto: null,
+        kategori_id: '',
     });
+
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                setLoading(true);
+                const [categoriesRes, storeRes] = await Promise.all([
+                    api.get('/categories'),
+                    api.get('/my-store')
+                ]);
+                setCategories(categoriesRes.data || []);
+                setRestaurant(storeRes.data.restaurant || null);
+            } catch (err) {
+                console.error('Failed to fetch data', err);
+                setError('Gagal memuat data. Silakan coba lagi.');
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchData();
+    }, []);
 
     const handleChange = useCallback((field, value) => {
         setFormData(prev => ({ ...prev, [field]: value }));
@@ -124,12 +144,12 @@ export default function AddMenuPage() {
     const handleNext = () => {
         // Logika validasi minimal antar sesi
         if (step === 1) {
-            if (!formData.nama || !formData.harga || !formData.kategori || !formData.foto) {
-                alert("Mohon lengkapi Nama, Harga, Kategori, dan Foto Menu.");
+            if (!formData.nama_menu || !formData.harga || !formData.kategori_id || !formData.foto) {
+                alert("Mohon lengkapi Nama Menu, Harga, Kategori, dan Foto Menu.");
                 return;
             }
         } else if (step === 2) {
-             if (!formData.kalori || !formData.protein || !formData.bahanBaku || !formData.lemak) {
+             if (!formData.kalori || !formData.protein || !formData.bahan_baku || !formData.lemak) {
                 alert("Mohon lengkapi estimasi Kalori, Protein, Lemak, dan Daftar Bahan Baku.");
                 return;
             }
@@ -137,20 +157,66 @@ export default function AddMenuPage() {
         setStep(step + 1);
     };
 
-    const handleSubmit = () => {
+    const handleSubmit = async () => {
         // 1. Final Validation
-        if (formData.dietClaims.length === 0 || !formData.metodeMasak) {
+        if (formData.diet_claims.length === 0 || !formData.metode_masak) {
             alert("Mohon tentukan minimal satu Klaim Diet dan Metode Memasak.");
             return;
         }
+        if (!restaurant) {
+            alert("Restoran tidak ditemukan. Pastikan Anda memiliki toko terdaftar.");
+            return;
+        }
 
-        // 2. Submission Logic (Simulasi kirim ke backend)
-        console.log("Submitting Menu Data:", formData);
-        
-        // Di sini panggil API ke Laravel Controller (RestoranController atau MenuController)
-        
-        alert("Menu berhasil diajukan! Menunggu Verifikasi Admin.");
-        navigate('/my-store'); 
+        // 2. Prepare FormData (ensure all keys match DB columns)
+        const fd = new FormData();
+        // FormData stores values as strings or Blobs; convert numbers to strings
+        fd.append('restoran_id', String(restaurant.id));
+        fd.append('kategori_id', String(formData.kategori_id));
+        fd.append('nama_menu', String(formData.nama_menu || ''));
+        fd.append('deskripsi', String(formData.deskripsi || ''));
+        fd.append('bahan_baku', String(formData.bahan_baku || ''));
+        fd.append('metode_masak', String(formData.metode_masak || ''));
+        fd.append('diet_claims', JSON.stringify(formData.diet_claims || []));
+        fd.append('kalori', String(formData.kalori || '0'));
+        fd.append('protein', String(formData.protein || '0'));
+        fd.append('gula', String(formData.gula || '0'));
+        fd.append('lemak', String(formData.lemak || '0'));
+        fd.append('serat', String(formData.serat || '0'));
+        fd.append('lemak_jenuh', String(formData.lemak_jenuh || '0'));
+        fd.append('harga', String(formData.harga || '0'));
+        if (formData.foto) {
+            // append file object under key 'foto'
+            fd.append('foto', formData.foto, formData.foto.name);
+        }
+
+        // Debug: preview FormData keys (can't directly console.log fd contents in all envs)
+        try {
+            const preview = {};
+            for (const pair of fd.entries()) {
+                // for files, show name only
+                if (pair[1] instanceof File) preview[pair[0]] = pair[1].name;
+                else preview[pair[0]] = pair[1];
+            }
+            console.log('[DEBUG AddMenuPage] FormData preview:', preview);
+        } catch (e) {
+            console.log('[DEBUG AddMenuPage] Could not preview FormData', e);
+        }
+
+        try {
+            const res = await api.post('/menus', fd, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
+            if (res.data && res.data.success) {
+                alert("Menu berhasil diajukan! Menunggu Verifikasi Admin.");
+                navigate('/my-store');
+            } else {
+                alert("Gagal mengajukan menu. Silakan coba lagi.");
+            }
+        } catch (err) {
+            console.error('Failed to submit menu', err);
+            alert(err.response?.data?.message || "Terjadi kesalahan saat mengajukan menu.");
+        }
     };
 
     const containerVariants = {
@@ -163,6 +229,37 @@ export default function AddMenuPage() {
         hidden: { opacity: 0, y: 10 },
         visible: { opacity: 1, y: 0 }
     };
+
+    if (loading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gray-50">
+                <div className="text-center">
+                    <div className="w-16 h-16 border-4 border-green-600 border-t-transparent rounded-full mx-auto mb-4 animate-spin"></div>
+                    <p className="text-gray-700 font-medium">Memuat data...</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gray-50 p-6">
+                <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 text-center">
+                    <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <CheckCircle className="w-8 h-8 text-red-600" />
+                    </div>
+                    <h3 className="text-xl font-bold text-gray-900 mb-2">Terjadi Kesalahan</h3>
+                    <p className="text-red-600 mb-6">{error}</p>
+                    <button 
+                        className="px-6 py-3 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-700 transition-colors"
+                        onClick={() => window.location.reload()}
+                    >
+                        Coba Lagi
+                    </button>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-gray-50 pt-12 md:pt-16 pb-12 px-4 sm:px-6 lg:px-8">
@@ -203,11 +300,10 @@ export default function AddMenuPage() {
                                 {/* Kiri: Data Produk */}
                                 <motion.div variants={itemVariants} className="space-y-5">
                                     <FormCard title="Informasi Dasar Menu" icon={Utensils}>
-                                        <InputGroup label="Nama Menu" value={formData.nama} onChange={(e) => handleChange('nama', e.target.value)} placeholder="Contoh: Nasi Goreng Sehat" required />
-                                        <InputGroup label="Deskripsi" type="textarea" value={formData.deskripsi} onChange={(e) => handleChange('deskripsi', e.target.value)} placeholder="Jelaskan secara singkat manfaat dan isinya..." required />
+                                        <InputGroup label="Nama Menu" value={formData.nama_menu} onChange={(e) => handleChange('nama_menu', e.target.value)} placeholder="Contoh: Nasi Goreng Sehat" required />
+                                        <InputGroup label="Deskripsi" type="textarea" value={formData.deskripsi} onChange={(e) => handleChange('deskripsi', e.target.value)} placeholder="Jelaskan secara singkat manfaat dan isinya..." />
                                         <div className="flex gap-4">
-                                            <InputGroup label="Harga Jual (Rp)" type="number" value={formData.harga} onChange={(e) => handleChange('harga', e.target.value)} placeholder="25000" required isFull={false} min={1000} />
-                                            <InputGroup label="Porsi Standar" value={formData.porsi} onChange={(e) => handleChange('porsi', e.target.value)} placeholder="300 gram / 1 mangkok" required isFull={false} />
+                                            <InputGroup label="Harga Jual (Rp)" type="number" value={formData.harga} onChange={(e) => handleChange('harga', e.target.value)} placeholder="25000" required isFull={false} min={0} />
                                         </div>
                                     </FormCard>
                                 </motion.div>
@@ -232,9 +328,9 @@ export default function AddMenuPage() {
                                     </FormCard>
 
                                     <FormCard title="Pengkategorian Menu" icon={ShoppingBag}>
-                                        <select value={formData.kategori} onChange={(e) => handleChange('kategori', e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all shadow-sm appearance-none" required>
+                                        <select value={formData.kategori_id} onChange={(e) => handleChange('kategori_id', e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all shadow-sm appearance-none" required>
                                             <option value="">Pilih Kategori Utama...</option>
-                                            {CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                                            {categories.map(cat => <option key={cat.id} value={cat.id}>{cat.nama_kategori}</option>)}
                                         </select>
                                     </FormCard>
                                 </motion.div>
@@ -255,10 +351,10 @@ export default function AddMenuPage() {
                                             <InputGroup label="Lemak Total (Gram)" type="number" value={formData.lemak} onChange={(e) => handleChange('lemak', e.target.value)} placeholder="10" required isFull={false} />
                                         </div>
                                         <div className="grid grid-cols-2 gap-4">
-                                            <InputGroup label="Gula (Gram)" type="number" value={formData.gula} onChange={(e) => handleChange('gula', e.target.value)} placeholder="5" required isFull={false} />
-                                            <InputGroup label="Lemak Jenuh (Gram)" type="number" value={formData.lemakJenuh} onChange={(e) => handleChange('lemakJenuh', e.target.value)} placeholder="2" isFull={false} />
+                                            <InputGroup label="Gula (Gram)" type="number" value={formData.gula} onChange={(e) => handleChange('gula', e.target.value)} placeholder="5" required isFull={false} min={0} />
+                                            <InputGroup label="Lemak Jenuh (Gram)" type="number" value={formData.lemak_jenuh} onChange={(e) => handleChange('lemak_jenuh', e.target.value)} placeholder="2" isFull={false} min={0} />
                                         </div>
-                                        <InputGroup label="Serat (Fiber) (Gram)" type="number" value={formData.serat} onChange={(e) => handleChange('serat', e.target.value)} placeholder="8" />
+                                        <InputGroup label="Serat (Fiber) (Gram)" type="number" value={formData.serat} onChange={(e) => handleChange('serat', e.target.value)} placeholder="8" min={0} />
                                     </FormCard>
                                 </motion.div>
 
@@ -269,13 +365,13 @@ export default function AddMenuPage() {
                                             label="Daftar Bahan Baku Mentah" 
                                             helper="Pisahkan dengan koma. Wajib sebutkan jenis minyak/pemanis."
                                             type="textarea" 
-                                            value={formData.bahanBaku} 
-                                            onChange={(e) => handleChange('bahanBaku', e.target.value)} 
+                                            value={formData.bahan_baku} 
+                                            onChange={(e) => handleChange('bahan_baku', e.target.value)} 
                                             placeholder="Contoh: Dada ayam, Quinoa, Baby Spinach, Minyak Zaitun, Stevia..." 
                                             required 
                                         />
                                         <label className="block text-sm font-semibold text-gray-700 mb-2">Metode Memasak Utama</label>
-                                        <select value={formData.metodeMasak} onChange={(e) => handleChange('metodeMasak', e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all shadow-sm appearance-none" required>
+                                        <select value={formData.metode_masak} onChange={(e) => handleChange('metode_masak', e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all shadow-sm appearance-none" required>
                                             <option value="">Pilih Metode...</option>
                                             {COOKING_METHODS.map(method => <option key={method} value={method}>{method}</option>)}
                                         </select>
@@ -296,16 +392,8 @@ export default function AddMenuPage() {
                                             label="Klaim Diet Spesifik (Wajib Pilih Minimal Satu)"
                                             helper="Pilih kategori yang Anda yakini sesuai dengan data nutrisi yang dimasukkan."
                                             options={DIET_CLAIMS}
-                                            selected={formData.dietClaims}
-                                            onToggle={(item) => handleToggleArray('dietClaims', item)}
-                                        />
-                                        
-                                        <MultiSelectTag
-                                            label="Peringatan Alergen (Opsional)"
-                                            helper="Pilih alergen yang mungkin terkandung dalam menu ini."
-                                            options={ALLERGENS}
-                                            selected={formData.allergens}
-                                            onToggle={(item) => handleToggleArray('allergens', item)}
+                                            selected={formData.diet_claims}
+                                            onToggle={(item) => handleToggleArray('diet_claims', item)}
                                         />
                                         
                                         <div className="p-4 bg-yellow-50 rounded-lg border border-yellow-300 text-sm text-yellow-800 font-medium mt-5">
