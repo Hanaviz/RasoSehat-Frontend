@@ -99,14 +99,15 @@ export default function HeroSection() {
 	const fetchFeaturedMenus = useCallback(async () => {
 		setLoadingMenus(true);
 		try {
-			console.log(
-				'[HeroSection] fetching featured menus from',
-				api.defaults.baseURL + '/menus/featured'
-			);
-			const response = await api.get(`/menus/featured`);
+			console.log('[HeroSection] fetching approved menus from', api.defaults.baseURL + '/menus');
+			const response = await api.get(`/menus`);
 			console.log('[HeroSection] response received:', response.status, response.data);
 
-			const normalized = (response.data || []).map((m) => ({
+			const payload = Array.isArray(response.data)
+				? response.data
+				: (Array.isArray(response.data?.data) ? response.data.data : []);
+
+			const normalized = (payload || []).map((m) => ({
 				...m,
 				// pastikan diet_claims selalu array
 				diet_claims: Array.isArray(m.diet_claims)
@@ -525,6 +526,81 @@ export default function HeroSection() {
 					</div>
 				</div>
 
+					{/* Featured Menus Section */}
+					<div className="bg-white rounded-2xl shadow-md p-4 sm:p-6 mb-6 border-2 border-green-100">
+						<h2 className="text-lg sm:text-xl font-bold text-gray-700 mb-2 flex items-center justify-between">
+							<span>Menu Unggulan</span>
+							<div className="flex items-center gap-2">
+								<button
+									onClick={handleRefreshFeatured}
+									className="text-sm px-3 py-1 rounded bg-green-50 text-green-700 border border-green-100 hover:bg-green-100"
+								>
+									Refresh
+								</button>
+								<button
+									onClick={() => setShowDebugPanel((s) => !s)}
+									className="text-sm px-3 py-1 rounded bg-gray-50 text-gray-700 border border-gray-100 hover:bg-gray-100"
+								>
+									Toggle Debug
+								</button>
+							</div>
+						</h2>
+						{/* Debug / Loading */}
+						{loadingMenus ? (
+							<div className="text-sm text-gray-600">Memuat menu unggulan...</div>
+						) : featuredMenus.length === 0 ? (
+							// Render a demo fallback card so developers can verify the card UI
+							<div>
+								<div className="text-sm text-gray-600 mb-4">Tidak ada data unggulan — menampilkan demo.</div>
+								<div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+									{(() => {
+										const demoItem = {
+											id: 'demo-1',
+											name: 'Buddha Bowl (Demo)',
+											slug: 'buddha-bowl',
+											price: '45000.00',
+											rating: 4.5,
+											prepTime: '15-20 min',
+											image: 'https://via.placeholder.com/400x300.png?text=Buddha+Bowl',
+											restaurantName: 'Demo Rasa Sehat',
+											restaurantSlug: 'demo-rasa-sehat',
+											description: 'Demo: Bowl sehat berisi sayuran, biji-bijian, dan protein nabati.',
+											isVerified: true,
+											calories: 520,
+										};
+										return <HeroMenuCard key={demoItem.id} menu={demoItem} />;
+									})()}
+								</div>
+							</div>
+						) : (
+							// groupedMenus dibuat dari featuredMenus
+							<div className="space-y-6">
+								{groupedMenus.map((group) => (
+									<div key={group.slug}>
+										<div className="flex items-center justify-between mb-3">
+											<h3 className="text-md font-semibold text-gray-800">{group.title}</h3>
+											{group.items.length > 4 && (
+												<span className="text-xs text-gray-500">{group.items.length} items</span>
+											)}
+										</div>
+										<div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+											{group.items.map((item) => (
+												<HeroMenuCard key={String(item.id) + '-' + (item.slug || '')} menu={item} />
+											))}
+										</div>
+									</div>
+								))}
+							</div>
+						)}
+
+						{showDebugPanel && (
+							<div className="mt-4 bg-gray-50 p-3 rounded">
+								<div className="text-xs text-gray-600 mb-2">Debug: featuredMenus (raw)</div>
+								<pre className="text-xs max-h-60 overflow-auto p-2 bg-white border rounded">{JSON.stringify(featuredMenus, null, 2)}</pre>
+								<div className="text-xs text-gray-600 mt-2">Grouped summary: {JSON.stringify(groupedMenus.map(g=>({title:g.title,count:g.items.length})) )}</div>
+							</div>
+						)}
+					</div>
 					{/* Featured Menus Section */}
 					<div className="bg-white rounded-2xl shadow-md p-4 sm:p-6 mb-6 border-2 border-green-100">
 						<h2 className="text-lg sm:text-xl font-bold text-gray-700 mb-2 flex items-center justify-between">
