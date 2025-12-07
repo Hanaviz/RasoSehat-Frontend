@@ -1,8 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Camera, Edit2, Save, X, Mail, Phone, Calendar, User } from "lucide-react";
-import api from '../utils/api';
-// derive backend origin from api base URL so relative upload paths can be resolved
-const API_ORIGIN = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api').replace(/\/api\/?$/i, '');
+import api, { API_ORIGIN, unwrap, makeImageUrl } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 
 export default function ProfilePage() {
@@ -50,21 +48,7 @@ export default function ProfilePage() {
     }
   };
 
-  // build absolute URL for images served by backend
-  const makeImageUrl = (u) => {
-    if (!u) return '';
-    try {
-      const s = String(u);
-      // already absolute
-      if (/^https?:\/\//i.test(s)) return encodeURI(s);
-      // if starts with / treat as relative to API origin
-      if (s.startsWith('/')) return encodeURI(API_ORIGIN + s);
-      // otherwise attempt to return encoded string
-      return encodeURI(s);
-    } catch (e) {
-      return '';
-    }
-  };
+  // use shared makeImageUrl helper
 
   // Handle edit toggle
   const toggleEdit = (field) => {
@@ -82,8 +66,8 @@ export default function ProfilePage() {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const res = await api.get('/auth/profile');
-        const data = res.data && res.data.data ? res.data.data : res.data || {};
+          const res = await api.get('/auth/profile');
+          const data = unwrap(res) || {};
         // normalize keys to match local state
         const normalized = {
           username: data.username || data.name || data.full_name || data.nama || '',
@@ -145,7 +129,8 @@ export default function ProfilePage() {
       const fd = new FormData();
       fd.append('avatar', tempData.avatarFile);
       const res = await api.post('/auth/avatar', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
-      const avatarUrl = res.data && (res.data.avatar || res.data.avatar_url || (res.data.data && res.data.data.avatar));
+      const payload = unwrap(res) || res?.data || {};
+      const avatarUrl = payload.avatar || payload.avatar_url || null;
       if (avatarUrl) {
         setUserData(prev => ({ ...prev, avatar: avatarUrl }));
         setPreviewImage(makeImageUrl(avatarUrl));

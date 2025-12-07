@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import api from '../utils/api';
+import api, { unwrap } from '../utils/api';
 
 export default function NotificationDetail() {
   const { id } = useParams();
@@ -13,7 +13,7 @@ export default function NotificationDetail() {
     setLoading(true);
     try {
       const res = await api.get('/notifications');
-      const list = res?.data?.data || [];
+      const list = unwrap(res) || [];
       const found = list.find(item => String(item.id) === String(id));
       if (found) setNotification(found);
       else setNotification(null);

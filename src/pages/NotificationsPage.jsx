@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import api from '../utils/api';
+import api, { unwrap } from '../utils/api';
 
 export default function NotificationsPage() {
   const [notifications, setNotifications] = useState([]);
@@ -11,7 +11,7 @@ export default function NotificationsPage() {
     setLoading(true);
     try {
       const res = await api.get('/notifications');
-      const data = res?.data?.data || [];
+      const data = unwrap(res) || [];
       setNotifications(data);
     } catch (err) {
       console.error('Error fetching notifications', err);

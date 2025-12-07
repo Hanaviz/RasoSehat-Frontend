@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Clock, MapPin, Star, Phone, Utensils, AlertTriangle, CheckCircle, Save, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import api from '../utils/api';
+import api, { unwrap, makeImageUrl } from '../utils/api';
 import MenuReviewSection from '../components/MenuReviewSection';
 
 // Normalizer
@@ -32,7 +32,7 @@ function normalizeMenuRow(row, idFallback) {
     rating: Number(row.rating) || 4.5,
     reviews: Number(row.reviews) || 0,
     description: row.deskripsi ?? row.description ?? '',
-    image: row.foto ?? row.image ?? 'https://placehold.co/800x600/4ade80/white?text=RasoSehat',
+    image: makeImageUrl(row.foto ?? row.image) || 'https://placehold.co/800x600/4ade80/white?text=RasoSehat',
     restaurant: {
       name: row.nama_restoran || row.restaurant_name || 'Restoran',
       slug: (row.nama_restoran || row.restaurant_name || 'restoran').toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, ''),
@@ -141,7 +141,7 @@ export default function MenuDetailPage() {
         return;
       }
 
-      const row = resp?.data?.data ?? resp?.data?.menu ?? resp?.data;
+      const row = unwrap(resp) || null;
       if (!row) {
         setError({ type: 'notfound', message: 'Menu tidak ditemukan' });
         setLoading(false);
@@ -239,7 +239,19 @@ export default function MenuDetailPage() {
           {/* LEFT — Image + Restaurant Info */}
           <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.5 }} className="lg:sticky lg:top-28 h-fit">
             <div className="relative rounded-3xl overflow-hidden shadow-2xl border-4 border-green-500/50">
-              <img src={menu.image} alt={menu.name} className="w-full h-96 object-cover" />
+              <img
+                src={menu.image}
+                alt={menu.name}
+                className="w-full h-96 object-cover"
+                onLoad={(e) => {
+                  try {
+                    const img = e && e.target;
+                    if (img && img.naturalWidth) {
+                      console.debug('[MenuDetailPage] image load:', { src: img.src, naturalWidth: img.naturalWidth, naturalHeight: img.naturalHeight });
+                    }
+                  } catch (err) { /* ignore */ }
+                }}
+              />
             </div>
 
             {/* Seller Info */}

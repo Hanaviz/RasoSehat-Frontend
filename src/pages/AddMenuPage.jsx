@@ -2,7 +2,8 @@ import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronLeft, Upload, Utensils, Zap, ShoppingBag, Leaf, DollarSign, CheckCircle, Clock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import api from '../utils/api';
+import api, { unwrap } from '../utils/api';
+import HEALTH_CLAIMS from '../utils/healthClaims';
 import { useAuth } from '../context/AuthContext'; 
 
 // --- Reusable UI Components ---
@@ -67,7 +68,7 @@ const MultiSelectTag = ({ label, options, selected, onToggle, helper }) => (
 );
 
 // --- Data Konfigurasi ---
-const DIET_CLAIMS = ['Rendah Kalori', 'Rendah Gula', 'Tinggi Protein', 'Rendah Lemak Jenuh', 'Vegan', 'Vegetarian', 'Gluten-Free'];
+const DIET_CLAIMS = HEALTH_CLAIMS;
 const COOKING_METHODS = ['Panggang', 'Kukus', 'Rebus', 'Tumis (Minim Minyak)', 'Air Fryer', 'Goreng'];
 
 
@@ -108,8 +109,10 @@ export default function AddMenuPage() {
                     api.get('/categories'),
                     api.get('/my-store')
                 ]);
-                setCategories(categoriesRes.data || []);
-                setRestaurant(storeRes.data.restaurant || null);
+                const cats = unwrap(categoriesRes) || [];
+                const storePayload = unwrap(storeRes) || {};
+                setCategories(cats);
+                setRestaurant(storePayload.restaurant || null);
             } catch (err) {
                 console.error('Failed to fetch data', err);
                 setError('Gagal memuat data. Silakan coba lagi.');
@@ -207,7 +210,9 @@ export default function AddMenuPage() {
             const res = await api.post('/menus', fd, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
-            if (res.data && res.data.success) {
+            const payload = unwrap(res) || {};
+            const success = res?.data?.success ?? true;
+            if (success) {
                 alert("Menu berhasil diajukan! Menunggu Verifikasi Admin.");
                 navigate('/my-store');
             } else {

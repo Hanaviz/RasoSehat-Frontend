@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LocateFixed } from 'lucide-react';
 import HeroMenuCard from '../components/HeroMenuCard';
-import api from '../utils/api';
+import api, { unwrap, makeImageUrl } from '../utils/api';
 
 // Data kategori yang statis (tidak perlu dari API)
 const allCategories = [
@@ -14,11 +14,8 @@ const allCategories = [
 	{ name: 'Vegetarian / Vegan', icon: '🥦', slug: 'vegetarian-vegan' },
 	{ name: 'Rendah Lemak Jenuh', icon: '🥑', slug: 'rendah-lemak-jenuh' },
 	{ name: 'Kids Friendly', icon: '🧸', slug: 'kids-friendly' },
-	{ name: 'Lainnya', icon: '📦', slug: 'lainnya' },
-	{ name: 'Paleo', icon: '🥩', slug: 'paleo' },
 	{ name: 'Gluten Free', icon: '🌾', slug: 'gluten-free' },
 	{ name: 'Organik', icon: '🥬', slug: 'organik' },
-	{ name: 'Smoothie Bowl', icon: '🥣', slug: 'smoothie-bowl' },
 ];
 
 // Helper: kelompokkan menu berdasarkan diet_claims.
@@ -51,9 +48,7 @@ const groupMenusByClaim = (menus) => {
 				price: menu.harga,
 				rating: menu.rating || 4.5,
 				prepTime: menu.prepTime || '10-20 min',
-				image:
-					menu.foto ||
-					'https://placehold.co/400x300/4ade80/white?text=RasoSehat',
+				image: makeImageUrl(menu.foto) || 'https://placehold.co/400x300/4ade80/white?text=RasoSehat',
 				restaurantName: menu.nama_restoran,
 				restaurantSlug,
 				description: menu.deskripsi,
@@ -95,6 +90,49 @@ export default function HeroSection() {
 		? allCategories
 		: allCategories.slice(0, 8);
 
+	// Map display category names to backend diet_claim keys
+	const claimKeyMap = {
+		'Rendah Kalori': 'low_calorie',
+		'Rendah Gula': 'low_sugar',
+		'Tinggi Protein': 'high_protein',
+		'Tinggi Serat': 'high_fiber',
+		'Seimbang': 'balanced',
+		'Vegetarian / Vegan': 'vegan',
+		'Rendah Lemak Jenuh': 'low_saturated_fat',
+		'Kids Friendly': 'kids_friendly',
+		'Gluten Free': 'gluten_free',
+		'Organik': 'organic'
+	};
+
+	// Derive category sections from the `allCategories` constant (preserve name/icon/slug)
+	const derivedCategories = allCategories.map(c => ({
+		title: c.name,
+		// use the display name as the default key so it matches values stored in diet_claims
+		key: claimKeyMap[c.name] || c.name,
+		slug: c.slug,
+		icon: c.icon
+	}));
+
+	// State for per-category sections (one section per entry in allCategories)
+	const [categorySections, setCategorySections] = useState(
+		derivedCategories.map(c => ({ ...c, items: [], loading: true, error: null }))
+	);
+
+	// Debug: log categorySections whenever it changes to verify payloads
+	useEffect(() => {
+		try {
+			if (categorySections && categorySections.length) {
+				categorySections.forEach(sec => {
+					console.debug(`[Herosection] category='${sec.title}' key='${sec.key}' items=${(sec.items||[]).length} loading=${sec.loading} error=${Boolean(sec.error)}`);
+				});
+			} else {
+				console.debug('[Herosection] categorySections empty');
+			}
+		} catch (e) {
+			console.warn('[Herosection] debug log failed', e);
+		}
+	}, [categorySections]);
+
 	// Fetch dan normalisasi data
 	const fetchFeaturedMenus = useCallback(async () => {
 		setLoadingMenus(true);
@@ -103,9 +141,7 @@ export default function HeroSection() {
 			const response = await api.get(`/menus`);
 			console.log('[HeroSection] response received:', response.status, response.data);
 
-			const payload = Array.isArray(response.data)
-				? response.data
-				: (Array.isArray(response.data?.data) ? response.data.data : []);
+			const payload = unwrap(response) || [];
 
 			const normalized = (payload || []).map((m) => ({
 				...m,
@@ -157,6 +193,33 @@ export default function HeroSection() {
 			console.debug('[HeroSection] grouping error', e);
 		}
 	}, [featuredMenus]);
+
+	// Fetch per-category menus sequentially (one-by-one) and populate categorySections
+	useEffect(() => {
+		let cancelled = false;
+		(async () => {
+			// Debug: show derived categories structure
+			console.debug('[HeroSection] derivedCategories:', derivedCategories);
+			for (const cat of derivedCategories) {
+				if (cancelled) break;
+				setCategorySections(prev => prev.map(s => s.key === cat.key ? { ...s, loading: true, error: null } : s));
+				try {
+					const encodedKey = encodeURIComponent(cat.key);
+					const url = `/menus/by-category/${encodedKey}?limit=8`;
+					console.debug(`[HeroSection] fetching category='${cat.title}' -> ${url}`);
+					const resp = await api.get(url);
+					console.debug(`[HeroSection] raw response for '${cat.title}':`, resp && resp.data ? resp.data : resp);
+					const payload = unwrap(resp) || [];
+					console.debug(`[HeroSection] payload for '${cat.title}':`, payload);
+					setCategorySections(prev => prev.map(s => s.key === cat.key ? { ...s, items: payload, loading: false, error: null } : s));
+				} catch (e) {
+					console.error('[HeroSection] fetch category error', cat.key, e);
+					setCategorySections(prev => prev.map(s => s.key === cat.key ? { ...s, items: [], loading: false, error: e?.message || String(e) } : s));
+				}
+			}
+		})();
+		return () => { cancelled = true; };
+	}, []);
 
 	// Expose a manual refresh for debugging in the UI
 	const handleRefreshFeatured = async () => {
@@ -527,155 +590,43 @@ export default function HeroSection() {
 				</div>
 
 					{/* Featured Menus Section */}
-					<div className="bg-white rounded-2xl shadow-md p-4 sm:p-6 mb-6 border-2 border-green-100">
-						<h2 className="text-lg sm:text-xl font-bold text-gray-700 mb-2 flex items-center justify-between">
-							<span>Menu Unggulan</span>
-							<div className="flex items-center gap-2">
-								<button
-									onClick={handleRefreshFeatured}
-									className="text-sm px-3 py-1 rounded bg-green-50 text-green-700 border border-green-100 hover:bg-green-100"
-								>
-									Refresh
-								</button>
-								<button
-									onClick={() => setShowDebugPanel((s) => !s)}
-									className="text-sm px-3 py-1 rounded bg-gray-50 text-gray-700 border border-gray-100 hover:bg-gray-100"
-								>
-									Toggle Debug
-								</button>
+					{/* Per-category sections: each nutrition category renders its own container */}
+					{categorySections.map((section) => (
+						<div key={section.key} className="bg-white rounded-2xl shadow-md p-4 sm:p-6 mb-6 border-2 border-green-100">
+							<div className="flex items-center justify-between mb-2">
+								<h2 className="text-lg sm:text-xl font-bold text-gray-700">{section.title}</h2>
+								<Link to={`/category/${section.slug}`} className="text-sm text-green-600 hover:underline">Lihat Semua</Link>
 							</div>
-						</h2>
-						{/* Debug / Loading */}
-						{loadingMenus ? (
-							<div className="text-sm text-gray-600">Memuat menu unggulan...</div>
-						) : featuredMenus.length === 0 ? (
-							// Render a demo fallback card so developers can verify the card UI
-							<div>
-								<div className="text-sm text-gray-600 mb-4">Tidak ada data unggulan — menampilkan demo.</div>
+							{section.loading ? (
+								<div className="text-sm text-gray-600">Memuat...</div>
+							) : section.error ? (
+								<div className="text-sm text-red-600">Gagal memuat kategori: {section.error}</div>
+							) : !section.items || section.items.length === 0 ? (
+								<div className="text-sm text-gray-600">Belum ada menu untuk kategori ini.</div>
+							) : (
 								<div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-									{(() => {
-										const demoItem = {
-											id: 'demo-1',
-											name: 'Buddha Bowl (Demo)',
-											slug: 'buddha-bowl',
-											price: '45000.00',
-											rating: 4.5,
-											prepTime: '15-20 min',
-											image: 'https://via.placeholder.com/400x300.png?text=Buddha+Bowl',
-											restaurantName: 'Demo Rasa Sehat',
-											restaurantSlug: 'demo-rasa-sehat',
-											description: 'Demo: Bowl sehat berisi sayuran, biji-bijian, dan protein nabati.',
-											isVerified: true,
-											calories: 520,
+									{section.items.map((item) => {
+										const menu = {
+											id: item.id,
+											name: item.nama_menu || item.name,
+											slug: item.slug,
+											price: item.harga || item.price,
+											rating: item.rating || 0,
+											image: makeImageUrl(item.foto || item.image) || 'https://placehold.co/400x300/4ade80/white?text=RasoSehat',
+											restaurantName: item.nama_restoran || item.restaurantName,
+											restaurantSlug: item.restaurant_slug || item.restaurantSlug,
+											description: item.deskripsi || item.description,
+											calories: item.kalori || item.calories,
+											prepTime: item.prepTime || '10-20 min',
+											isVerified: true
 										};
-										return <HeroMenuCard key={demoItem.id} menu={demoItem} />;
-									})()}
+										return <HeroMenuCard key={`${section.key}-${item.id}`} menu={menu} />;
+									})}
 								</div>
-							</div>
-						) : (
-							// groupedMenus dibuat dari featuredMenus
-							<div className="space-y-6">
-								{groupedMenus.map((group) => (
-									<div key={group.slug}>
-										<div className="flex items-center justify-between mb-3">
-											<h3 className="text-md font-semibold text-gray-800">{group.title}</h3>
-											{group.items.length > 4 && (
-												<span className="text-xs text-gray-500">{group.items.length} items</span>
-											)}
-										</div>
-										<div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-											{group.items.map((item) => (
-												<HeroMenuCard key={String(item.id) + '-' + (item.slug || '')} menu={item} />
-											))}
-										</div>
-									</div>
-								))}
-							</div>
-						)}
-
-						{showDebugPanel && (
-							<div className="mt-4 bg-gray-50 p-3 rounded">
-								<div className="text-xs text-gray-600 mb-2">Debug: featuredMenus (raw)</div>
-								<pre className="text-xs max-h-60 overflow-auto p-2 bg-white border rounded">{JSON.stringify(featuredMenus, null, 2)}</pre>
-								<div className="text-xs text-gray-600 mt-2">Grouped summary: {JSON.stringify(groupedMenus.map(g=>({title:g.title,count:g.items.length})) )}</div>
-							</div>
-						)}
-					</div>
+							)}
+						</div>
+					))}
 					{/* Featured Menus Section */}
-					<div className="bg-white rounded-2xl shadow-md p-4 sm:p-6 mb-6 border-2 border-green-100">
-						<h2 className="text-lg sm:text-xl font-bold text-gray-700 mb-2 flex items-center justify-between">
-							<span>Menu Unggulan</span>
-							<div className="flex items-center gap-2">
-								<button
-									onClick={handleRefreshFeatured}
-									className="text-sm px-3 py-1 rounded bg-green-50 text-green-700 border border-green-100 hover:bg-green-100"
-								>
-									Refresh
-								</button>
-								<button
-									onClick={() => setShowDebugPanel((s) => !s)}
-									className="text-sm px-3 py-1 rounded bg-gray-50 text-gray-700 border border-gray-100 hover:bg-gray-100"
-								>
-									Toggle Debug
-								</button>
-							</div>
-						</h2>
-						{/* Debug / Loading */}
-						{loadingMenus ? (
-							<div className="text-sm text-gray-600">Memuat menu unggulan...</div>
-						) : featuredMenus.length === 0 ? (
-							// Render a demo fallback card so developers can verify the card UI
-							<div>
-								<div className="text-sm text-gray-600 mb-4">Tidak ada data unggulan — menampilkan demo.</div>
-								<div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-									{(() => {
-										const demoItem = {
-											id: 'demo-1',
-											name: 'Buddha Bowl (Demo)',
-											slug: 'buddha-bowl',
-											price: '45000.00',
-											rating: 4.5,
-											prepTime: '15-20 min',
-											image: 'https://via.placeholder.com/400x300.png?text=Buddha+Bowl',
-											restaurantName: 'Demo Rasa Sehat',
-											restaurantSlug: 'demo-rasa-sehat',
-											description: 'Demo: Bowl sehat berisi sayuran, biji-bijian, dan protein nabati.',
-											isVerified: true,
-											calories: 520,
-										};
-										return <HeroMenuCard key={demoItem.id} menu={demoItem} />;
-									})()}
-								</div>
-							</div>
-						) : (
-							// groupedMenus dibuat dari featuredMenus
-							<div className="space-y-6">
-								{groupedMenus.map((group) => (
-									<div key={group.slug}>
-										<div className="flex items-center justify-between mb-3">
-											<h3 className="text-md font-semibold text-gray-800">{group.title}</h3>
-											{group.items.length > 4 && (
-												<span className="text-xs text-gray-500">{group.items.length} items</span>
-											)}
-										</div>
-										<div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-											{group.items.map((item) => (
-												<HeroMenuCard key={String(item.id) + '-' + (item.slug || '')} menu={item} />
-											))}
-										</div>
-									</div>
-								))}
-							</div>
-						)}
-
-						{showDebugPanel && (
-							<div className="mt-4 bg-gray-50 p-3 rounded">
-								<div className="text-xs text-gray-600 mb-2">Debug: featuredMenus (raw)</div>
-								<pre className="text-xs max-h-60 overflow-auto p-2 bg-white border rounded">{JSON.stringify(featuredMenus, null, 2)}</pre>
-								<div className="text-xs text-gray-600 mt-2">Grouped summary: {JSON.stringify(groupedMenus.map(g=>({title:g.title,count:g.items.length})) )}</div>
-							</div>
-						)}
-					</div>
 			</div>
 		</div>
 	);

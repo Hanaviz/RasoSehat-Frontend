@@ -4,9 +4,7 @@ import {
   Filter, Search, MapPin, Star, Utensils,
 } from "lucide-react";
 import { motion } from "framer-motion";
-import axios from "axios"; // <-- IMPORT AXIOS
-
-const API_BASE_URL = 'http://localhost:3000/api'; // <-- DEFINISI BASE URL
+import api, { unwrap } from "../utils/api";
 
 // Data kategori statis untuk filter UI
 const categories = [
@@ -49,10 +47,11 @@ export default function SearchResultsPage() {
     // Tambahkan filter Rating/Lokasi di frontend jika tidak ingin membebani backend
     
     try {
-        const response = await axios.get(url);
-        
-        // Memproses slug menu dan restoran (karena API hanya memberikan nama)
-        const processedResults = response.data.map(item => {
+      const response = await api.get('/menus/search', { params: { q: query } });
+
+      // Memproses slug menu dan restoran (karena API hanya memberikan nama)
+      const items = unwrap(response) || [];
+      const processedResults = items.map(item => {
             const slug = item.nama_menu.toLowerCase().replace(/\s/g, '-').replace(/[^\w-]+/g, '');
             const restaurantSlug = item.nama_restoran.toLowerCase().replace(/\s/g, '-').replace(/[^\w-]+/g, '');
 

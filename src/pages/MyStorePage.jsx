@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import api from '../utils/api';
+import api, { unwrap, makeImageUrl } from '../utils/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Store, TrendingUp, Clock, CheckCircle, XCircle, Edit3, Trash2, 
@@ -27,10 +27,12 @@ export default function MyStorePage() {
       try {
         setLoading(true);
         const res = await api.get('/my-store');
-        if (res.data && res.data.success) {
-          setRestaurant(res.data.restaurant || null);
-          setMenus(res.data.menus || []);
-          setMenuStats(res.data.menuStats || { totalMenu: 0, pending: 0, approved: 0, rejected: 0 });
+        const payload = unwrap(res) || res?.data || {};
+        const success = res?.data?.success ?? true;
+        if (success) {
+          setRestaurant(payload.restaurant || null);
+          setMenus(payload.menus || []);
+          setMenuStats(payload.menuStats || { totalMenu: 0, pending: 0, approved: 0, rejected: 0 });
         } else {
           setRestaurant(null);
           setMenus([]);
@@ -210,8 +212,19 @@ export default function MyStorePage() {
               {/* Left: Store Info */}
               <div className="flex-1">
                 <div className="flex items-center gap-4 mb-4">
-                  <div className="w-16 h-16 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center">
-                    <Store className="w-8 h-8 text-white" />
+                  <div className="w-16 h-16 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center overflow-hidden">
+                    {restaurant.foto ? (
+                      <img
+                        src={makeImageUrl(restaurant.foto)}
+                        alt={restaurant.nama_restoran}
+                        className="w-full h-full object-cover"
+                        onError={(e) => { console.warn('Failed to load restaurant foto', e); }}
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <Store className="w-8 h-8 text-white" />
+                      </div>
+                    )}
                   </div>
                   <div>
                     <h1 className="text-2xl md:text-3xl font-bold mb-2">{restaurant.nama_restoran}</h1>
@@ -257,6 +270,7 @@ export default function MyStorePage() {
                   className="inline-flex items-center gap-2 px-6 py-3 bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white rounded-xl font-semibold transition-all"
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
+                  onClick={() => navigate('/my-store/edit')}
                 >
                   <Edit3 className="w-4 h-4" />
                   Edit Toko

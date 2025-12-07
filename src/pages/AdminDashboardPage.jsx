@@ -16,14 +16,11 @@ import {
   Menu,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import api from "../utils/api";
+import api, { unwrap, API_ORIGIN } from "../utils/api";
 import AdminUserManagement from "../components/AdminUserManagement";
 import { useAuth } from "../context/AuthContext";
 
-// Determine backend origin from API base URL so document links point to backend
-const API_ORIGIN = (
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api"
-).replace(/\/api\/?$/i, "");
+// API_ORIGIN is imported from utils/api
 
 // State will hold live data from backend
 
@@ -413,19 +410,9 @@ export default function AdminDashboardPage() {
     setError(null);
     try {
       const resR = await api.get("/admin/pending/restaurants");
-      const resM = await api
-        .get("/admin/pending/menus")
-        .catch(() => ({ data: [] }));
-      const merchants = Array.isArray(resR.data)
-        ? resR.data
-        : resR.data && resR.data.data
-        ? resR.data.data
-        : [];
-      const menus = Array.isArray(resM.data)
-        ? resM.data
-        : resM.data && resM.data.data
-        ? resM.data.data
-        : [];
+      const resM = await api.get("/admin/pending/menus").catch(() => ({ data: [] }));
+      const merchants = unwrap(resR) || [];
+      const menus = unwrap(resM) || [];
       setPendingMerchants(merchants);
       setPendingMenus(menus);
     } catch (e) {
@@ -448,14 +435,8 @@ export default function AdminDashboardPage() {
     setRestLoading(true);
     setRestError(null);
     try {
-      const res = await api.get(
-        `/admin/restaurants/active?page=${page}&per_page=10`
-      );
-      const data = Array.isArray(res.data)
-        ? res.data
-        : res.data && res.data.data
-        ? res.data.data
-        : [];
+      const res = await api.get(`/admin/restaurants/active?page=${page}&per_page=10`);
+      const data = unwrap(res) || [];
       setActiveRestaurants(data);
       setRestMeta({
         page: (res.data && res.data.page) || page,
@@ -474,14 +455,8 @@ export default function AdminDashboardPage() {
 
   const fetchRestaurantHistory = useCallback(async (page = 1) => {
     try {
-      const res = await api.get(
-        `/admin/restaurants/history?page=${page}&per_page=50`
-      );
-      const raw = Array.isArray(res.data)
-        ? res.data
-        : res.data && res.data.data
-        ? res.data.data
-        : [];
+      const res = await api.get(`/admin/restaurants/history?page=${page}&per_page=50`);
+      const raw = unwrap(res) || [];
 
       // Normalize entries and collect restaurant ids to enrich
       const toFetchRestIds = new Set();
@@ -508,12 +483,9 @@ export default function AdminDashboardPage() {
       if (restIdArray.length) {
         await Promise.all(
           restIdArray.map(async (id) => {
-            try {
+              try {
               const rres = await api.get(`/restaurants/${id}`);
-              const rdata =
-                rres.data && (rres.data.data || rres.data)
-                  ? rres.data.data || rres.data
-                  : null;
+              const rdata = unwrap(rres) || rres?.data || null;
               if (rdata) {
                 restMap[id] = {
                   nama_restoran:
@@ -569,11 +541,7 @@ export default function AdminDashboardPage() {
     setMenuError(null);
     try {
       const res = await api.get(`/admin/menus/active?page=${page}&per_page=10`);
-      const data = Array.isArray(res.data)
-        ? res.data
-        : res.data && res.data.data
-        ? res.data.data
-        : [];
+      const data = unwrap(res) || [];
       setActiveMenusList(data);
       setMenuMeta({
         page: (res.data && res.data.page) || page,
@@ -592,14 +560,8 @@ export default function AdminDashboardPage() {
 
   const fetchMenuHistory = useCallback(async (page = 1) => {
     try {
-      const res = await api.get(
-        `/admin/menus/history?page=${page}&per_page=50`
-      );
-      const raw = Array.isArray(res.data)
-        ? res.data
-        : res.data && res.data.data
-        ? res.data.data
-        : [];
+      const res = await api.get(`/admin/menus/history?page=${page}&per_page=50`);
+      const raw = unwrap(res) || [];
 
       // Normalize entries and collect menu ids to enrich
       const toFetchMenuIds = new Set();
@@ -628,12 +590,9 @@ export default function AdminDashboardPage() {
       if (menuIdArray.length) {
         await Promise.all(
           menuIdArray.map(async (id) => {
-            try {
+              try {
               const mres = await api.get(`/menus/${id}`);
-              const mdata =
-                mres.data && (mres.data.data || mres.data)
-                  ? mres.data.data || mres.data
-                  : null;
+              const mdata = unwrap(mres) || mres?.data || null;
               if (mdata) {
                 menuMap[id] = {
                   nama_menu:
@@ -668,12 +627,9 @@ export default function AdminDashboardPage() {
       if (restIdArray.length) {
         await Promise.all(
           restIdArray.map(async (id) => {
-            try {
+              try {
               const rres = await api.get(`/restaurants/${id}`);
-              const rdata =
-                rres.data && (rres.data.data || rres.data)
-                  ? rres.data.data || rres.data
-                  : null;
+              const rdata = unwrap(rres) || rres?.data || null;
               if (rdata) {
                 restMap[id] = {
                   nama_restoran:
@@ -1007,7 +963,7 @@ export default function AdminDashboardPage() {
                   onClick={async () => {
                     try {
                       const res = await api.get(`/admin/restaurant/${row.id}`);
-                      const r = res.data;
+                      const r = unwrap(res) || res?.data || {};
                       setSelectedItem({ type: "merchant", ...r });
                     } catch (e) {
                       console.warn(

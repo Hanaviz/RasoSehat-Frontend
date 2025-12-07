@@ -1,7 +1,13 @@
 import axios from 'axios';
 
+// Normalize base URL: ensure it includes the '/api' segment expected by backend
+const rawBase = import.meta.env.VITE_API_BASE_URL;
+const normalizedBase = rawBase
+  ? (rawBase.endsWith('/api') ? rawBase : rawBase.replace(/\/$/, '') + '/api')
+  : 'http://localhost:3000/api';
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api',
+  baseURL: normalizedBase,
   withCredentials: false,
 });
 
@@ -16,16 +22,70 @@ api.interceptors.request.use((config) => {
   } catch (e) {
     // ignore
   }
+
+  // Development: log outgoing request payload (redact sensitive headers)
+  try {
+    if (import.meta.env.DEV) {
+      const safeHeaders = { ...config.headers };
+      if (safeHeaders.Authorization) safeHeaders.Authorization = 'Bearer [REDACTED]';
+      console.debug(
+        '[api] request:',
+        config.method?.toUpperCase(),
+        config.url,
+        'headers:',
+        safeHeaders,
+        'data:',
+        config.data
+      );
+    }
+  } catch (e) {}
+
   return config;
 });
 
+// Response logging for development
+api.interceptors.response.use(
+  (response) => {
+    try {
+      if (import.meta.env.DEV) {
+        console.debug(
+          '[api] response:',
+          response.status,
+          response.config?.method?.toUpperCase(),
+          response.config?.url,
+          'data keys:',
+          Object.keys(response.data || {})
+        );
+      }
+    } catch (e) {}
+
+    return response;
+  },
+  (error) => {
+    try {
+      if (import.meta.env.DEV) {
+        console.error(
+          '[api] response error:',
+          error?.response?.status,
+          error?.config?.method?.toUpperCase(),
+          error?.config?.url,
+          'response data:',
+          error?.response?.data
+        );
+      }
+    } catch (e) {}
+
+    return Promise.reject(error);
+  }
+);
+
 export default api;
 
-// Export backend origin derived from baseURL so frontend can build absolute URLs
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
+// Export backend origin
+export const API_BASE_URL = normalizedBase;
 export const API_ORIGIN = String(API_BASE_URL).replace(/\/api\/?$/i, '');
 
-// Helper to build absolute image URLs for backend-served uploads
+// Helper to build absolute image URLs
 export function makeImageUrl(u) {
   if (!u) return '';
   try {
@@ -36,4 +96,10 @@ export function makeImageUrl(u) {
   } catch (e) {
     return '';
   }
+}
+
+// Normalizing backend shapes
+export function unwrap(res) {
+  if (!res) return null;
+  return res?.data?.data ?? res?.data ?? null;
 }

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import debounce from 'lodash/debounce';
 import { useAuth } from '../context/AuthContext';
-import { makeImageUrl } from '../utils/api';
+import { makeImageUrl, unwrap } from '../utils/api';
 import api from '../utils/api';
 
 export default function NavbarAuth() {
@@ -42,9 +42,10 @@ export default function NavbarAuth() {
   const fetchNotifications = async () => {
     try {
       const res = await api.get('/notifications');
-      if (res?.data?.data) {
+      const list = unwrap(res) || [];
+      if (list && Array.isArray(list)) {
         // normalize: ensure boolean is_read is numeric -> boolean
-        const mapped = res.data.data.map(n => {
+        const mapped = list.map(n => {
           // parse data field if it's a JSON string
           let parsed = null;
           try {
@@ -70,12 +71,17 @@ export default function NavbarAuth() {
     }
   };
 
-  // Polling every 15s
+  // Polling every 15s — only when user is authenticated
   useEffect(() => {
+    if (!user) {
+      setNotifications([]);
+      return;
+    }
+
     fetchNotifications();
     const id = setInterval(fetchNotifications, 15000);
     return () => clearInterval(id);
-  }, []);
+  }, [user]);
 
   const unreadCount = notifications.filter(n => !n.is_read).length;
 

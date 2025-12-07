@@ -19,6 +19,7 @@ import MenuDetailPage from "./pages/MenuDetailPage";
 import SearchResultsPage from "./pages/SearchResultsPage";
 import CategoryPage from "./pages/CategoryPage";
 import RegisterStorePage from "./pages/RegisterStorePage";
+import EditRestaurantProfile from "./pages/EditRestaurantProfile";
 import StoreVerificationPending from "./pages/StoreVerificationPending";
 import AdminDashboardPage from "./pages/AdminDashboardPage";
 import MyStorePage from "./pages/MyStorePage";
@@ -71,6 +72,7 @@ function AppContent() {
 
           {/* ---------- STORE FLOW ---------- */}
           <Route path="/my-store" element={<ProtectedRoute><MyStorePage /></ProtectedRoute>} />
+          <Route path="/my-store/edit" element={<ProtectedRoute><EditRestaurantProfile /></ProtectedRoute>} />
           <Route path="/register-store" element={<RegisterStorePage />} />
           <Route path="/store-verification-pending" element={<StoreVerificationPending />} />
           <Route path="/add-menu" element={<AddMenuPage />} />

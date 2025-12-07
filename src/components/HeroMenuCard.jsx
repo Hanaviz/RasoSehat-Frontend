@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { MapPin, Star, CheckCircle, Clock, Store, Heart, Phone, TrendingUp, Flame, Navigation } from 'lucide-react';
@@ -13,6 +13,24 @@ const formatRupiah = (number) => {
 };
 
 const HeroMenuCard = ({ menu }) => {
+    // Debug logging: show key fields when component receives props
+    useEffect(() => {
+        try {
+            if (menu) {
+                // Only for debugging; remove after verification
+                // Log the id, nama_menu, kategori_id, and status_verifikasi
+                // Use console.debug so it can be filtered in the browser console
+                console.debug('[HeroMenuCard] menu props:', {
+                    id: menu.id,
+                    nama_menu: menu.nama_menu || menu.name || null,
+                    kategori_id: menu.kategori_id || menu.kategoriId || null,
+                    status_verifikasi: menu.status_verifikasi || null
+                });
+            }
+        } catch (e) {
+            console.warn('[HeroMenuCard] debug log failed', e);
+        }
+    }, [menu]);
     const navigate = useNavigate();
     const [isLiked, setIsLiked] = useState(false);
     const [imageLoaded, setImageLoaded] = useState(false);
@@ -99,7 +117,15 @@ const HeroMenuCard = ({ menu }) => {
                 <img 
                     src={menu.image} 
                     alt={menu.name}
-                    onLoad={() => setImageLoaded(true)}
+                    onLoad={(e) => {
+                        try {
+                            setImageLoaded(true);
+                            const img = e && e.target;
+                            if (img && img.naturalWidth) {
+                                console.debug('[HeroMenuCard] image load:', { src: img.src, naturalWidth: img.naturalWidth, naturalHeight: img.naturalHeight });
+                            }
+                        } catch (err) { /* ignore */ }
+                    }}
                     className={`w-full h-56 object-cover group-hover:scale-110 transition-transform duration-500 ${
                         imageLoaded ? 'opacity-100' : 'opacity-0'
                     }`}

@@ -1,5 +1,5 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
-import api from '../utils/api';
+import api, { unwrap } from '../utils/api';
 // NOTE: api has baseURL pointing to http://localhost:3000/api by default
 const BASE_URL = '/auth';
 
@@ -21,7 +21,7 @@ export const AuthProvider = ({ children }) => {
                     await api.get(`${BASE_URL}/user`);
                     // Then fetch full profile so UI has complete data
                     const profileRes = await api.get(`${BASE_URL}/profile`);
-                    const data = profileRes.data?.data ?? profileRes.data ?? {};
+                    const data = unwrap(profileRes) || profileRes?.data || {};
                     const fetchedUser = { id: data.id, name: data.name, email: data.email, role: data.role, avatar: data.avatar };
                     setUser(fetchedUser);
                 } catch (error) {
@@ -69,7 +69,7 @@ export const AuthProvider = ({ children }) => {
         if (!token) return null;
         try {
             const res = await api.get('/auth/profile');
-            const data = res.data?.data ?? res.data;
+            const data = unwrap(res) || res?.data || {};
             // normalize similar shape as earlier
             const fetchedUser = { id: data.id, name: data.name, email: data.email, role: data.role, avatar: data.avatar };
             setUser(fetchedUser);
@@ -84,7 +84,19 @@ export const AuthProvider = ({ children }) => {
     const handleLogin = async (credentials) => {
         setIsLoading(true);
         try {
+            // Debug: log credentials being sent so server-side empty-body issues can be diagnosed
+            try {
+                console.debug('[AuthContext] handleLogin: sending credentials', credentials);
+            } catch (e) {
+                // ignore logging errors
+            }
+
             const response = await api.post(`${BASE_URL}/login`, credentials);
+            // Debug: log response summary (avoid printing sensitive tokens in prod)
+            try {
+                console.debug('[AuthContext] handleLogin: response status', response.status, 'data keys:', Object.keys(response.data || {}));
+            } catch (e) {}
+
             const { token: access_token, user } = response.data;
 
             localStorage.setItem('access_token', access_token);

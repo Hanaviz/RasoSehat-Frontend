@@ -1,9 +1,9 @@
 import React, { useState, useCallback, useMemo, memo, useEffect, useRef } from 'react';
-import api from '../utils/api';
+import api, { unwrap } from '../utils/api';
 // eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronLeft, MapPin, CheckCircle, Upload, BookOpen, AlertTriangle, X } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 // =========================================================================
@@ -357,6 +357,8 @@ const RegisterStorePage = () => {
     dominantCookingMethod: [],
     commitmentChecked: false,
   });
+  const [editing, setEditing] = useState(false);
+  const [editingId, setEditingId] = useState(null);
   const [errors, setErrors] = useState({});
 
   // Optimized: useCallback untuk mencegah re-render
@@ -410,6 +412,50 @@ const RegisterStorePage = () => {
     // cleanup when component unmounts
     return () => { prevPreviewUrlsRef.current.forEach(u => { if (u) URL.revokeObjectURL(u); }); };
   }, [formData.ktpUpload]);
+
+  // If URL contains ?restaurantId=..., load existing restaurant for edit
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search || '');
+      const rid = params.get('restaurantId');
+      if (rid) {
+        (async () => {
+          try {
+            const resp = await api.get(`/restaurants/${encodeURIComponent(rid)}`);
+            const payload = unwrap(resp) || resp?.data || null;
+            if (payload) {
+              setEditing(true);
+              setEditingId(rid);
+              // Pre-fill fields we track in this form
+              setFormData(prev => ({
+                ...prev,
+                storeName: payload.nama_restoran || prev.storeName,
+                shortDescription: payload.deskripsi || prev.shortDescription,
+                storeCategory: payload.store_category || prev.storeCategory,
+                ownerEmail: payload.owner_email || prev.ownerEmail,
+                ownerName: payload.owner_name || prev.ownerName,
+                phonePrimary: payload.no_telepon || prev.phonePrimary,
+                phoneAdmin: payload.phone_admin || prev.phoneAdmin,
+                addressFull: payload.alamat || prev.addressFull,
+                mapsLatLong: payload.maps_latlong || prev.mapsLatLong,
+                operatingHours: payload.operating_hours || prev.operatingHours,
+                salesChannels: payload.sales_channels || prev.salesChannels,
+                socialMedia: payload.social_media || prev.socialMedia,
+                healthFocus: Array.isArray(payload.health_focus) ? payload.health_focus : (payload.health_focus ? [payload.health_focus] : prev.healthFocus),
+                dominantFat: payload.dominant_fat || prev.dominantFat,
+                dominantCookingMethod: Array.isArray(payload.dominant_cooking_method) ? payload.dominant_cooking_method : (payload.dominant_cooking_method ? [payload.dominant_cooking_method] : prev.dominantCookingMethod),
+                commitmentChecked: Boolean(payload.commitment_checked)
+              }));
+              // Jump to step 2 (details) for editing convenience
+              setStep(2);
+            }
+          } catch (e) {
+            console.warn('Failed to load restaurant for edit', e);
+          }
+        })();
+      }
+    } catch (e) { /* ignore */ }
+  }, []);
 
   // Optimized: Memoize validation rules
   const validationRules = useMemo(() => ({
@@ -473,23 +519,55 @@ const RegisterStorePage = () => {
       return;
     }
     
-    // Integrated flow: create restaurant (step1), update step2, upload files (step3), submit final
+    // Integrated flow: either create new restaurant or update existing (editing)
     (async () => {
       try {
-        // Step 1: create restoran (requires Authorization header)
-        const payload1 = {
-          nama_restoran: formData.storeName,
-          alamat: formData.addressFull
-        };
+        if (editing && editingId) {
+          // Update step 2 (details)
+          const [lat, lng] = (formData.mapsLatLong || '').split(',').map(s => s && s.trim()).filter(Boolean);
+          const payload2 = {
+            deskripsi: formData.shortDescription,
+            latitude: lat || null,
+            longitude: lng || null,
+            no_telepon: formData.phonePrimary,
+            jenis_usaha: (formData.businessType || '').toString().toLowerCase(),
+            mapsLatLong: formData.mapsLatLong,
+            owner_name: formData.ownerName,
+            owner_email: formData.ownerEmail,
+            phone_admin: formData.phoneAdmin,
+            operating_hours: formData.operatingHours,
+            sales_channels: formData.salesChannels,
+            social_media: formData.socialMedia,
+            store_category: formData.storeCategory,
+            commitment_checked: formData.commitmentChecked ? 1 : 0,
+            health_focus: formData.healthFocus,
+            dominant_cooking_method: formData.dominantCookingMethod,
+            dominant_fat: formData.dominantFat,
+            slug: formData.storeName ? formData.storeName.toLowerCase().replace(/\s+/g,'-').replace(/[^a-z0-9-]/g,'') : null
+          };
+          await api.put(`/restaurants/${editingId}/step-2`, payload2);
 
-        const res1 = await api.post('/restaurants', payload1);
-        const created = res1?.data?.data || res1?.data || res1;
-        const restoranId = created?.id;
-        if (!restoranId) {
-          console.error('Create restaurant unexpected response', res1);
-          alert('Gagal membuat restoran (unexpected response). Cek konsol.');
+          // Step 3: upload files (if any)
+          if (formData.ktpUpload && formData.ktpUpload.length > 0) {
+            const fd = new FormData();
+            formData.ktpUpload.forEach((file, idx) => fd.append('foto_ktp', file, file.name || `ktp_${idx}`));
+            try { await api.put(`/restaurants/${editingId}/step-3`, fd); } catch (e) { console.warn('Upload step3 failed (non-fatal):', e); }
+          }
+
+          // Optionally submit for verification
+          try { await api.put(`/restaurants/${editingId}/submit`); } catch (e) { /* non-fatal */ }
+
+          alert('Profil toko berhasil diperbarui.');
+          navigate('/my-store');
           return;
         }
+
+        // CREATE flow (existing behavior)
+        const payload1 = { nama_restoran: formData.storeName, alamat: formData.addressFull };
+        const res1 = await api.post('/restaurants', payload1);
+        const created = unwrap(res1) || res1?.data || res1;
+        const restoranId = created?.id;
+        if (!restoranId) { console.error('Create restaurant unexpected response', res1); alert('Gagal membuat restoran (unexpected response). Cek konsol.'); return; }
 
         // Step 2: update details
         const [lat, lng] = (formData.mapsLatLong || '').split(',').map(s => s && s.trim()).filter(Boolean);
@@ -518,24 +596,12 @@ const RegisterStorePage = () => {
         // Step 3: upload files (multipart)
         if (formData.ktpUpload && formData.ktpUpload.length > 0) {
           const fd = new FormData();
-          // backend expects fields: foto_ktp, npwp, dokumen_usaha
-          formData.ktpUpload.forEach((file, idx) => {
-            // attach as foto_ktp if only KTP; if multiple types were supported, map accordingly
-            fd.append('foto_ktp', file, file.name || `ktp_${idx}`);
-          });
-
-          try {
-            // Let the browser/axios set the Content-Type with proper boundary
-            await api.put(`/restaurants/${restoranId}/step-3`, fd);
-          } catch (e) {
-            console.warn('Upload step3 failed (non-fatal):', e);
-          }
+          formData.ktpUpload.forEach((file, idx) => fd.append('foto_ktp', file, file.name || `ktp_${idx}`));
+          try { await api.put(`/restaurants/${restoranId}/step-3`, fd); } catch (e) { console.warn('Upload step3 failed (non-fatal):', e); }
         }
 
         // Submit final for admin verification
         await api.put(`/restaurants/${restoranId}/submit`);
-
-        // Navigate to a pending page so user sees the submit confirmation
         navigate('/store-verification-pending');
       } catch (err) {
         console.error('final submit error', err);
@@ -543,7 +609,6 @@ const RegisterStorePage = () => {
         const message = err?.response?.data?.message || err.message || 'Terjadi kesalahan saat mendaftar.';
         if (status === 401 || status === 403) {
           alert('Sesi habis atau token tidak valid. Silakan login kembali.');
-          // Clear local token and redirect to signin
           if (typeof localStorage !== 'undefined') localStorage.removeItem('access_token');
           navigate('/signin');
           return;
@@ -551,7 +616,7 @@ const RegisterStorePage = () => {
         alert('Gagal mengirim pendaftaran: ' + message);
       }
     })();
-  }, [formData, isAuthenticated, navigate]);
+  }, [formData, isAuthenticated, navigate, editing, editingId]);
 
   // Optimized: Toggle array items helper
   const toggleArrayItem = useCallback((field, item) => {
