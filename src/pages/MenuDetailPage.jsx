@@ -35,7 +35,7 @@ function normalizeMenuRow(row, idFallback) {
     image: makeImageUrl(row.foto ?? row.image) || 'https://placehold.co/800x600/4ade80/white?text=RasoSehat',
     restaurant: {
       name: row.nama_restoran || row.restaurant_name || 'Restoran',
-      slug: (row.nama_restoran || row.restaurant_name || 'restoran').toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, ''),
+      slug: row.restorans?.slug || (row.nama_restoran || row.restaurant_name || 'restoran').toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, ''),
       address: row.alamat || row.address || '',
       phone: row.no_telepon || row.phone || '',
       distance: row.distance || '',
@@ -260,7 +260,8 @@ export default function MenuDetailPage() {
                 <Utensils className="w-6 h-6 text-green-500" /> Informasi Penjual
               </h3>
 
-              <Link to={`/restaurant/${menu.restaurant.slug}`} className="text-base font-semibold text-gray-700 mb-2 hover:text-green-600 transition-colors underline">
+              {/* Use safe slug fallback */}
+              <Link to={`/restaurant/${menu.restaurant?.slug || (menu.restaurant?.name || menu.nama_restoran || '').toLowerCase().replace(/\s+/g,'-').replace(/[^\w-]+/g,'')}`} className="text-base font-semibold text-gray-700 mb-2 hover:text-green-600 transition-colors underline">
                 {menu.restaurant.name}
               </Link>
 

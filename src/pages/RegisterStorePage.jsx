@@ -347,7 +347,7 @@ const RegisterStorePage = () => {
     phonePrimary: '',
     phoneAdmin: '',
     addressFull: '',
-    mapsLatLong: '',
+    mapsLink: '',
     operatingHours: '',
     ktpUpload: null,
     salesChannels: '',
@@ -437,7 +437,7 @@ const RegisterStorePage = () => {
                 phonePrimary: payload.no_telepon || prev.phonePrimary,
                 phoneAdmin: payload.phone_admin || prev.phoneAdmin,
                 addressFull: payload.alamat || prev.addressFull,
-                mapsLatLong: payload.maps_latlong || prev.mapsLatLong,
+                mapsLink: payload.maps_latlong || prev.mapsLink,
                 operatingHours: payload.operating_hours || prev.operatingHours,
                 salesChannels: payload.sales_channels || prev.salesChannels,
                 socialMedia: payload.social_media || prev.socialMedia,
@@ -476,7 +476,14 @@ const RegisterStorePage = () => {
       phonePrimary: (val) => !val.trim() || val.length < MIN_PHONE_LENGTH ? 'Nomor HP utama tidak valid.' : '',
       phoneAdmin: (val) => !val.trim() || val.length < MIN_PHONE_LENGTH ? 'Nomor HP notifikasi tidak valid.' : '',
       addressFull: (val) => !val.trim() ? 'Alamat lengkap wajib diisi.' : '',
-      mapsLatLong: (val) => !val.trim() ? 'Titik Lokasi Maps wajib diisi.' : '',
+      mapsLink: (val) => {
+        if (!val || !val.trim()) return 'Link Google Maps wajib diisi.';
+        const v = String(val).trim();
+        const coordRe = /^-?\d+(\.\d+)?\s*,\s*-?\d+(\.\d+)?$/;
+        if (coordRe.test(v)) return '';
+        if (v.includes('google.com/maps')) return '';
+        return 'Link harus berupa link Google Maps atau koordinat (lat,lng).';
+      },
       operatingHours: (val) => !val.trim() ? 'Jam Operasional wajib diisi.' : '',
     },
     3: {
@@ -523,15 +530,12 @@ const RegisterStorePage = () => {
     (async () => {
       try {
         if (editing && editingId) {
-          // Update step 2 (details)
-          const [lat, lng] = (formData.mapsLatLong || '').split(',').map(s => s && s.trim()).filter(Boolean);
+          // Update step 2 (details) - store maps link in maps_latlong and leave lat/lng null
           const payload2 = {
             deskripsi: formData.shortDescription,
-            latitude: lat || null,
-            longitude: lng || null,
+            maps_latlong: formData.mapsLink || null,
             no_telepon: formData.phonePrimary,
             jenis_usaha: (formData.businessType || '').toString().toLowerCase(),
-            mapsLatLong: formData.mapsLatLong,
             owner_name: formData.ownerName,
             owner_email: formData.ownerEmail,
             phone_admin: formData.phoneAdmin,
@@ -569,15 +573,12 @@ const RegisterStorePage = () => {
         const restoranId = created?.id;
         if (!restoranId) { console.error('Create restaurant unexpected response', res1); alert('Gagal membuat restoran (unexpected response). Cek konsol.'); return; }
 
-        // Step 2: update details
-        const [lat, lng] = (formData.mapsLatLong || '').split(',').map(s => s && s.trim()).filter(Boolean);
+        // Step 2: update details — store maps link in maps_latlong, leave latitude/longitude null
         const payload2 = {
           deskripsi: formData.shortDescription,
-          latitude: lat || null,
-          longitude: lng || null,
+          maps_latlong: formData.mapsLink || null,
           no_telepon: formData.phonePrimary,
           jenis_usaha: (formData.businessType || '').toString().toLowerCase(),
-          mapsLatLong: formData.mapsLatLong,
           owner_name: formData.ownerName,
           owner_email: formData.ownerEmail,
           phone_admin: formData.phoneAdmin,
@@ -761,15 +762,28 @@ const RegisterStorePage = () => {
         />
       </div>
 
-      {/* Maps Section - Full Width */}
+      {/* Maps Link Section - Full Width */}
       <div className="lg:col-span-2">
-        <InteractiveMapPicker
-          label="Titik Lokasi Maps"
-          helperText="Klik pada peta untuk memilih lokasi toko Anda"
-          value={formData.mapsLatLong}
-          onChange={(e) => handleChange('mapsLatLong', e.target.value)}
-          error={errors.mapsLatLong}
+        <InputField
+          id="mapsLink"
+          label="Link Google Maps Lokasi Toko"
+          helperText="Tempelkan link lokasi dari aplikasi Google Maps (Share > Copy Link)."
+          value={formData.mapsLink}
+          onChange={(e) => handleChange('mapsLink', e.target.value)}
+          error={errors.mapsLink}
+          placeholder="Contoh: https://www.google.com/maps/place/..."
         />
+
+        <div className="flex items-center gap-3 mt-3">
+          <button
+            type="button"
+            onClick={() => window.open('https://maps.google.com', '_blank')}
+            className="py-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+          >
+            <MapPin size={16} /> Buka Google Maps
+          </button>
+          <p className="text-xs text-gray-500">Pastikan link berisi <span className="font-mono">google.com/maps</span>.</p>
+        </div>
       </div>
     </PageLayout>
   );
@@ -949,7 +963,7 @@ const RegisterStorePage = () => {
   );
 
   return (
-    <div className="min-h-screen bg-gray-50 pt-24 md:pt-28 pb-12">
+    <div className="min-h-screen bg-gray-50 pt-15 md:pt-15 pb-25">
       <AnimatePresence mode="wait">
         {step === 1 && <div key="step-1">{renderStep1()}</div>}
         {step === 2 && <div key="step-2">{renderStep2()}</div>}

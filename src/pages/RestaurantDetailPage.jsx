@@ -4,6 +4,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Utensils, MapPin, Star, Phone, Clock, MessageSquare, Briefcase, Globe, CheckCircle, AlertTriangle, ChevronRight, Menu, Loader } from 'lucide-react'; 
 import { motion } from 'framer-motion';
+import HeroMenuCard from '../components/HeroMenuCard';
+import api, { unwrap, makeImageUrl } from '../utils/api';
 
 // Mock Data (Simulasi data Restoran dari API Laravel)
 const mockRestaurantData = {
@@ -39,80 +41,21 @@ const mockRestaurantData = {
   },
 };
 
-// =========================================================================
-// KOMPONEN MENU CARD (Responsive)
-// =========================================================================
-const MenuCard = ({ menu }) => (
-    <motion.div 
-        // Mengurangi padding dan shadow untuk mobile, diperbesar di desktop
-        className="bg-white rounded-xl shadow-md overflow-hidden flex flex-col hover:shadow-xl transition-shadow duration-300 transform hover:lg:scale-[1.01] border border-gray-100"
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3 }}
-    >
-        <Link to={`/menu/${menu.slug}`} className="block h-32 sm:h-40 overflow-hidden"> 
-            <img 
-                src={menu.image} 
-                alt={menu.name} 
-                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
-            />
-        </Link>
-        <div className="p-3 sm:p-4 flex-1 flex flex-col justify-between">
-            <div>
-                <span className={`px-2 py-0.5 rounded text-xs font-semibold w-fit ${
-                    menu.healthTag.includes('Rendah') ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
-                }`}>
-                    {menu.healthTag}
-                </span>
-                <Link to={`/menu/${menu.slug}`} className="font-bold text-gray-800 hover:text-green-600 transition-colors text-base sm:text-lg mt-1 block line-clamp-2">
-                    {menu.name}
-                </Link>
-            </div>
-            <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-100">
-                <p className="text-green-600 font-extrabold text-lg sm:text-xl">Rp {menu.price}</p>
-                <div className="flex items-center text-yellow-500">
-                    <Star className="w-4 h-4 fill-current"/>
-                    <span className="text-sm text-gray-700 ml-1">4.7</span>
-                </div>
-            </div>
-        </div>
-    </motion.div>
-);
+// Using shared HeroMenuCard component for menu presentation
 
 export default function RestaurantDetailPage() {
     const { slug } = useParams();
-    const restaurant = mockRestaurantData[slug] || mockRestaurantData['healthy-corner'];
-    
-    // Group menu by category
-    const menuByCategory = restaurant.menu.reduce((acc, menu) => {
-        const category = menu.category || 'Lain-lain';
-        if (!acc[category]) {
-            acc[category] = [];
-        }
-        acc[category].push(menu);
-        return acc;
-    }, {});
+    const [restaurant, setRestaurant] = useState(null);
+    const [menus, setMenus] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
 
-    if (!restaurant) {
-        return (
-             <div className="min-h-screen pt-28 text-center p-8">
-                <h1 className="text-3xl font-bold text-red-600">404: Toko Tidak Ditemukan</h1>
-                <p className="text-gray-600 mt-4">Toko dengan slug {slug} tidak dapat ditemukan. Kembali ke <Link to="/" className="text-green-600 hover:underline">Beranda</Link>.</p>
-            </div>
-        );
-    }
-
-    const waLink = `https://wa.me/${restaurant.whatsapp}?text=Halo%20${restaurant.name},%20Saya%20ingin%20bertanya%20mengenai%20menu%20sehat%20Anda%20yang%20ada%20di%20RasoSehat.`;
-    
-    // Cek apakah toko buka (mock sederhana)
-    const isStoreOpen = true; 
-
-    // --- Local Reviews (client-side, stored in localStorage) ---
-    const reviewsStorageKey = `rs_reviews_${restaurant.slug}`;
+    // Local Reviews (client-side only) - declare hooks at top level to preserve Hooks order
     const [localReviews, setLocalReviews] = useState([]);
     const [reviewName, setReviewName] = useState('');
     const [reviewRating, setReviewRating] = useState(5);
     const [reviewComment, setReviewComment] = useState('');
+    const reviewsStorageKey = `rs_reviews_${slug || 'unknown'}`;
 
     useEffect(() => {
         try {
@@ -123,13 +66,164 @@ export default function RestaurantDetailPage() {
         }
     }, [reviewsStorageKey]);
 
-    const totalReviews = useMemo(() => restaurant.reviewsCount + localReviews.length, [restaurant.reviewsCount, localReviews.length]);
+    // Helper: build a safe slug from various possible values
+    const buildSafeSlug = (candidate) => {
+        if (!candidate && !restaurant) return '';
+        const src = candidate ?? restaurant?.slug ?? restaurant?.nama_restoran ?? restaurant?.name ?? '';
+        const s = String(src || '').trim();
+        if (!s) return '';
+        return s.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, '');
+    };
+
+    // Simple fetch helper that requests the backend slug endpoint and unwraps response
+    async function fetchRestaurantBySlug(s) {
+        const res = await api.get(`/restaurants/slug/${encodeURIComponent(s)}`);
+        return unwrap(res);
+    }
+
+    useEffect(() => {
+        let mounted = true;
+        (async () => {
+            setLoading(true);
+            setError('');
+            // Debug: log slug
+            console.log('[RestaurantDetailPage] slug from useParams:', slug, typeof slug);
+            // Validate slug: allow empty string but not null/undefined
+            if (slug === null || slug === undefined) {
+                console.warn('[RestaurantDetailPage] slug is null or undefined');
+                setError('Slug tidak tersedia.');
+                setLoading(false);
+                return;
+            }
+            try {
+                const payload = await fetchRestaurantBySlug(slug);
+                console.log('[RestaurantDetailPage] fetch payload:', payload);
+                if (!mounted) return;
+                if (payload && payload.restaurant) {
+                    // Normalize restaurant fields from backend (which may use Indonesian keys)
+                    const r = payload.restaurant;
+                    const normalizedRestaurant = {
+                        id: r.id ?? r.restoran_id ?? null,
+                        name: r.nama_restoran || r.name || r.nama || '',
+                        slug: r.slug || null,
+                        tagline: r.tagline || r.slogan || '',
+                        description: r.deskripsi || r.description || '',
+                        address: r.alamat || r.address || '',
+                        latitude: r.latitude ?? r.lat ?? null,
+                        longitude: r.longitude ?? r.lng ?? null,
+                        no_telepon: r.no_telepon || r.phone || r.phone_admin || '',
+                        whatsapp: r.no_telepon || r.whatsapp || r.phone_admin || '',
+                        socialMedia: r.social_media || r.socialMedia || r.social_media_handle || '',
+                        operatingHours: r.operating_hours || r.operatingHours || r.operatingHoursString || '',
+                        rating: Number(r.rating ?? r.nilai ?? 0) || 0,
+                        reviewsCount: Number(r.reviews ?? r.reviewsCount ?? r.ulasan_count ?? 0) || 0,
+                        jenisUsaha: r.jenis_usaha || r.jenisUsaha || '',
+                        verified: (r.status_verifikasi && String(r.status_verifikasi).toLowerCase() === 'disetujui') || Boolean(r.verified) || Boolean(r.verified_at),
+                        maps_link: r.maps_link || r.mapsLink || null,
+                        maps_latlong: r.maps_latlong || r.mapsLatLong || null,
+                        foto: r.foto || r.foto_ktp || r.photo || null,
+                        ratingDetails: Array.isArray(r.ratingDetails) ? r.ratingDetails : (r.rating_details || []),
+                        // keep original raw for debugging if needed
+                        _raw: r,
+                    };
+
+                    // Normalize menus to consistent field names
+                    const rawMenus = Array.isArray(payload.menus) ? payload.menus : [];
+                    const normalizedMenus = rawMenus.map(m => ({
+                        id: m.id,
+                        name: m.nama_menu || m.name || m.nama || '',
+                        slug: m.slug || null,
+                        price: m.harga ?? m.price ?? m.price_display ?? null,
+                        // Normalize image using makeImageUrl so frontend receives resolvable URLs
+                        image: (m.foto || m.foto_url || m.image || m.photo) ? makeImageUrl(m.foto || m.foto_url || m.image || m.photo) : null,
+                        category: m.kategori || m.nama_kategori || m.category || m.kategori_nama || 'Lain-lain',
+                        kalori: m.kalori ?? m.calories ?? null,
+                        rating: m.rating ?? null,
+                        _raw: m,
+                    }));
+
+                    setRestaurant(normalizedRestaurant);
+                    setMenus(normalizedMenus);
+                } else {
+                    setError('Toko tidak ditemukan.');
+                }
+            } catch (e) {
+                console.error('Failed to load restaurant by slug', e);
+                // If 404, set error, else network error
+                if (e.response && e.response.status === 404) {
+                    setError('Toko tidak ditemukan.');
+                } else {
+                    setError('Gagal memuat data restoran. Periksa koneksi internet.');
+                }
+            } finally {
+                if (mounted) setLoading(false);
+            }
+        })();
+        return () => { mounted = false; };
+    }, [slug]);
+
+    // compute combined reviews and average safely (declare hooks/memos before any early returns)
+    const totalReviews = useMemo(() => {
+        const baseCount = Number(restaurant?.reviewsCount ?? restaurant?.reviews ?? 0);
+        return baseCount + localReviews.length;
+    }, [restaurant?.reviewsCount, restaurant?.reviews, localReviews.length]);
+
     const computedAverage = useMemo(() => {
         const localSum = localReviews.reduce((s, r) => s + (Number(r.rating) || 0), 0);
-        const total = restaurant.reviewsCount + localReviews.length;
-        if (total === 0) return restaurant.rating || 0;
-        return ((restaurant.rating * restaurant.reviewsCount) + localSum) / total;
-    }, [restaurant.rating, restaurant.reviewsCount, localReviews]);
+        const baseCount = Number(restaurant?.reviewsCount ?? restaurant?.reviews ?? 0);
+        const baseRating = Number(restaurant?.rating ?? 0);
+        const total = baseCount + localReviews.length;
+        if (total === 0) return baseRating || 0;
+        return ((baseRating * baseCount) + localSum) / total;
+    }, [restaurant?.rating, restaurant?.reviewsCount, restaurant?.reviews, localReviews]);
+
+    // Group menu by category
+    const menuByCategory = (menus || []).reduce((acc, menu) => {
+        const category = menu.category || menu.nama_kategori || menu.kategori || menu.category_name || 'Lain-lain';
+        if (!acc[category]) acc[category] = [];
+        acc[category].push(menu);
+        return acc;
+    }, {});
+
+    if (loading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center">
+                <div className="text-center p-8">
+                    <div className="w-16 h-16 border-4 border-green-600 border-t-transparent rounded-full mx-auto mb-4 animate-spin" />
+                    <p className="text-gray-700">Memuat data restoran...</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (error || !restaurant) {
+        const shownSlug = slug || 'tidak tersedia';
+        const is404 = error === 'Toko tidak ditemukan.';
+        return (
+            <div className="min-h-screen pt-28 text-center p-8">
+                {is404 ? (
+                    <>
+                        <h1 className="text-3xl font-bold text-red-600">404: Toko Tidak Ditemukan</h1>
+                        <p className="text-gray-600 mt-4">Toko dengan slug <strong>{shownSlug}</strong> tidak dapat ditemukan. Kembali ke <Link to="/" className="text-green-600 hover:underline">Beranda</Link>.</p>
+                    </>
+                ) : (
+                    <>
+                        <h1 className="text-3xl font-bold text-red-600">Error</h1>
+                        <p className="text-gray-600 mt-4">{error}</p>
+                        <button onClick={() => window.location.reload()} className="mt-4 bg-green-600 text-white px-4 py-2 rounded">Coba Lagi</button>
+                    </>
+                )}
+            </div>
+        );
+    }
+
+    const phoneForWa = restaurant.no_telepon || restaurant.whatsapp || restaurant.phone || '';
+    const waLink = `https://wa.me/${String(phoneForWa).replace(/\D+/g, '')}?text=Halo%20${restaurant.name},%20Saya%20ingin%20bertanya%20mengenai%20menu%20sehat%20Anda%20yang%20ada%20di%20RasoSehat.`;
+    
+    // Cek apakah toko buka (mock sederhana)
+    const isStoreOpen = true; 
+
+    
 
     const handleSubmitReview = (e) => {
         e.preventDefault();
@@ -200,7 +294,16 @@ export default function RestaurantDetailPage() {
                                 {restaurant.verified ? 'Terverifikasi RasoSehat' : 'Verifikasi Tertunda'}
                             </div>
                             <div className={`p-2 rounded-lg font-semibold text-xs sm:text-sm flex-shrink-0 flex items-center gap-2 ${isStoreOpen ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'} w-full justify-center md:justify-end`}>
-                                <Clock className="w-4 h-4" /> {isStoreOpen ? 'BUKA' : 'TUTUP'} {isStoreOpen ? `(Sampai ${restaurant.operatingHours.split(': ')[1]})` : ''}
+                                <Clock className="w-4 h-4" /> {isStoreOpen ? 'BUKA' : 'TUTUP'} {
+                                    (() => {
+                                        const oh = restaurant.operatingHours || restaurant.operating_hours || '';
+                                        if (!oh) return '';
+                                        // Try to extract time after colon if format like 'Senin - Jumat: 09:00 - 21:00'
+                                        const parts = String(oh).split(': ');
+                                        if (parts.length > 1) return `(Sampai ${parts.slice(1).join(': ')})`;
+                                        return `(${oh})`;
+                                    })()
+                                }
                             </div>
                         </div>
                     </div>
@@ -237,14 +340,11 @@ export default function RestaurantDetailPage() {
                                             <div>
                                                 <p className="font-semibold text-gray-700 text-sm">Alamat</p>
                                                 <p className="text-xs sm:text-sm text-gray-600">{restaurant.address}</p>
-                                                <a 
-                                                    href={`https://maps.google.com/?q=${restaurant.latitude},${restaurant.longitude}`}
-                                                    target="_blank" 
-                                                    rel="noopener noreferrer"
-                                                    className="text-xs text-blue-500 hover:underline"
-                                                >
-                                                    Lihat di Google Maps
-                                                </a>
+                                                {restaurant.maps_link ? (
+                                                    <a href={restaurant.maps_link} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-500 hover:underline">Lihat di Google Maps</a>
+                                                ) : (
+                                                    <a href={`https://maps.google.com/?q=${restaurant.latitude},${restaurant.longitude}`} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-500 hover:underline">Lihat di Google Maps</a>
+                                                )}
                                             </div>
                                         </div>
                                         
@@ -296,7 +396,7 @@ export default function RestaurantDetailPage() {
                                         <MessageSquare className="w-5 h-5 text-green-600"/> Rincian Penilaian
                                     </h3>
                                     <div className="space-y-3">
-                                        {restaurant.ratingDetails.map((detail, index) => (
+                                        {(restaurant.ratingDetails || []).map((detail, index) => (
                                             <div key={index} className="flex justify-between items-center text-sm">
                                                 <span className="text-gray-600">{detail.label}</span>
                                                 <span className="font-bold text-gray-800 flex items-center gap-1">
@@ -327,7 +427,7 @@ export default function RestaurantDetailPage() {
                             className="bg-white p-4 sm:p-6 rounded-2xl shadow-lg border border-gray-100"
                         >
                             <h3 className="text-xl sm:text-2xl font-bold text-gray-800 mb-4 sm:mb-5 border-b pb-2 flex items-center gap-2">
-                                <Utensils className="w-6 h-6 text-green-600"/> Daftar Menu Sehat ({restaurant.menu.length})
+                                <Utensils className="w-6 h-6 text-green-600"/> Daftar Menu Sehat ({menus.length})
                             </h3>
                             
                             {/* Loop melalui kategori menu */}
@@ -337,14 +437,28 @@ export default function RestaurantDetailPage() {
                                         <h4 className="text-lg sm:text-xl font-bold text-gray-700 flex items-center gap-2">
                                             <Menu className="w-5 h-5 text-green-500"/> {category}
                                         </h4>
-                                        <Link to={`/restaurant/${slug}?category=${category.toLowerCase()}`} className="text-xs sm:text-sm font-medium text-green-600 hover:text-green-700 flex items-center">
+                                        <Link to={`/restaurant/${buildSafeSlug(restaurant.slug)}?category=${category.toLowerCase()}`} className="text-xs sm:text-sm font-medium text-green-600 hover:text-green-700 flex items-center">
                                             Lihat Semua ({menuByCategory[category].length}) <ChevronRight className="w-4 h-4"/>
                                         </Link>
                                     </div>
                                     {/* Grid Menu: 1 kolom di HP, 2 kolom di tablet, 3 kolom di desktop */}
                                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                                         {menuByCategory[category].map(menu => (
-                                            <MenuCard key={menu.id} menu={menu} />
+                                            <HeroMenuCard
+                                                key={menu.id}
+                                                menu={{
+                                                    ...menu,
+                                                    image: menu.image || menu.foto || null,
+                                                    name: menu.name || menu.nama_menu,
+                                                    price: menu.price || menu.harga,
+                                                    // provide restaurant-level contact and maps link
+                                                    whatsappNumber: restaurant.no_telepon || restaurant.whatsapp || null,
+                                                    mapsLink: restaurant.maps_link || restaurant.mapsLink || restaurant.maps_latlong || null,
+                                                    // ensure restaurant slug is provided for navigation
+                                                    restaurantSlug: restaurant.slug || null,
+                                                    restaurantName: restaurant.name || menu.restaurantName || null,
+                                                }}
+                                            />
                                         ))}
                                     </div>
                                 </div>

@@ -175,7 +175,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-green-50 pt-24 md:pt-28 py-8 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-green-50 pt-0 md:pt-0 py-8 px-4 sm:px-6 lg:px-8">
       {/* Header with gradient */}
       <div className="max-w-6xl mx-auto mb-8">
         <div className="bg-gradient-to-r from-green-500 to-green-600 rounded-2xl p-8 text-white shadow-xl">

@@ -26,6 +26,7 @@ import MyStorePage from "./pages/MyStorePage";
 import SettingsPage from "./pages/SettingsPage";
 import RestaurantDetailPage from "./pages/RestaurantDetailPage";
 import AddMenuPage from "./pages/AddMenuPage";
+import EditMenuPage from "./pages/EditMenuPage";
 
 import HeroSectionPage from "./pages/Herosection"; // pastikan file ini ada!
 import { useAuth } from "./context/AuthContext";
@@ -76,6 +77,7 @@ function AppContent() {
           <Route path="/register-store" element={<RegisterStorePage />} />
           <Route path="/store-verification-pending" element={<StoreVerificationPending />} />
           <Route path="/add-menu" element={<AddMenuPage />} />
+          <Route path="/edit-menu/:id" element={<ProtectedRoute><EditMenuPage /></ProtectedRoute>} />
 
           {/* ---------- MAIN LAYOUT (SESUDAH LOGIN MASUK HOME) ---------- */}
           <Route path="/" element={<Layout />}>

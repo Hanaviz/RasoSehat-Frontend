@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { MapPin, Star, CheckCircle, Clock, Store, Heart, Phone, TrendingUp, Flame, Navigation } from 'lucide-react';
+import { MapPin, Star, CheckCircle, Clock, Store, Heart, Phone, TrendingUp, Flame, Navigation, Edit3, Trash2 } from 'lucide-react';
+import { makeImageUrl } from '../utils/api';
 
 // Fungsi untuk format harga ke Rupiah (Rp)
 const formatRupiah = (number) => {
@@ -12,7 +13,7 @@ const formatRupiah = (number) => {
     }).format(number).replace('Rp', 'Rp ');
 };
 
-const HeroMenuCard = ({ menu }) => {
+const HeroMenuCard = ({ menu, onEdit, onDelete }) => {
     // Debug logging: show key fields when component receives props
     useEffect(() => {
         try {
@@ -37,10 +38,10 @@ const HeroMenuCard = ({ menu }) => {
     
     // Data ini berasal dari mock data di Herosection.jsx
         const isVerified = Boolean(menu.isVerified) || (typeof menu.id === 'string' ? (menu.id.charCodeAt(0) % 2 === 0) : (Number(menu.id) % 2 === 0));
-    const calories = menu.calories || Math.floor(Math.random() * (550 - 250 + 1)) + 250;
+        const calories = menu.calories || menu.kalori || Math.floor(Math.random() * (550 - 250 + 1)) + 250;
     
-    // Bersihkan dan format harga
-        const rawPrice = Number(menu.price) || (typeof menu.price === 'string' ? Number(menu.price.replace(/[^0-9.-]+/g, '')) : 0) || 0;
+        // Bersihkan dan format harga (support backend field `harga`)
+        const rawPrice = Number(menu.price || menu.harga) || (typeof (menu.price || menu.harga) === 'string' ? Number(String(menu.price || menu.harga).replace(/[^0-9.-]+/g, '')) : 0) || 0;
     const formattedPrice = formatRupiah(rawPrice);
 
     // Tentukan kategori kalori
@@ -61,17 +62,45 @@ const HeroMenuCard = ({ menu }) => {
     const handleContactWhatsApp = (e) => {
         e.preventDefault();
         e.stopPropagation();
-        // Format nomor WA (hapus karakter non-digit, tambahkan 62 jika diawali 0)
-        const phone = menu.whatsappNumber || '6281234567890';
+        // Resolve phone from several possible fields (menu-level, restaurant-level)
+        const raw = menu.whatsappNumber || menu.no_telepon || menu.restaurantPhone || menu.restaurant_phone || menu.restaurantTel || '';
+        // Normalize to digits only
+        let digits = String(raw || '').replace(/\D+/g, '');
+        // If empty, fallback to a safe placeholder (replace with real default if desired)
+        if (!digits) digits = '6281234567890';
+        // Common Indonesian formats: starting with 0 -> replace with 62, starting with 8 -> prepend 62
+        if (digits.startsWith('0')) digits = '62' + digits.slice(1);
+        else if (digits.startsWith('8')) digits = '62' + digits;
+
         const message = encodeURIComponent(`Halo, saya tertarik dengan menu ${menu.name} dari ${menu.restaurantName}`);
-        window.open(`https://wa.me/${phone}?text=${message}`, '_blank');
+        window.open(`https://wa.me/${digits}?text=${message}`, '_blank');
     };
 
     const handleViewLocation = (e) => {
         e.preventDefault();
         e.stopPropagation();
-        // Buka Google Maps dengan koordinat atau alamat
-        const location = menu.locationCoords || menu.restaurantName;
+        // Jika backend menyimpan link langsung di `maps_latlong`, buka link tersebut
+        const mapsLink = menu.maps_latlong || menu.mapsLink || menu.mapsLatLong;
+        if (mapsLink && typeof mapsLink === 'string' && mapsLink.trim()) {
+            // Jika sudah berupa URL (http/https), buka langsung
+            if (/^https?:\/\//i.test(mapsLink.trim())) {
+                window.open(mapsLink.trim(), '_blank');
+                return;
+            }
+            // Jika mengandung google.com/maps, assume full link
+            if (mapsLink.includes('google.com/maps')) {
+                window.open(mapsLink.trim(), '_blank');
+                return;
+            }
+            // Jika berupa koordinat "lat, lng", gunakan query search
+            if (/^-?\d+(\.\d+)?\s*,\s*-?\d+(\.\d+)?$/.test(mapsLink.trim())) {
+                window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapsLink.trim())}`, '_blank');
+                return;
+            }
+        }
+
+        // Fallback: search by restaurant name
+        const location = menu.restaurantName || menu.name || '';
         window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`, '_blank');
     };
 
@@ -90,7 +119,21 @@ const HeroMenuCard = ({ menu }) => {
             e.preventDefault();
             e.stopPropagation();
         }
-        navigate(`/restaurant/${menu.restaurantSlug}`);
+        // Build a safe restaurant slug fallback from multiple possible fields
+        const candidate = menu.restaurantSlug || menu.restaurant?.slug || menu.restaurant?.name || menu.restaurantName || menu.nama_restoran || '';
+        const safeSlug = String(candidate || '').trim() ? String(candidate).toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, '') : '';
+        if (!safeSlug) {
+            // If we cannot determine a slug, fallback to menu's restoran id if provided (safer),
+            // or open the menu detail instead to avoid navigating to '/restaurant/undefined'.
+            if (menu.restoran_id || menu.restoranId || menu.restaurantId) {
+                navigate(`/restaurant/${menu.restoran_id || menu.restoranId || menu.restaurantId}`);
+                return;
+            }
+            // last resort: navigate to menu page
+            navigate(`/menu/${menu.id ?? menu.slug ?? ''}`);
+            return;
+        }
+        navigate(`/restaurant/${safeSlug}`);
     };
 
     return (
@@ -114,22 +157,30 @@ const HeroMenuCard = ({ menu }) => {
                     <div className="absolute inset-0 bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 animate-pulse" />
                 )}
                 
-                <img 
-                    src={menu.image} 
-                    alt={menu.name}
-                    onLoad={(e) => {
-                        try {
-                            setImageLoaded(true);
-                            const img = e && e.target;
-                            if (img && img.naturalWidth) {
-                                console.debug('[HeroMenuCard] image load:', { src: img.src, naturalWidth: img.naturalWidth, naturalHeight: img.naturalHeight });
-                            }
-                        } catch (err) { /* ignore */ }
-                    }}
-                    className={`w-full h-56 object-cover group-hover:scale-110 transition-transform duration-500 ${
-                        imageLoaded ? 'opacity-100' : 'opacity-0'
-                    }`}
-                />
+                {
+                    (() => {
+                        const raw = menu.image || menu.foto || null;
+                        const imageUrl = raw ? makeImageUrl(raw) : 'https://via.placeholder.com/400x300.png?text=No+Image';
+                        return (
+                            <img
+                                src={imageUrl}
+                                alt={menu.name || menu.nama_menu}
+                                onLoad={(e) => {
+                                    try {
+                                        setImageLoaded(true);
+                                        const img = e && e.target;
+                                        if (img && img.naturalWidth) {
+                                            console.debug('[HeroMenuCard] image load:', { src: img.src, naturalWidth: img.naturalWidth, naturalHeight: img.naturalHeight });
+                                        }
+                                    } catch (err) { /* ignore */ }
+                                }}
+                                className={`w-full h-56 object-cover group-hover:scale-110 transition-transform duration-500 ${
+                                    imageLoaded ? 'opacity-100' : 'opacity-0'
+                                }`}
+                            />
+                        );
+                    })()
+                }
                 
                 {/* Gradient Overlay */}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
@@ -183,8 +234,7 @@ const HeroMenuCard = ({ menu }) => {
                     {/* Rating Badge */}
                     <div className="bg-white/95 backdrop-blur-sm text-gray-800 px-3 py-1.5 rounded-lg shadow-lg flex items-center gap-1.5">
                         <Star className="w-4 h-4 fill-yellow-400 text-yellow-400"/>
-                        <span className="text-sm font-bold">{menu.rating.toFixed(1)}</span>
-                            <span className="text-sm font-bold">{(Number(menu.rating) || 0).toFixed(1)}</span>
+                        <span className="text-sm font-bold">{(Number(menu.rating) || 0).toFixed(1)}</span>
                     </div>
                 </div>
             </div>
@@ -229,7 +279,7 @@ const HeroMenuCard = ({ menu }) => {
                     {/* Location Badge */}
                     <div className="flex items-center gap-1 text-xs text-gray-600 bg-gray-50 px-3 py-2 rounded-lg">
                         <MapPin className="w-3.5 h-3.5 text-green-600" />
-                        <span className="font-medium">Padang</span>
+                        <span className="font-medium">{menu.maps_latlong || menu.mapsLink || menu.mapsLatLong ? 'Lihat Lokasi' : (menu.city || 'Lokasi')}</span>
                     </div>
                 </div>
 
@@ -264,6 +314,24 @@ const HeroMenuCard = ({ menu }) => {
                         Hubungi langsung penjual via WhatsApp
                     </p>
                 </div>
+
+                {/* Edit/Delete buttons (optional) */}
+                {(onEdit || onDelete) && (
+                    <div className="mt-3 flex items-center gap-2">
+                        {onEdit && (
+                            <button onClick={(e) => { e.stopPropagation(); onEdit(menu); }} className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 rounded-xl font-semibold hover:bg-blue-100 transition-colors">
+                                <Edit3 className="w-4 h-4" />
+                                Edit
+                            </button>
+                        )}
+                        {onDelete && (
+                            <button onClick={(e) => { e.stopPropagation(); onDelete(menu.id || menu.id); }} className="inline-flex items-center gap-2 px-4 py-2 bg-red-50 text-red-700 rounded-xl font-semibold hover:bg-red-100 transition-colors">
+                                <Trash2 className="w-4 h-4" />
+                                Hapus
+                            </button>
+                        )}
+                    </div>
+                )}
 
                 {/* Trending Indicator (Optional) */}
                 {menu.isTrending && (

@@ -52,8 +52,8 @@ export default function SearchResultsPage() {
       // Memproses slug menu dan restoran (karena API hanya memberikan nama)
       const items = unwrap(response) || [];
       const processedResults = items.map(item => {
-            const slug = item.nama_menu.toLowerCase().replace(/\s/g, '-').replace(/[^\w-]+/g, '');
-            const restaurantSlug = item.nama_restoran.toLowerCase().replace(/\s/g, '-').replace(/[^\w-]+/g, '');
+            const slug = item.slug || item.nama_menu.toLowerCase().replace(/\s/g, '-').replace(/[^\w-]+/g, '');
+            const restaurantSlug = item.restaurant_slug || item.nama_restoran.toLowerCase().replace(/\s/g, '-').replace(/[^\w-]+/g, '');
 
             // Mengambil klaim pertama sebagai healthTag untuk tampilan card
             const healthTag = Array.isArray(item.diet_claims) && item.diet_claims.length > 0

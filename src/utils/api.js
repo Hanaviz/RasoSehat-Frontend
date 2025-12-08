@@ -92,7 +92,10 @@ export function makeImageUrl(u) {
     const s = String(u);
     if (/^https?:\/\//i.test(s)) return encodeURI(s);
     if (s.startsWith('/')) return encodeURI(API_ORIGIN + s);
-    return encodeURI(s);
+    // If string looks like a bare filename (no protocol, no leading slash),
+    // prefix with API origin so browsers can resolve it correctly.
+    // Example: "400x300.png?text=Ayam+Panggang" -> "https://api.example.com/400x300.png?text=..."
+    return encodeURI(API_ORIGIN.replace(/\/$/, '') + '/' + s.replace(/^\//, ''));
   } catch (e) {
     return '';
   }

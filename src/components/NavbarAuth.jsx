@@ -4,6 +4,8 @@ import debounce from 'lodash/debounce';
 import { useAuth } from '../context/AuthContext';
 import { makeImageUrl, unwrap } from '../utils/api';
 import api from '../utils/api';
+import { searchQuery } from '../utils/api/search';
+import { normalizeResultList } from '../utils/searchNormalizer';
 
 export default function NavbarAuth() {
   const navigate = useNavigate();
@@ -139,26 +141,19 @@ export default function NavbarAuth() {
     CATEGORY: 'category'
   };
 
-  // Mock search function (Ganti dengan pemanggilan API Laravel)
+  // Search function calling backend /api/search
   const fetchSearchResults = async (query) => {
     setIsLoading(true);
     try {
-      await new Promise(resolve => setTimeout(resolve, 300));
-      
-      const mockData = [
-        { id: 1, type: 'restaurant', name: "Healthy Corner", description: "Restoran Sehat", rating: 4.8 },
-        { id: 2, type: 'menu', name: "Buddha Bowl", description: "Bowl Sayur Organik", price: "25.000" },
-        { id: 3, type: 'category', name: "Makanan Sehat", count: 150 },
-      ];
-
-      const filtered = mockData.filter(item => 
-        item.name.toLowerCase().includes(query.toLowerCase()) || 
-        (item.description && item.description.toLowerCase().includes(query.toLowerCase()))
-      );
-      
-      setSearchResults(filtered);
+      // Use AbortController if needed in more advanced flow
+      const resp = await searchQuery(query);
+      // normalize results
+      const unified = [];
+      if (resp && resp.results) unified.push(...normalizeResultList(resp.results));
+      // include trending as separate section if needed
+      setSearchResults(unified || []);
     } catch (error) {
-      console.error('Search error:', error);
+      console.error('Search error:', error?.response?.data || error.message || error);
       setSearchResults([]);
     } finally {
       setIsLoading(false);
@@ -203,9 +198,12 @@ export default function NavbarAuth() {
     setIsMobileSearchOpen(false); 
     
     switch (result.type) {
-      case searchCategories.RESTAURANT:
-        navigate(`/restaurant/${result.id}`);
+      case searchCategories.RESTAURANT: {
+        const target = result.slug || result.id;
+        if (target) navigate(`/restaurant/${target}`);
+        else navigate('/');
         break;
+      }
       case searchCategories.MENU:
         navigate(`/menu/${result.id}`);
         break;

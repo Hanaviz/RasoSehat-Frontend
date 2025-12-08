@@ -456,7 +456,15 @@ export default function AdminDashboardPage() {
   const fetchRestaurantHistory = useCallback(async (page = 1) => {
     try {
       const res = await api.get(`/admin/restaurants/history?page=${page}&per_page=50`);
-      const raw = unwrap(res) || [];
+      // Response shape may vary: backend returns { data: [...] , page, per_page }
+      // or sometimes raw array. Normalize to an array.
+      const unwrapped = unwrap(res) ?? res?.data ?? null;
+      const raw = Array.isArray(unwrapped)
+        ? unwrapped
+        : Array.isArray(unwrapped?.data)
+        ? unwrapped.data
+        : [];
+      if (import.meta.env.DEV) console.debug('[fetchRestaurantHistory] fetched rows:', raw.length);
 
       // Normalize entries and collect restaurant ids to enrich
       const toFetchRestIds = new Set();
@@ -530,7 +538,8 @@ export default function AdminDashboardPage() {
             : null,
       }));
 
-      setRestaurantHistory(enriched);
+      // Ensure we always set an array
+      setRestaurantHistory(Array.isArray(enriched) ? enriched : []);
     } catch (e) {
       console.error("fetchRestaurantHistory error", e);
     }
@@ -561,7 +570,13 @@ export default function AdminDashboardPage() {
   const fetchMenuHistory = useCallback(async (page = 1) => {
     try {
       const res = await api.get(`/admin/menus/history?page=${page}&per_page=50`);
-      const raw = unwrap(res) || [];
+      const unwrapped = unwrap(res) ?? res?.data ?? null;
+      const raw = Array.isArray(unwrapped)
+        ? unwrapped
+        : Array.isArray(unwrapped?.data)
+        ? unwrapped.data
+        : [];
+      if (import.meta.env.DEV) console.debug('[fetchMenuHistory] fetched rows:', raw.length);
 
       // Normalize entries and collect menu ids to enrich
       const toFetchMenuIds = new Set();
@@ -674,7 +689,7 @@ export default function AdminDashboardPage() {
         };
       });
 
-      setMenuHistory(enriched);
+      setMenuHistory(Array.isArray(enriched) ? enriched : []);
     } catch (e) {
       console.error("fetchMenuHistory error", e);
     }

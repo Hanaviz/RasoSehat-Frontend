@@ -7,6 +7,7 @@ import {
   Store, TrendingUp, Clock, CheckCircle, XCircle, Edit3, Trash2, 
   Plus, Star, MapPin, Phone, Globe, Package, ChevronRight, AlertCircle, LogOut 
 } from 'lucide-react';
+import HeroMenuCard from '../components/HeroMenuCard';
 
 export default function MyStorePage() {
   const { user, isAuthenticated, logout } = useAuth();
@@ -16,6 +17,8 @@ export default function MyStorePage() {
   const [menus, setMenus] = useState([]);
   const [menuStats, setMenuStats] = useState({ totalMenu: 0, pending: 0, approved: 0, rejected: 0 });
   const [error, setError] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [toast, setToast] = useState(null);
 
   useEffect(() => {
     const fetchMyStore = async () => {
@@ -48,6 +51,27 @@ export default function MyStorePage() {
 
     fetchMyStore();
   }, [isAuthenticated, user]);
+
+  const handleDeleteClick = (id) => {
+    setDeleteTarget(id);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      await api.delete(`/menus/${deleteTarget}`);
+      setMenus((prev) => prev.filter(m => m.id !== deleteTarget));
+      setToast({ type: 'success', message: 'Menu berhasil dihapus' });
+    } catch (err) {
+      console.error('Delete menu failed', err);
+      setToast({ type: 'error', message: 'Gagal hapus menu' });
+    } finally {
+      setDeleteTarget(null);
+      setTimeout(() => setToast(null), 3000);
+    }
+  };
+
+  const cancelDelete = () => setDeleteTarget(null);
 
   // Animation variants
   const pageVariants = {
@@ -402,58 +426,22 @@ export default function MyStorePage() {
               animate="animate"
             >
               {menus.map((menu) => (
-                <motion.div
+                <HeroMenuCard
                   key={menu.id}
-                  className="bg-white border-2 border-gray-100 rounded-2xl overflow-hidden hover:border-green-200 hover:shadow-xl transition-all"
-                  variants={itemVariants}
-                  whileHover={{ y: -8 }}
-                >
-                  <div className="relative h-48 overflow-hidden bg-gray-100">
-                    <img 
-                      src={menu.foto ? (menu.foto.startsWith('/') ? `http://localhost:3000${menu.foto}` : menu.foto) : '/placeholder-100.png'} 
-                      alt={menu.nama_menu}
-                      className="w-full h-full object-cover transition-transform duration-500 hover:scale-110"
-                    />
-                    {menu.rating !== null && (
-                      <div className="absolute top-3 right-3 px-3 py-1 bg-gradient-to-r from-yellow-400 to-orange-400 text-white rounded-full text-sm font-bold flex items-center gap-1 shadow-lg">
-                        <Star className="w-4 h-4 fill-current" />
-                        {menu.rating}
-                      </div>
-                    )}
-                    <div className="absolute bottom-3 left-3">
-                      <StatusBadge status={menu.status_verifikasi} />
-                    </div>
-                  </div>
-                  <div className="p-5">
-                    <h3 className="text-lg font-bold text-gray-900 mb-2">{menu.nama_menu}</h3>
-                    <div className="flex items-center justify-between mb-4">
-                      <span className="px-3 py-1 bg-green-50 text-green-700 rounded-lg text-xs font-medium">
-                        {menu.kategori || 'Umum'}
-                      </span>
-                      <span className="text-xl font-bold text-green-600">
-                        Rp {Number(menu.harga).toLocaleString('id-ID')}
-                      </span>
-                    </div>
-                    <div className="flex gap-2">
-                      <motion.button 
-                        className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 rounded-xl font-semibold hover:bg-blue-100 transition-colors"
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                      >
-                        <Edit3 className="w-4 h-4" />
-                        Edit
-                      </motion.button>
-                      <motion.button 
-                        className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 bg-red-50 text-red-700 rounded-xl font-semibold hover:bg-red-100 transition-colors"
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                        Hapus
-                      </motion.button>
-                    </div>
-                  </div>
-                </motion.div>
+                  menu={{
+                    ...menu,
+                    image: menu.foto || menu.image || null,
+                    name: menu.nama_menu || menu.name,
+                    price: menu.harga || menu.price,
+                    restaurantName: restaurant?.nama_restoran || menu.restaurantName || '',
+                    // pass restaurant phone so contact button can use the store number
+                    whatsappNumber: restaurant?.no_telepon || menu.whatsappNumber || menu.no_telepon || null,
+                    // pass restaurant maps link so the card's Lokasi button opens the saved Google Maps link
+                    mapsLink: restaurant?.maps_link || restaurant?.mapsLink || menu.mapsLink || menu.maps_latlong || null
+                  }}
+                  onEdit={(m) => navigate('/edit-menu/' + encodeURIComponent(m.id))}
+                  onDelete={(id) => handleDeleteClick(id)}
+                />
               ))}
             </motion.div>
           )}
@@ -472,5 +460,39 @@ export default function MyStorePage() {
         </motion.button>
       </div>
     </motion.div>
+  );
+}
+
+// Confirmation modal component (framer-motion)
+function ConfirmDeleteModal({ open, onConfirm, onCancel }) {
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="absolute inset-0 bg-black opacity-40" onClick={onCancel} />
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.9 }}
+        className="bg-white rounded-xl p-6 z-50 w-full max-w-md shadow-2xl"
+      >
+        <h3 className="text-lg font-bold mb-3">Hapus Menu</h3>
+        <p className="text-sm text-gray-600 mb-6">Yakin ingin menghapus menu ini? Tindakan tidak dapat dibatalkan.</p>
+        <div className="flex justify-end gap-3">
+          <button onClick={onCancel} className="px-4 py-2 rounded-lg border">Batal</button>
+          <button onClick={onConfirm} className="px-4 py-2 rounded-lg bg-red-600 text-white">Hapus</button>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
+// Small toast
+function SmallToast({ item }) {
+  if (!item) return null;
+  return (
+    <div className={`fixed top-6 right-6 z-50 p-3 rounded-lg shadow-lg ${item.type === 'success' ? 'bg-green-50 border border-green-200 text-green-700' : 'bg-red-50 border border-red-200 text-red-700'}`}>
+      <div className="font-semibold text-sm">{item.type === 'success' ? 'Berhasil' : 'Gagal'}</div>
+      <div className="text-sm">{item.message}</div>
+    </div>
   );
 }
