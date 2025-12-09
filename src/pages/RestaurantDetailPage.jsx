@@ -129,18 +129,22 @@ export default function RestaurantDetailPage() {
 
                     // Normalize menus to consistent field names
                     const rawMenus = Array.isArray(payload.menus) ? payload.menus : [];
-                    const normalizedMenus = rawMenus.map(m => ({
-                        id: m.id,
-                        name: m.nama_menu || m.name || m.nama || '',
-                        slug: m.slug || null,
-                        price: m.harga ?? m.price ?? m.price_display ?? null,
-                        // Normalize image using makeImageUrl so frontend receives resolvable URLs
-                        image: (m.foto || m.foto_url || m.image || m.photo) ? makeImageUrl(m.foto || m.foto_url || m.image || m.photo) : null,
-                        category: m.kategori || m.nama_kategori || m.category || m.kategori_nama || 'Lain-lain',
-                        kalori: m.kalori ?? m.calories ?? null,
-                        rating: m.rating ?? null,
-                        _raw: m,
-                    }));
+                    const normalizedMenus = rawMenus.map(m => {
+                        const rawImg = m.foto || m.foto_url || m.image || m.photo || null;
+                        const imageUrl = rawImg ? makeImageUrl(rawImg) : 'https://via.placeholder.com/400x300.png?text=No+Image';
+                        return {
+                            id: m.id,
+                            name: m.nama_menu || m.name || m.nama || '',
+                            slug: m.slug || null,
+                            price: m.harga ?? m.price ?? m.price_display ?? null,
+                            // Normalize image using makeImageUrl so frontend receives resolvable URLs
+                            image: imageUrl,
+                            category: m.kategori || m.nama_kategori || m.category || m.kategori_nama || 'Lain-lain',
+                            kalori: m.kalori ?? m.calories ?? null,
+                            rating: m.rating ?? null,
+                            _raw: m,
+                        };
+                    });
 
                     setRestaurant(normalizedRestaurant);
                     setMenus(normalizedMenus);

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Star, MessageSquare, Send } from 'lucide-react';
-import api from '../utils/api';
+import api, { makeImageUrl } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 
 const MenuReviewSection = ({ menuId }) => {
@@ -12,6 +12,9 @@ const MenuReviewSection = ({ menuId }) => {
   const [rating, setRating] = useState(5);
   const [komentar, setKomentar] = useState('');
   const [error, setError] = useState('');
+  const [photoFiles, setPhotoFiles] = useState([]);
+  const [previews, setPreviews] = useState([]);
+  const [lightbox, setLightbox] = useState({ open: false, src: '' });
 
   // Fetch ulasan saat komponen mount
   useEffect(() => {
@@ -50,12 +53,20 @@ const MenuReviewSection = ({ menuId }) => {
     setSubmitting(true);
     setError('');
     try {
-      const response = await api.post('/ulasan', { menu_id: menuId, rating, komentar });
+      const form = new FormData();
+      form.append('menu_id', menuId);
+      form.append('rating', rating);
+      form.append('komentar', komentar);
+      (photoFiles || []).forEach((file) => form.append('photos', file));
+
+      const response = await api.post('/ulasan', form, { headers: { 'Content-Type': 'multipart/form-data' } });
       if (response.data.success) {
         // Refresh ulasan setelah submit
         await fetchReviews();
         setRating(5);
         setKomentar('');
+        setPhotoFiles([]);
+        setPreviews([]);
       } else {
         setError(response.data.message || 'Gagal menambah ulasan');
       }
@@ -66,6 +77,16 @@ const MenuReviewSection = ({ menuId }) => {
       setSubmitting(false);
     }
   };
+
+  useEffect(() => {
+    if (!photoFiles || photoFiles.length === 0) {
+      setPreviews([]);
+      return;
+    }
+    const urls = photoFiles.map(f => URL.createObjectURL(f));
+    setPreviews(urls);
+    return () => urls.forEach(u => URL.revokeObjectURL(u));
+  }, [photoFiles]);
 
   const renderStars = (rating) => {
     return Array.from({ length: 5 }, (_, i) => (
@@ -142,6 +163,27 @@ const MenuReviewSection = ({ menuId }) => {
             />
           </div>
 
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Foto (opsional)</label>
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={(e) => setPhotoFiles(Array.from(e.target.files || []))}
+                className="block w-full text-sm text-gray-600"
+              />
+
+              {previews.length > 0 && (
+                <div className="mt-2 grid grid-cols-4 gap-2">
+                  {previews.map((src, i) => (
+                    <button key={i} type="button" onClick={() => setLightbox({ open: true, src })} className="rounded overflow-hidden">
+                      <img src={src} alt={`preview-${i}`} className="w-full h-20 object-cover" />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
           {error && (
             <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
               <p className="text-sm text-red-600">{error}</p>
@@ -199,6 +241,16 @@ const MenuReviewSection = ({ menuId }) => {
                 </div>
               </div>
               <p className="text-gray-700 mb-2">{review.komentar}</p>
+              {review.photos && review.photos.length > 0 && (
+                <div className="grid grid-cols-4 gap-2 mb-2">
+                  {review.photos.map((p, i) => (
+                    <button key={i} type="button" onClick={() => setLightbox({ open: true, src: makeImageUrl(p) })} className="overflow-hidden rounded">
+                      <img src={makeImageUrl(p)} alt={`ulasan-${i}`} className="w-full h-20 object-cover" />
+                    </button>
+                  ))}
+                </div>
+              )}
+
               <p className="text-xs text-gray-500">
                 {new Date(review.created_at).toLocaleDateString('id-ID', {
                   year: 'numeric',
@@ -212,6 +264,13 @@ const MenuReviewSection = ({ menuId }) => {
           ))
         )}
       </div>
+      {lightbox.open && (
+        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4" onClick={() => setLightbox({ open: false, src: '' })}>
+          <div className="max-w-4xl max-h-[90vh] w-full" onClick={(e) => e.stopPropagation()}>
+            <img src={lightbox.src} alt="ulasan-large" className="w-full h-auto max-h-[90vh] object-contain rounded-lg shadow-xl" />
+          </div>
+        </div>
+      )}
     </div>
   );
 };

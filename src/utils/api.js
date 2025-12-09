@@ -92,10 +92,19 @@ export function makeImageUrl(u) {
     const s = String(u);
     if (/^https?:\/\//i.test(s)) return encodeURI(s);
     if (s.startsWith('/')) return encodeURI(API_ORIGIN + s);
-    // If string looks like a bare filename (no protocol, no leading slash),
-    // prefix with API origin so browsers can resolve it correctly.
-    // Example: "400x300.png?text=Ayam+Panggang" -> "https://api.example.com/400x300.png?text=..."
-    return encodeURI(API_ORIGIN.replace(/\/$/, '') + '/' + s.replace(/^\//, ''));
+    // If string looks like a placeholder fragment (e.g. "400x300.png?text=..."),
+    // prefer the public placeholder service to avoid resolving relative domains.
+    if (/^\d+x\d+\.(png|jpg|jpeg)(\?.*)?$/.test(s) || /text=/.test(s)) {
+      return encodeURI(`https://via.placeholder.com/${s}`);
+    }
+
+    // If string looks like an uploads path or filename, ensure it is absolute
+    if (s.startsWith('uploads/') || s.startsWith('upload/')) {
+      return encodeURI(API_ORIGIN.replace(/\/$/, '') + '/' + s.replace(/^\//, ''));
+    }
+
+    // Fallback: prefix with uploads/ to preserve older DB shapes where only filename stored
+    return encodeURI(API_ORIGIN.replace(/\/$/, '') + '/uploads/' + s.replace(/^\//, ''));
   } catch (e) {
     return '';
   }
