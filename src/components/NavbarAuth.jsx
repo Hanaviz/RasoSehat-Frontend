@@ -4,7 +4,6 @@ import debounce from 'lodash/debounce';
 import { useAuth } from '../context/AuthContext';
 import { makeImageUrl, unwrap } from '../utils/api';
 import api from '../utils/api';
-import { searchQuery } from '../utils/api/search';
 import { normalizeResultList } from '../utils/searchNormalizer';
 
 export default function NavbarAuth() {
@@ -22,6 +21,7 @@ export default function NavbarAuth() {
   const [searchResults, setSearchResults] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const cacheRef = useRef({});
   const searchContainerRef = useRef(null);
   const notificationRef = useRef(null);
   const profileRef = useRef(null);
@@ -143,15 +143,24 @@ export default function NavbarAuth() {
 
   // Search function calling backend /api/search
   const fetchSearchResults = async (query) => {
+    const q = (query || '').trim();
+    if (!q) {
+      setSearchResults([]);
+      return;
+    }
+    // check in-memory cache first
+    if (cacheRef.current[q]) {
+      setSearchResults(cacheRef.current[q]);
+      return;
+    }
+
     setIsLoading(true);
     try {
-      // Use AbortController if needed in more advanced flow
-      const resp = await searchQuery(query);
-      // normalize results
-      const unified = [];
-      if (resp && resp.results) unified.push(...normalizeResultList(resp.results));
-      // include trending as separate section if needed
-      setSearchResults(unified || []);
+      const resp = await api.get('/search', { params: { q, type: 'all' } });
+      const payload = resp?.data?.data || resp?.data || null;
+      const unified = (payload && Array.isArray(payload.results)) ? normalizeResultList(payload.results) : [];
+      cacheRef.current[q] = unified;
+      setSearchResults(unified);
     } catch (error) {
       console.error('Search error:', error?.response?.data || error.message || error);
       setSearchResults([]);
@@ -168,7 +177,7 @@ export default function NavbarAuth() {
       } else {
         setSearchResults([]);
       }
-    }, 300),
+    }, 250),
     []
   );
 
@@ -195,23 +204,15 @@ export default function NavbarAuth() {
   const handleSuggestionClick = (result) => {
     setShowSuggestions(false);
     setSearchQuery("");
-    setIsMobileSearchOpen(false); 
-    
-    switch (result.type) {
-      case searchCategories.RESTAURANT: {
-        const target = result.slug || result.id;
-        if (target) navigate(`/restaurant/${target}`);
-        else navigate('/');
-        break;
-      }
-      case searchCategories.MENU:
-        navigate(`/menu/${result.id}`);
-        break;
-      case searchCategories.CATEGORY:
-        navigate(`/search?c=${result.name.toLowerCase()}`);
-        break;
-      default:
-        navigate(`/search?q=${encodeURIComponent(result.name)}`);
+    setIsMobileSearchOpen(false);
+
+    // Per spec: navigate to unified search results page with query and type
+    const type = result.type || 'all';
+    const q = result.name || '';
+    if (q) {
+      navigate(`/search?q=${encodeURIComponent(q)}&type=${encodeURIComponent(type)}`);
+    } else {
+      navigate('/search');
     }
   };
 

@@ -5,6 +5,8 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 import api, { unwrap } from "../utils/api";
+import { normalizeResultList } from "../utils/searchNormalizer";
+import MenuCard from "../components/MenuCard";
 
 // Data kategori statis untuk filter UI
 const categories = [
@@ -18,7 +20,7 @@ const categories = [
 
 export default function SearchResultsPage() {
   const [searchParams] = useSearchParams();
-  const initialQuery = searchParams.get("q") || ""; // Ambil query pencarian
+  const initialQuery = searchParams.get("q") || ""; // Ambil query pencarian (keperluan header)
   const initialLocation = searchParams.get("loc") || ""; // Ambil lokasi (jika ada)
 
   // State Data
@@ -31,116 +33,79 @@ export default function SearchResultsPage() {
   // NOTE: filteredResults dihilangkan, cukup gunakan 'results' yang sudah di-fetch
 
   // 💡 FUNGSI FETCH DATA PENCARIAN
-  const fetchSearchResults = useCallback(async (query, categoryName) => {
+  const fetchSearchResults = useCallback(async (query, type = 'all') => {
     setLoading(true);
-    // CATATAN: Karena tabel kategori_makanan menggunakan ID, kita perlu ID kategori
-    // Implementasi ini disederhanakan dengan hanya mengirim query string.
-    
-    // Construct URL API Search
-    let url = `${API_BASE_URL}/menus/search?`;
-    if (query) {
-        url += `q=${encodeURIComponent(query)}&`;
+    const q = (query || '').trim();
+    if (!q) {
+      setResults([]);
+      setLoading(false);
+      return;
     }
-    // Jika Anda memiliki ID Kategori yang sesuai, kirimkan:
-    // if (categoryId) { url += `category_id=${categoryId}&`; }
 
-    // Tambahkan filter Rating/Lokasi di frontend jika tidak ingin membebani backend
-    
     try {
-      const response = await api.get('/menus/search', { params: { q: query } });
-
-      // Memproses slug menu dan restoran (karena API hanya memberikan nama)
-      const items = unwrap(response) || [];
-      const processedResults = items.map(item => {
-            const slug = item.slug || item.nama_menu.toLowerCase().replace(/\s/g, '-').replace(/[^\w-]+/g, '');
-            const restaurantSlug = item.restaurant_slug || item.nama_restoran.toLowerCase().replace(/\s/g, '-').replace(/[^\w-]+/g, '');
-
-            // Mengambil klaim pertama sebagai healthTag untuk tampilan card
-            const healthTag = Array.isArray(item.diet_claims) && item.diet_claims.length > 0
-                ? item.diet_claims[0]
-                : 'Sehat Umum';
-            
-            return {
-                ...item,
-                slug,
-                restaurantSlug,
-                healthTag,
-                rating: 4.5, // Mock Rating
-                price: item.harga,
-                description: item.deskripsi,
-                name: item.nama_menu,
-                restaurant: item.nama_restoran,
-            };
-        });
-
-        setResults(processedResults);
+      const resp = await api.get('/search', { params: { q, type } });
+      const payload = resp?.data?.data || resp?.data || null;
+      const unified = payload && Array.isArray(payload.results) ? normalizeResultList(payload.results) : [];
+      setResults(unified);
     } catch (error) {
-        console.error('Gagal mengambil hasil pencarian:', error);
-        setResults([]);
+      console.error('Gagal mengambil hasil pencarian:', error);
+      setResults([]);
     } finally {
-        setLoading(false);
+      setLoading(false);
     }
-  }, []); // dependencies kosong karena hanya menggunakan searchParams
+  }, []);
 
   // 💡 EFFECT: Panggil API saat query berubah
   useEffect(() => {
-    // Implementasi filter UI: Anda dapat memanggil fetchSearchResults dengan filter aktif di sini
-    // Untuk saat ini, kita panggil hanya dengan initialQuery
-    fetchSearchResults(initialQuery, null); 
-  }, [initialQuery, fetchSearchResults]);
+    // Read current query and type from URLSearchParams on every change
+    const q = searchParams.get('q') || '';
+    const type = searchParams.get('type') || 'menu'; // default to menu search
+    fetchSearchResults(q, type);
+  }, [searchParams, fetchSearchResults]);
 
-  // Komponen Card Hasil Pencarian (Disesuaikan untuk data dari API)
-  const ResultCard = ({ item }) => (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
-      className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-100 hover:shadow-xl transition-shadow duration-300"
-    >
-      <Link to={`/menu/${item.slug}`} className="block">
-        <img
-          src={item.foto || 'https://placehold.co/400x300/4ade80/white?text=Menu'} // Gunakan item.foto dari DB
-          alt={item.name}
-          className="w-full h-40 object-cover"
-        />
-      </Link>
+  // Presentational components for each result type
+  const RestaurantCard = ({ item }) => {
+    const foto = item.foto || item.image || 'https://placehold.co/800x200/ddd/333?text=Restaurant';
+    const name = item.name || item.nama_restoran || 'Restoran';
+    const desc = item.description || item.deskripsi || item.address || '';
+    const slug = item.slug || item.restaurant_slug || item.restaurantSlug || '';
 
-      <div className="p-4 space-y-2">
-        <Link to={`/menu/${item.slug}`}>
-          <h3 className="text-lg font-bold text-gray-800 hover:text-green-600 transition-colors">
-            {item.name}
-          </h3>
-        </Link>
-        <div className="flex items-center justify-between text-sm text-gray-500">
-          <Link
-            to={`/restaurant/${item.restaurantSlug}`} 
-            className="font-semibold text-gray-700 hover:text-green-600 transition-colors"
-          >
-            {item.restaurant}
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.25 }}
+        className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-100 hover:shadow-xl transition-shadow duration-300 w-full"
+      >
+        <div className="md:flex md:items-stretch">
+          <Link to={`/restaurant/${slug}`} className="block md:w-48 lg:w-56 flex-shrink-0">
+            <img src={foto} alt={name} className="w-full h-40 md:h-full object-cover" />
           </Link>
-          <div
-            className={`px-2 py-0.5 rounded text-xs font-semibold ${
-              item.healthTag.includes("Rendah")
-                ? "bg-green-100 text-green-700"
-                : "bg-blue-100 text-blue-700"
-            }`}
-          >
-            {item.healthTag}
+          <div className="p-4 flex-1">
+            <Link to={`/restaurant/${slug}`} className="text-lg font-bold text-gray-800 hover:text-green-600">
+              {name}
+            </Link>
+            <p className="text-sm text-gray-600 mt-1 line-clamp-2">{desc}</p>
+            <div className="mt-3 flex items-center gap-3 text-sm text-gray-500">
+              <div className="flex items-center gap-1">
+                <Star className="w-4 h-4 text-yellow-400" />
+                <span className="font-semibold">{item.rating ?? '—'}</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <MapPin className="w-4 h-4" />
+                <span>{item.distance || '—'}</span>
+              </div>
+            </div>
           </div>
         </div>
+      </motion.div>
+    );
+  };
 
-        <div className="flex items-center justify-between border-t pt-2 border-gray-100">
-          <div className="flex items-center gap-1 text-yellow-500 text-sm">
-            <Star className="w-4 h-4 fill-current" />
-            <span className="font-semibold text-gray-700">{item.rating}</span>
-          </div>
-          <p className="flex items-center gap-1 text-xs text-gray-600">
-            <MapPin className="w-3 h-3" /> {item.distance || '0.5'} km
-          </p>
-          <p className="text-green-600 font-bold">Rp {item.price}</p>
-        </div>
-      </div>
-    </motion.div>
+  const CategoryLink = ({ item }) => (
+    <Link to={`/category/${item.slug || item.id}`} className="inline-block bg-white border border-gray-100 rounded-lg px-4 py-2 text-sm hover:bg-green-50 hover:border-green-200">
+      {item.name} {item.count ? <span className="text-gray-400">({item.count})</span> : null}
+    </Link>
   );
 
   return (
@@ -237,16 +202,73 @@ export default function SearchResultsPage() {
           {/* Kolom Kanan: Daftar Hasil */}
           <div className="lg:col-span-3">
             {loading ? (
-                <div className="text-center p-12">
-                    <svg className="animate-spin h-10 w-10 text-green-600 mx-auto" viewBox="0 0 24 24"></svg>
-                    <p className="text-gray-600 mt-4 text-xl">Sedang memuat hasil dari Padang...</p>
-                </div>
-            ) : results.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                {results.map((item) => (
-                  <ResultCard key={item.id} item={item} />
-                ))}
+              <div className="text-center p-12">
+                <svg className="animate-spin h-10 w-10 text-green-600 mx-auto" viewBox="0 0 24 24"></svg>
+                <p className="text-gray-600 mt-4 text-xl">Sedang memuat hasil dari Padang...</p>
               </div>
+            ) : results.length > 0 ? (
+              (() => {
+                // split results by type
+                const menus = results.filter(r => r.type === 'menu');
+                const restaurants = results.filter(r => r.type === 'restaurant');
+                const categoriesRes = results.filter(r => r.type === 'category');
+
+                // helper to adapt normalized item to MenuCard's expected props
+                const mapToMenu = (it) => ({
+                  id: it.id,
+                  name: it.name,
+                  description: it.description,
+                  price: it.price,
+                  rating: it.rating,
+                  image: it.foto || it.image,
+                  restaurantName: typeof it.restaurant === 'string' ? it.restaurant : (it.restaurant?.name || it.restaurantName || ''),
+                  restaurantSlug: it.restaurantSlug || it.restaurant_slug || '',
+                });
+
+                return (
+                  <div className="space-y-6">
+                    {/* Categories Section */}
+                    {categoriesRes.length > 0 && (
+                      <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                        <h3 className="text-sm font-semibold text-gray-600 mb-3">Kategori</h3>
+                        <div className="flex flex-wrap gap-3">
+                          {categoriesRes.map(cat => (
+                            <CategoryLink key={`cat-${cat.id}`} item={cat} />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Menu Grid */}
+                    {menus.length > 0 && (
+                      <div>
+                        <h3 className="text-lg font-bold text-gray-800 mb-3">Menu</h3>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                          {menus.map(m => (
+                            <div key={`menu-${m.id}`} className="col-span-1">
+                              <MenuCard menu={mapToMenu(m)} />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Restaurants as full-width cards */}
+                    {restaurants.length > 0 && (
+                      <div>
+                        <h3 className="text-lg font-bold text-gray-800 mb-3">Restoran</h3>
+                        <div className="space-y-4">
+                          {restaurants.map(r => (
+                            <div key={`rest-${r.id}`} className="w-full">
+                              <RestaurantCard item={r} />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()
             ) : (
               <div className="text-center p-12 bg-white rounded-xl shadow-lg border-2 border-dashed border-gray-300">
                 <p className="text-xl font-semibold text-gray-700">

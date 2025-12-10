@@ -105,14 +105,16 @@ export default function HeroSection() {
     Organik: "organic",
   };
 
-  // Derive category sections from the `allCategories` constant (preserve name/icon/slug)
-  const derivedCategories = allCategories.map((c) => ({
-    title: c.name,
-    // use the display name as the default key so it matches values stored in diet_claims
-    key: claimKeyMap[c.name] || c.name,
-    slug: c.slug,
-    icon: c.icon,
-  }));
+    // Derive category sections from the `allCategories` constant (preserve name/icon/slug)
+    // Use the human-readable category name as `key` because the backend stores
+    // diet_claims as display names in many installations. Avoid using internal
+    // snake_case keys here to improve matching with the DB.
+    const derivedCategories = allCategories.map((c) => ({
+      title: c.name,
+      key: c.name, // use display name for lookup against diet_claims_list.nama
+      slug: c.slug,
+      icon: c.icon,
+    }));
 
   // State for per-category sections (one section per entry in allCategories)
   const [categorySections, setCategorySections] = useState(

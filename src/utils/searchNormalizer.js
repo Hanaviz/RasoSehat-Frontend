@@ -1,19 +1,56 @@
-// Normalize backend search response items into unified shape
-export function normalizeItem(item) {
-  // assume backend already returns { id, type, name, description, image, rating, meta }
+// normalize results returned by backend `/api/search` into a common front-end shape
+
+export function normalizeResult(item) {
   if (!item || !item.type) return null;
-  return {
-    id: item.id,
-    type: item.type,
-    name: item.name || '',
-    description: item.description || '',
-    image: item.image || null,
-    rating: (item.rating === undefined) ? null : item.rating,
-    meta: item.meta || {}
-  };
+  switch (item.type) {
+    case 'menu':
+      return {
+        id: item.id,
+        type: 'menu',
+        name: item.name || item.nama_menu || '',
+        // prefer real slug from backend; default to empty string to avoid 'null' in URLs
+        slug: item.slug || '',
+        // restaurant may be string or object; keep as-is for flexibility
+        restaurant: item.restaurant || item.nama_restoran || null,
+        // normalize restaurant slug to string
+        restaurantSlug: item.restaurant_slug || item.restaurantSlug || '',
+        foto: item.foto || item.image || '',
+        // ensure healthTag is always a string to safely call .includes
+        healthTag: (item.healthTag || item.health_tag || '') + '',
+        description: item.description || item.deskripsi || '',
+        price: (typeof item.price !== 'undefined' && item.price !== null) ? item.price : (item.harga || null),
+        rating: (typeof item.rating !== 'undefined' && item.rating !== null) ? item.rating : null,
+      };
+    case 'restaurant':
+      return {
+        id: item.id,
+        type: 'restaurant',
+        name: item.name || item.nama_restoran || '',
+        slug: item.slug || item.restaurant_slug || item.restaurantSlug || '',
+        description: item.description || item.deskripsi || item.alamat || null,
+        foto: item.foto || item.image || '',
+        rating: (typeof item.rating !== 'undefined' && item.rating !== null) ? item.rating : null,
+      };
+    case 'category':
+      return {
+        id: item.id,
+        type: 'category',
+        name: item.name || item.nama_kategori || item.nama || '',
+        slug: item.slug || item.nama?.toLowerCase().replace(/\s+/g, '-') || '',
+        count: item.count || 0,
+      };
+    default:
+      return null;
+  }
 }
 
 export function normalizeResultList(list) {
   if (!Array.isArray(list)) return [];
-  return list.map(normalizeItem).filter(Boolean);
+  const mapped = list.map(normalizeResult).filter(Boolean);
+  // Ensure suggestion ordering: menu, restaurant, category
+  mapped.sort((a, b) => {
+    const order = { menu: 0, restaurant: 1, category: 2 };
+    return (order[a.type] - order[b.type]);
+  });
+  return mapped;
 }

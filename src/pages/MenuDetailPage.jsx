@@ -22,12 +22,33 @@ function normalizeMenuRow(row, idFallback) {
 
   const name = row.nama_menu || row.name || 'Menu';
 
+  // Helper to coerce a possible object to a display string
+  const nameOf = (v) => {
+    if (!v && v !== 0) return null;
+    if (typeof v === 'string' || typeof v === 'number') return String(v);
+    if (typeof v === 'object') {
+      // Common shapes returned by the backend: { id, nama_kategori } or { id, nama }
+      return v.nama_kategori || v.nama || v.name || v.namaKategori || null;
+    }
+    return String(v);
+  };
+
+  // Ensure diet claims are strings (backend may return objects)
+  const normalizedDietClaims = Array.isArray(dietClaims)
+    ? dietClaims.map(dc => nameOf(dc)).filter(Boolean)
+    : [];
+
+  // Ingredients may also be objects (e.g., bahan_baku rows). Normalize to strings.
+  const normalizedIngredients = (Array.isArray(row.bahan_baku)
+    ? row.bahan_baku.map(b => nameOf(b) || (typeof b === 'string' ? b : null)).filter(Boolean)
+    : (Array.isArray(row.ingredients) ? row.ingredients.map(i => nameOf(i)).filter(Boolean) : [])) || [];
+
   return {
     id: row.id ?? idFallback,
     name,
     slug: row.slug || name.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, ''),
-    category: row.kategori || dietClaims[0] || 'Umum',
-    healthTag: dietClaims[0] || 'Sehat',
+    category: nameOf(row.kategori) || normalizedDietClaims[0] || 'Umum',
+    healthTag: normalizedDietClaims[0] || 'Sehat',
     price: row.harga ?? row.price ?? '0',
     rating: Number(row.rating) || 4.5,
     reviews: Number(row.reviews) || 0,
@@ -51,16 +72,13 @@ function normalizeMenuRow(row, idFallback) {
       sodium: row.sodium ?? '0',
       cholesterol: row.kolesterol ?? '0',
     },
-    ingredients: (row.bahan_baku && typeof row.bahan_baku === 'string'
-      ? row.bahan_baku.split(',').map(s => s.trim())
-      : row.ingredients || []
-    ) || [],
+    ingredients: normalizedIngredients,
     cookingMethod: row.metode_masak || row.cooking_method || '',
     allergens: (row.allergens && typeof row.allergens === 'string'
       ? row.allergens.split(',').map(s => s.trim())
       : row.allergens
     ) || [],
-    diet_claims: dietClaims,
+    diet_claims: normalizedDietClaims,
     verified: row.status_verifikasi === 'disetujui' || row.verified === true,
   };
 }
