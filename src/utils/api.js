@@ -1,10 +1,19 @@
 import axios from 'axios';
 
 // Normalize base URL: ensure it includes the '/api' segment expected by backend
-const rawBase = import.meta.env.VITE_API_BASE_URL;
+// Support multiple possible env var names to be resilient across builds/deploys
+let rawBase = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_BASE_URL || '';
+// Also accept older CRA-style env var if present at build time
+if (!rawBase && typeof process !== 'undefined' && process.env && process.env.REACT_APP_BACKEND_URL) {
+  rawBase = process.env.REACT_APP_BACKEND_URL;
+}
+// Defensive: some misconfigurations accidentally prefix the value with the key name
+if (typeof rawBase === 'string' && rawBase.match(/^VITE_API_BASE_URL=/i)) {
+  rawBase = rawBase.replace(/^VITE_API_BASE_URL=/i, '');
+}
 const normalizedBase = rawBase
-  ? rawBase.replace(/\/$/, '') // tanpa /api
-  : 'http://localhost:3000';
+  ? (rawBase.endsWith('/api') ? rawBase : rawBase.replace(/\/$/, '') + '/api')
+  : 'http://localhost:3000/api';
 
 const api = axios.create({
   baseURL: normalizedBase,
@@ -23,20 +32,19 @@ api.interceptors.request.use((config) => {
     // ignore
   }
 
-  // Development: log outgoing request payload (redact sensitive headers)
+  // Development: log outgoing request payload and final URL (redact sensitive headers)
   try {
     if (import.meta.env.DEV) {
       const safeHeaders = { ...config.headers };
       if (safeHeaders.Authorization) safeHeaders.Authorization = 'Bearer [REDACTED]';
-      console.debug(
-        '[api] request:',
-        config.method?.toUpperCase(),
-        config.url,
-        'headers:',
-        safeHeaders,
-        'data:',
-        config.data
-      );
+      // Compute absolute URL for clearer debugging
+      let fullUrl = '';
+      try {
+        fullUrl = new URL(config.url, config.baseURL).href;
+      } catch (e) {
+        fullUrl = (config.baseURL || '') + (config.url || '');
+      }
+      console.debug('[api] request:', config.method?.toUpperCase(), fullUrl, 'headers:', safeHeaders, 'data:', config.data);
     }
   } catch (e) {}
 

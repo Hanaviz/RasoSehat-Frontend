@@ -1,5 +1,5 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
-import api, { unwrap } from '../utils/api';
+import api, { unwrap, API_BASE_URL } from '../utils/api';
 // NOTE: api has baseURL pointing to http://localhost:3000/api by default
 const BASE_URL = '/auth';
 
@@ -54,7 +54,9 @@ export const AuthProvider = ({ children }) => {
     // 2. REGISTER HANDLER (Baru ditambahkan untuk SignUp.jsx)
     const handleRegister = async (data) => {
         try {
-            const response = await api.post(`${BASE_URL}/register`, data);
+            const absoluteRegisterUrl = `${String(API_BASE_URL).replace(/\/$/, '')}${BASE_URL}/register`;
+            if (import.meta.env.DEV) console.debug('[AuthContext] handleRegister: url ->', absoluteRegisterUrl);
+            const response = await api.post(absoluteRegisterUrl, data);
             return { success: true, message: response.data?.message || 'Pendaftaran berhasil' };
         } catch (error) {
             return {
@@ -68,9 +70,10 @@ export const AuthProvider = ({ children }) => {
     const refreshProfile = async () => {
         if (!token) return null;
         try {
-            const res = await api.get('/auth/profile');
+            const absoluteProfileUrl = `${String(API_BASE_URL).replace(/\/$/, '')}/auth/profile`;
+            if (import.meta.env.DEV) console.debug('[AuthContext] refreshProfile: url ->', absoluteProfileUrl);
+            const res = await api.get(absoluteProfileUrl);
             const data = unwrap(res) || res?.data || {};
-            // normalize similar shape as earlier
             const fetchedUser = { id: data.id, name: data.name, email: data.email, role: data.role, avatar: data.avatar };
             setUser(fetchedUser);
             return fetchedUser;
@@ -91,7 +94,9 @@ export const AuthProvider = ({ children }) => {
                 // ignore logging errors
             }
 
-            const response = await api.post(`${BASE_URL}/login`, credentials);
+            const absoluteLoginUrl = `${String(API_BASE_URL).replace(/\/$/, '')}${BASE_URL}/login`;
+            try { if (import.meta.env.DEV) console.debug('[AuthContext] handleLogin: url ->', absoluteLoginUrl); } catch (e) {}
+            const response = await api.post(absoluteLoginUrl, credentials);
             // Debug: log response summary (avoid printing sensitive tokens in prod)
             try {
                 console.debug('[AuthContext] handleLogin: response status', response.status, 'data keys:', Object.keys(response.data || {}));
@@ -120,7 +125,9 @@ export const AuthProvider = ({ children }) => {
     const handleLogout = async () => {
         setIsLoading(true);
         try {
-            await api.post(`${BASE_URL}/logout`);
+            const absoluteLogoutUrl = `${String(API_BASE_URL).replace(/\/$/, '')}${BASE_URL}/logout`;
+            if (import.meta.env.DEV) console.debug('[AuthContext] handleLogout: url ->', absoluteLogoutUrl);
+            await api.post(absoluteLogoutUrl);
         } catch (error) {
             console.error('Logout failed on server, cleaning local data.', error);
         } finally {
