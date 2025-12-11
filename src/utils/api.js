@@ -3,8 +3,8 @@ import axios from 'axios';
 // Normalize base URL: ensure it includes the '/api' segment expected by backend
 const rawBase = import.meta.env.VITE_API_BASE_URL;
 const normalizedBase = rawBase
-  ? (rawBase.endsWith('/api') ? rawBase : rawBase.replace(/\/$/, '') + '/api')
-  : 'http://localhost:3000/api';
+  ? rawBase.replace(/\/$/, '') // tanpa /api
+  : 'http://localhost:3000';
 
 const api = axios.create({
   baseURL: normalizedBase,
