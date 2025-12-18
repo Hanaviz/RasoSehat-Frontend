@@ -24,11 +24,17 @@ function normalizeMenuRow(row, idFallback) {
 
   // Helper to coerce a possible object to a display string
   const nameOf = (v) => {
-    if (!v && v !== 0) return null;
+    if (v === null || typeof v === 'undefined') return null;
     if (typeof v === 'string' || typeof v === 'number') return String(v);
     if (typeof v === 'object') {
       // Common shapes returned by the backend: { id, nama_kategori } or { id, nama }
-      return v.nama_kategori || v.nama || v.name || v.namaKategori || v.label || null;
+      if (v.nama_kategori) return String(v.nama_kategori);
+      if (v.nama) return String(v.nama);
+      if (v.name) return String(v.name);
+      if (v.namaKategori) return String(v.namaKategori);
+      if (v.label) return String(v.label);
+      // Unknown object shape: avoid returning '[object Object]'
+      return null;
     }
     return String(v);
   };
@@ -77,12 +83,12 @@ function normalizeMenuRow(row, idFallback) {
       return {
         servingSize: row.porsi || row.serving_size || n.servingSize || '1 porsi',
         calories: pick('kalori', 'calories'),
-        protein: pick('protein'),
+        protein: pick('protein', 'protein'),
         carbs: pick('karbohidrat', 'carbs'),
         fat: pick('lemak', 'fat'),
         fiber: pick('serat', 'fiber'),
         sugar: pick('gula', 'sugar'),
-        sodium: pick('sodium'),
+        sodium: pick('natrium', 'sodium'),
         cholesterol: pick('kolesterol', 'cholesterol'),
       };
     })(),

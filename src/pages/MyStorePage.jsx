@@ -215,6 +215,7 @@ export default function MyStorePage() {
 
   // Main dashboard
   return (
+    <>
     <motion.div 
       className="min-h-screen bg-gradient-to-br from-gray-50 via-green-50 to-emerald-50"
       variants={pageVariants}
@@ -460,6 +461,10 @@ export default function MyStorePage() {
         </motion.button>
       </div>
     </motion.div>
+    {/* Confirm delete modal + toast */}
+    <ConfirmDeleteModal open={Boolean(deleteTarget)} onConfirm={confirmDelete} onCancel={cancelDelete} />
+    <SmallToast item={toast} />
+    </>
   );
 }
 
