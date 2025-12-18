@@ -96,6 +96,9 @@ export default function AddMenuPage() {
         lemak: '',
         serat: '',
         lemak_jenuh: '',
+        karbohidrat: '',
+        kolesterol: '',
+        natrium: '',
         harga: '',
         foto: null,
         kategori_id: '',
@@ -187,6 +190,9 @@ export default function AddMenuPage() {
         fd.append('lemak', String(formData.lemak || '0'));
         fd.append('serat', String(formData.serat || '0'));
         fd.append('lemak_jenuh', String(formData.lemak_jenuh || '0'));
+        fd.append('karbohidrat', String(formData.karbohidrat || '0'));
+        fd.append('kolesterol', String(formData.kolesterol || '0'));
+        fd.append('natrium', String(formData.natrium || '0'));
         fd.append('harga', String(formData.harga || '0'));
         if (formData.foto) {
             // append file object under key 'foto'
@@ -360,6 +366,11 @@ export default function AddMenuPage() {
                                             <InputGroup label="Lemak Jenuh (Gram)" type="number" value={formData.lemak_jenuh} onChange={(e) => handleChange('lemak_jenuh', e.target.value)} placeholder="2" isFull={false} min={0} />
                                         </div>
                                         <InputGroup label="Serat (Fiber) (Gram)" type="number" value={formData.serat} onChange={(e) => handleChange('serat', e.target.value)} placeholder="8" min={0} />
+                                        <div className="grid grid-cols-2 gap-4 mt-3">
+                                            <InputGroup label="Karbohidrat (Gram)" type="number" value={formData.karbohidrat} onChange={(e) => handleChange('karbohidrat', e.target.value)} placeholder="0" isFull={false} />
+                                            <InputGroup label="Kolesterol (mg)" type="number" value={formData.kolesterol} onChange={(e) => handleChange('kolesterol', e.target.value)} placeholder="0" isFull={false} />
+                                        </div>
+                                        <InputGroup label="Natrium (mg)" type="number" value={formData.natrium} onChange={(e) => handleChange('natrium', e.target.value)} placeholder="0" min={0} />
                                     </FormCard>
                                 </motion.div>
 

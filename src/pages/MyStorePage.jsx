@@ -301,7 +301,7 @@ export default function MyStorePage() {
                 </motion.button>
                 <motion.button 
                   className="inline-flex items-center gap-2 px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-semibold transition-all"
-                  onClick={() => { logout(); navigate('/login'); }}
+                  onClick={() => { logout(); navigate('/signin'); }}
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                 >

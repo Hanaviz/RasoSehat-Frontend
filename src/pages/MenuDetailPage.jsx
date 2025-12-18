@@ -28,7 +28,7 @@ function normalizeMenuRow(row, idFallback) {
     if (typeof v === 'string' || typeof v === 'number') return String(v);
     if (typeof v === 'object') {
       // Common shapes returned by the backend: { id, nama_kategori } or { id, nama }
-      return v.nama_kategori || v.nama || v.name || v.namaKategori || null;
+      return v.nama_kategori || v.nama || v.name || v.namaKategori || v.label || null;
     }
     return String(v);
   };
@@ -61,17 +61,31 @@ function normalizeMenuRow(row, idFallback) {
       phone: row.no_telepon || row.phone || '',
       distance: row.distance || '',
     },
-    nutrition: {
-      servingSize: row.porsi || row.serving_size || '1 porsi',
-      calories: row.kalori ?? row.calories ?? 0,
-      protein: row.protein ?? '0',
-      carbs: row.karbohidrat ?? row.carbs ?? '0',
-      fat: row.lemak ?? '0',
-      fiber: row.serat ?? '0',
-      sugar: row.gula ?? '0',
-      sodium: row.sodium ?? '0',
-      cholesterol: row.kolesterol ?? '0',
-    },
+    // Nutrition values: accept either top-level fields (legacy) or nested `nutrition` object from backend
+    nutrition: (() => {
+      const n = row.nutrition || {};
+      const hasTop = (k) => typeof row[k] !== 'undefined';
+      const hasNested = (k) => typeof n[k] !== 'undefined';
+      const pick = (...keys) => {
+        for (const k of keys) {
+          if (hasTop(k)) return row[k];
+          if (hasNested(k)) return n[k];
+        }
+        return null;
+      };
+
+      return {
+        servingSize: row.porsi || row.serving_size || n.servingSize || '1 porsi',
+        calories: pick('kalori', 'calories'),
+        protein: pick('protein'),
+        carbs: pick('karbohidrat', 'carbs'),
+        fat: pick('lemak', 'fat'),
+        fiber: pick('serat', 'fiber'),
+        sugar: pick('gula', 'sugar'),
+        sodium: pick('sodium'),
+        cholesterol: pick('kolesterol', 'cholesterol'),
+      };
+    })(),
     ingredients: normalizedIngredients,
     cookingMethod: row.metode_masak || row.cooking_method || '',
     allergens: (row.allergens && typeof row.allergens === 'string'
@@ -111,10 +125,14 @@ const NutritionModal = ({ data, onClose, menu }) => {
             {nutritionPoints.map((point, index) => (
               <div key={index} className="flex flex-col p-3 bg-gray-50 rounded-lg border">
                 <span className="text-xs text-gray-500">{point.label}</span>
-                <span className={`text-xl font-extrabold ${point.color}`}>
-                  {point.value}
-                  <span className="text-base ml-1 text-gray-700">{point.unit}</span>
-                </span>
+                {point.value === null || typeof point.value === 'undefined' ? (
+                  <span className="text-xl font-extrabold text-gray-400">—<span className="text-base ml-1 text-gray-400">{point.unit}</span></span>
+                ) : (
+                  <span className={`text-xl font-extrabold ${point.color}`}>
+                    {String(point.value)}
+                    <span className="text-base ml-1 text-gray-700">{point.unit}</span>
+                  </span>
+                )}
               </div>
             ))}
           </div>
@@ -150,9 +168,9 @@ export default function MenuDetailPage() {
       let resp;
       const numericCandidate = idParam ?? slugParam;
       if (numericCandidate && /^\d+$/.test(String(numericCandidate))) {
-        resp = await api.get(`/menus/${encodeURIComponent(numericCandidate)}`);
+        resp = await api.get(`/menus/${encodeURIComponent(numericCandidate)}?_=${Date.now()}`);
       } else if (slugParam) {
-        resp = await api.get(`/menus/slug/${encodeURIComponent(slugParam)}`);
+        resp = await api.get(`/menus/slug/${encodeURIComponent(slugParam)}?_=${Date.now()}`);
       } else {
         setError({ type: 'notfound', message: 'ID atau slug menu tidak valid' });
         setLoading(false);

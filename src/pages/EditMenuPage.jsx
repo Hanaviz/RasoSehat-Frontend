@@ -12,7 +12,8 @@ export default function EditMenuPage() {
   const [menu, setMenu] = useState(null);
   const [form, setForm] = useState({
     nama_menu: '', harga: '', kategori_id: '', deskripsi: '', bahan_baku: '', metode_masak: '', diet_claims: [],
-    kalori: '', protein: '', gula: '', lemak: '', serat: '', lemak_jenuh: '', foto: null
+    kalori: '', protein: '', gula: '', lemak: '', serat: '', lemak_jenuh: '',
+    karbohidrat: '', kolesterol: '', natrium: '', foto: null
   });
   const [preview, setPreview] = useState(null);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -37,7 +38,8 @@ export default function EditMenuPage() {
             bahan_baku: data.bahan_baku || '',
             metode_masak: data.metode_masak || '',
             diet_claims: data.diet_claims || [],
-            kalori: data.kalori || '', protein: data.protein || '', gula: data.gula || '', lemak: data.lemak || '', serat: data.serat || '', lemak_jenuh: data.lemak_jenuh || ''
+            kalori: data.kalori || '', protein: data.protein || '', gula: data.gula || '', lemak: data.lemak || '', serat: data.serat || '', lemak_jenuh: data.lemak_jenuh || '',
+            karbohidrat: data.karbohidrat || '', kolesterol: data.kolesterol || '', natrium: data.natrium || ''
           }));
           if (data.foto) setPreview(makeImageUrl(data.foto));
         }
@@ -190,6 +192,9 @@ export default function EditMenuPage() {
         fd.append('lemak', form.lemak);
         fd.append('serat', form.serat);
         fd.append('lemak_jenuh', form.lemak_jenuh);
+          fd.append('karbohidrat', form.karbohidrat);
+          fd.append('kolesterol', form.kolesterol);
+          fd.append('natrium', form.natrium);
         fd.append('foto', form.foto, form.foto.name || `menu_${Date.now()}.jpg`);
 
         await api.patch(`/menus/${encodeURIComponent(id)}`, fd, {
@@ -207,7 +212,8 @@ export default function EditMenuPage() {
           bahan_baku: form.bahan_baku,
           metode_masak: form.metode_masak,
           diet_claims: form.diet_claims,
-          kalori: form.kalori, protein: form.protein, gula: form.gula, lemak: form.lemak, serat: form.serat, lemak_jenuh: form.lemak_jenuh
+            kalori: form.kalori, protein: form.protein, gula: form.gula, lemak: form.lemak, serat: form.serat, lemak_jenuh: form.lemak_jenuh,
+            karbohidrat: form.karbohidrat, kolesterol: form.kolesterol, natrium: form.natrium
         };
         await api.patch(`/menus/${encodeURIComponent(id)}`, body);
       }
@@ -402,6 +408,33 @@ export default function EditMenuPage() {
                     <input 
                       value={form.lemak_jenuh} 
                       onChange={e => handleChange('lemak_jenuh', e.target.value)} 
+                      className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all duration-200 outline-none"
+                      placeholder="0"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Karbohidrat (g)</label>
+                    <input
+                      value={form.karbohidrat}
+                      onChange={e => handleChange('karbohidrat', e.target.value)}
+                      className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all duration-200 outline-none"
+                      placeholder="0"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Kolesterol (mg)</label>
+                    <input
+                      value={form.kolesterol}
+                      onChange={e => handleChange('kolesterol', e.target.value)}
+                      className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all duration-200 outline-none"
+                      placeholder="0"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Natrium (mg)</label>
+                    <input
+                      value={form.natrium}
+                      onChange={e => handleChange('natrium', e.target.value)}
                       className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all duration-200 outline-none"
                       placeholder="0"
                     />

@@ -6,6 +6,7 @@ import {
   Navigate,
 } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
+import ScrollToTop from './components/ScrollToTop';
 
 import Layout from "./components/Layout";
 import SignInPage from "./pages/Signin";
@@ -121,6 +122,7 @@ function AppContent() {
 function App() {
   return (
     <Router>
+      <ScrollToTop behavior="smooth" />
       <AppContent />
     </Router>
   );

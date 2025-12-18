@@ -23,21 +23,21 @@ export default function Footer() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
         {/* Main Container - Responsive Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-8 lg:gap-12 py-12 border-b border-emerald-100/50">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-6 sm:gap-8 lg:gap-12 py-8 sm:py-10 lg:py-12 border-b border-emerald-100/50">
           
-          {/* Column 1: Logo & Slogan - Larger on desktop */}
-          <div className="lg:col-span-3 space-y-4">
+          {/* Column 1: Logo & Slogan - Full width on mobile */}
+          <div className="sm:col-span-2 lg:col-span-3 space-y-3 sm:space-y-4">
             <div className="flex items-center gap-3">
               <div className="relative">
                 <div className="absolute inset-0 bg-emerald-400/20 rounded-2xl blur-xl"></div>
                 <img
                   src="/logo-RasoSehat.png"
                   alt="RasoSehat Logo"
-                  className="relative w-12 h-12 rounded-2xl bg-white p-1 shadow-lg ring-2 ring-emerald-200/50"
+                  className="relative w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-white p-1 shadow-lg ring-2 ring-emerald-200/50"
                 />
               </div>
               <div>
-                <h3 className="text-xl font-bold text-slate-800 tracking-tight">RasoSehat</h3>
+                <h3 className="text-lg sm:text-xl font-bold text-slate-800 tracking-tight">RasoSehat</h3>
                 <p className="text-xs text-emerald-600 font-medium">Hidup Sehat, Hidup Bahagia</p>
               </div>
             </div>
@@ -58,11 +58,11 @@ export default function Footer() {
           </div>
 
           {/* Column 2: Quick Navigation */}
-          <div className="lg:col-span-2 space-y-4">
-            <h4 className="font-bold text-base text-slate-800 pb-2 border-b-2 border-emerald-400 inline-block">
+          <div className="lg:col-span-2 space-y-3 sm:space-y-4">
+            <h4 className="font-bold text-sm sm:text-base text-slate-800 pb-2 border-b-2 border-emerald-400 inline-block">
               Navigasi Cepat
             </h4>
-            <nav className="space-y-2.5">
+            <nav className="space-y-2 sm:space-y-2.5">
               <Link to="/" className="group flex items-center text-sm text-slate-600 hover:text-emerald-600 transition-colors duration-200">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-3 group-hover:scale-125 transition-transform duration-200"></span>
                 Beranda
@@ -83,47 +83,47 @@ export default function Footer() {
           </div>
 
           {/* Column 3: Contact & Information */}
-          <div className="lg:col-span-3 space-y-4">
-            <h4 className="font-bold text-base text-slate-800 pb-2 border-b-2 border-emerald-400 inline-block">
+          <div className="lg:col-span-3 space-y-3 sm:space-y-4">
+            <h4 className="font-bold text-sm sm:text-base text-slate-800 pb-2 border-b-2 border-emerald-400 inline-block">
               Hubungi Kami
             </h4>
-            <div className="space-y-3">
-              <div className="group flex items-center gap-3 text-sm text-slate-600 hover:text-emerald-600 transition-colors duration-200">
-                <div className="p-2 bg-emerald-50 rounded-lg group-hover:bg-emerald-100 transition-colors duration-200 flex-shrink-0">
-                  <Mail size={18} className="text-emerald-600"/>
+            <div className="space-y-2.5 sm:space-y-3">
+              <div className="group flex items-center gap-2.5 sm:gap-3 text-sm text-slate-600 hover:text-emerald-600 transition-colors duration-200">
+                <div className="p-1.5 sm:p-2 bg-emerald-50 rounded-lg group-hover:bg-emerald-100 transition-colors duration-200 flex-shrink-0">
+                  <Mail size={16} className="sm:w-[18px] sm:h-[18px] text-emerald-600"/>
                 </div>
-                <span className="break-all">contact@rasosehat.com</span>
+                <span className="break-all text-xs sm:text-sm">contact@rasosehat.com</span>
               </div>
-              <div className="group flex items-center gap-3 text-sm text-slate-600 hover:text-emerald-600 transition-colors duration-200">
-                <div className="p-2 bg-emerald-50 rounded-lg group-hover:bg-emerald-100 transition-colors duration-200 flex-shrink-0">
-                  <Phone size={18} className="text-emerald-600"/>
+              <div className="group flex items-center gap-2.5 sm:gap-3 text-sm text-slate-600 hover:text-emerald-600 transition-colors duration-200">
+                <div className="p-1.5 sm:p-2 bg-emerald-50 rounded-lg group-hover:bg-emerald-100 transition-colors duration-200 flex-shrink-0">
+                  <Phone size={16} className="sm:w-[18px] sm:h-[18px] text-emerald-600"/>
                 </div>
-                <span>+62 812-XXXX-XXXX</span>
+                <span className="text-xs sm:text-sm">+62 812-XXXX-XXXX</span>
               </div>
-              <div className="group flex items-start gap-3 text-sm text-slate-600 hover:text-emerald-600 transition-colors duration-200">
-                <div className="p-2 bg-emerald-50 rounded-lg group-hover:bg-emerald-100 transition-colors duration-200 flex-shrink-0">
-                  <MapPin size={18} className="text-emerald-600"/>
+              <div className="group flex items-start gap-2.5 sm:gap-3 text-sm text-slate-600 hover:text-emerald-600 transition-colors duration-200">
+                <div className="p-1.5 sm:p-2 bg-emerald-50 rounded-lg group-hover:bg-emerald-100 transition-colors duration-200 flex-shrink-0">
+                  <MapPin size={16} className="sm:w-[18px] sm:h-[18px] text-emerald-600"/>
                 </div>
-                <span>Kota Padang, Sumatera Barat</span>
+                <span className="text-xs sm:text-sm">Kota Padang, Sumatera Barat</span>
               </div>
             </div>
           </div>
 
-          {/* Column 4: Development Team */}
-          <div className="lg:col-span-4 space-y-4">
-            <h4 className="font-bold text-base text-slate-800 pb-2 border-b-2 border-emerald-400 inline-block">
+          {/* Column 4: Development Team - Full width on mobile, spans 2 cols on tablet */}
+          <div className="sm:col-span-2 lg:col-span-4 space-y-3 sm:space-y-4">
+            <h4 className="font-bold text-sm sm:text-base text-slate-800 pb-2 border-b-2 border-emerald-400 inline-block">
               Tim Pengembang
             </h4>
             
-            <ul className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
               {teamMembers.map((member, index) => (
-                <li key={index} className="group flex items-start gap-2.5 p-3 bg-white border border-emerald-100/50 rounded-lg hover:border-emerald-300 hover:shadow-md transition-all duration-200">
-                  <div className="p-1.5 bg-emerald-50 rounded-lg group-hover:bg-emerald-100 transition-colors duration-200 flex-shrink-0 mt-0.5">
-                    <User size={14} className="text-emerald-600" />
+                <li key={index} className="group flex items-start gap-2 sm:gap-2.5 p-2.5 sm:p-3 bg-white border border-emerald-100/50 rounded-lg hover:border-emerald-300 hover:shadow-md transition-all duration-200">
+                  <div className="p-1 sm:p-1.5 bg-emerald-50 rounded-lg group-hover:bg-emerald-100 transition-colors duration-200 flex-shrink-0 mt-0.5">
+                    <User size={12} className="sm:w-[14px] sm:h-[14px] text-emerald-600" />
                   </div>
                   <div className='flex flex-col flex-1 min-w-0'>
-                    <span className='text-sm font-semibold text-slate-800 truncate'>{member.name}</span>
-                    <span className='text-xs text-emerald-600 font-medium'>{member.role}</span>
+                    <span className='text-xs sm:text-sm font-semibold text-slate-800 truncate'>{member.name}</span>
+                    <span className='text-[10px] sm:text-xs text-emerald-600 font-medium'>{member.role}</span>
                   </div>
                 </li>
               ))}
@@ -132,20 +132,20 @@ export default function Footer() {
         </div>
         
         {/* Copyright & Disclaimer */}
-        <div className="py-6 space-y-3">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-3">
-            <p className="text-sm text-slate-600 font-medium text-center md:text-left">
+        <div className="py-4 sm:py-6 space-y-3">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-2 sm:gap-3">
+            <p className="text-xs sm:text-sm text-slate-600 font-medium text-center md:text-left">
               © {currentYear} RasoSehat. Dibuat dengan <span className="text-red-500">❤</span> untuk Tugas Proyek RPL.
             </p>
             <div className="flex items-center gap-2 text-xs text-slate-500">
-              <span className="px-3 py-1 bg-emerald-50 text-emerald-700 rounded-full font-medium">
+              <span className="px-2.5 sm:px-3 py-1 bg-emerald-50 text-emerald-700 rounded-full font-medium text-[10px] sm:text-xs">
                 Proyek Akademik
               </span>
             </div>
           </div>
           
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-            <p className="text-xs text-slate-600 leading-relaxed text-center">
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 sm:p-4">
+            <p className="text-[10px] sm:text-xs text-slate-600 leading-relaxed text-center">
               <span className="font-bold text-amber-700">⚠ Disclaimer:</span> Informasi di website ini merupakan panduan umum dan hasil verifikasi literatur untuk keperluan akademik. Untuk kebutuhan diet khusus atau kondisi kesehatan tertentu, konsultasikan dengan profesional medis atau ahli gizi bersertifikat.
             </p>
           </div>
