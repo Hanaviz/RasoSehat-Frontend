@@ -105,18 +105,15 @@ export default function HeroSection() {
     Organik: "organic",
   };
 
-    // Derive category sections from the `allCategories` constant (preserve name/icon/slug)
-    // Use the human-readable category name as `key` because the backend stores
-    // diet_claims as display names in many installations. Avoid using internal
-    // snake_case keys here to improve matching with the DB.
-    const derivedCategories = allCategories.map((c) => ({
-      title: c.name,
-      key: c.name, // use display name for lookup against diet_claims_list.nama
-      slug: c.slug,
-      icon: c.icon,
-    }));
+  // Derive category sections from the `allCategories` constant (preserve name/icon/slug)
+  const derivedCategories = allCategories.map((c) => ({
+    title: c.name,
+    key: c.name,
+    slug: c.slug,
+    icon: c.icon,
+  }));
 
-  // State for per-category sections (one section per entry in allCategories)
+  // State for per-category sections
   const [categorySections, setCategorySections] = useState(
     derivedCategories.map((c) => ({
       ...c,
@@ -126,7 +123,7 @@ export default function HeroSection() {
     }))
   );
 
-  // Debug: log categorySections whenever it changes to verify payloads
+  // Debug: log categorySections whenever it changes
   useEffect(() => {
     try {
       if (categorySections && categorySections.length) {
@@ -164,7 +161,6 @@ export default function HeroSection() {
 
       const normalized = (payload || []).map((m) => ({
         ...m,
-        // pastikan diet_claims selalu array
         diet_claims: Array.isArray(m.diet_claims)
           ? m.diet_claims
           : m.diet_claims
@@ -219,11 +215,10 @@ export default function HeroSection() {
     }
   }, [featuredMenus]);
 
-  // Fetch per-category menus sequentially (one-by-one) and populate categorySections
+  // Fetch per-category menus sequentially
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      // Debug: show derived categories structure
       console.debug("[HeroSection] derivedCategories:", derivedCategories);
       for (const cat of derivedCategories) {
         if (cancelled) break;
@@ -274,17 +269,7 @@ export default function HeroSection() {
     };
   }, []);
 
-  // Expose a manual refresh for debugging in the UI
-  const handleRefreshFeatured = async () => {
-    try {
-      setLoadingMenus(true);
-      await fetchFeaturedMenus();
-    } finally {
-      setLoadingMenus(false);
-    }
-  };
-
-  // Hero carousel data (gunakan yang statis)
+  // Hero carousel data
   const heroSlides = [
     {
       id: 1,
@@ -320,7 +305,7 @@ export default function HeroSection() {
     },
   ];
 
-  // Auto slide and map logic (dihapus/disingkat untuk fokus pada API)
+  // Auto slide
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % heroSlides.length);
@@ -331,11 +316,13 @@ export default function HeroSection() {
   const nextSlide = () => {
     setCurrentSlide((prev) => (prev + 1) % heroSlides.length);
   };
+  
   const prevSlide = () => {
     setCurrentSlide(
       (prev) => (prev - 1 + heroSlides.length) % heroSlides.length
     );
   };
+  
   const goToSlide = (index) => {
     setCurrentSlide(index);
   };
@@ -347,116 +334,144 @@ export default function HeroSection() {
       navigate(`/search`);
     }
   };
+
+  // IMPROVED GPS ACCURACY FUNCTION
   const handleGetCurrentLocation = () => {
     if (!navigator.geolocation) {
+      alert("Geolocation tidak didukung oleh browser Anda");
       setLocation("Lokasi Saya");
       return;
     }
 
     setReverseLoading(true);
 
-    // Prefer permission check to give earlier feedback when denied
+    // Strategi multi-fase untuk mendapatkan lokasi paling akurat
     (async () => {
       try {
+        // Fase 1: Cek permission
         if (navigator.permissions && navigator.permissions.query) {
           try {
-            const p = await navigator.permissions.query({ name: 'geolocation' });
-            if (p && p.state === 'denied') {
-              console.warn('Geolocation permission denied');
+            const permissionStatus = await navigator.permissions.query({ name: 'geolocation' });
+            if (permissionStatus.state === 'denied') {
+              alert("Izin lokasi ditolak. Silakan aktifkan di pengaturan browser Anda.");
               setReverseLoading(false);
               setLocation('Lokasi Saya');
               return;
             }
           } catch (e) {
-            // ignore permission query errors
+            console.warn('Permission query not supported', e);
           }
         }
 
-        // Use watchPosition to gather several samples and pick the most accurate one
-        let best = null;
+        // Fase 2: Dapatkan lokasi awal dengan cepat (low accuracy)
+        let initialPosition = null;
+        try {
+          initialPosition = await new Promise((resolve, reject) => {
+            const timeout = setTimeout(() => reject(new Error('Initial timeout')), 3000);
+            navigator.geolocation.getCurrentPosition(
+              (pos) => {
+                clearTimeout(timeout);
+                resolve(pos);
+              },
+              (err) => {
+                clearTimeout(timeout);
+                reject(err);
+              },
+              { enableHighAccuracy: false, timeout: 3000, maximumAge: 30000 }
+            );
+          });
+          console.log('Initial position (low accuracy):', initialPosition.coords.accuracy, 'm');
+        } catch (e) {
+          console.warn('Initial position failed, continuing to high accuracy', e);
+        }
+
+        // Fase 3: Dapatkan lokasi akurat dengan watchPosition
+        let bestPosition = initialPosition;
         let samples = 0;
-        const maxSamples = 6; // sample up to this many readings
-        const maxWait = 9000; // maximum wait time (ms)
+        const maxSamples = 8;
+        const maxWaitTime = 12000;
+        const targetAccuracy = 20; // Target akurasi 20 meter
 
-        const opts = { enableHighAccuracy: true, maximumAge: 0, timeout: 5000 };
+        const highAccuracyOptions = {
+          enableHighAccuracy: true,
+          timeout: 8000,
+          maximumAge: 0
+        };
 
-        const watchId = navigator.geolocation.watchPosition(
-          (pos) => {
-            samples += 1;
-            try {
-              const acc = typeof pos.coords.accuracy === 'number' ? pos.coords.accuracy : 1e6;
-              if (!best || acc < (best.coords.accuracy || 1e6)) {
-                best = pos;
+        const watchPromise = new Promise((resolve, reject) => {
+          const watchId = navigator.geolocation.watchPosition(
+            (position) => {
+              samples++;
+              const accuracy = position.coords.accuracy;
+              
+              console.log(`Sample ${samples}: accuracy=${accuracy}m, lat=${position.coords.latitude}, lng=${position.coords.longitude}`);
+
+              // Update best position jika lebih akurat
+              if (!bestPosition || accuracy < bestPosition.coords.accuracy) {
+                bestPosition = position;
+                console.log('New best position:', accuracy, 'm');
               }
-            } catch (e) {
-              if (!best) best = pos;
-            }
 
-            // If accuracy is already good (< 25m) or we've sampled enough, stop
-            if ((best && best.coords && best.coords.accuracy && best.coords.accuracy <= 25) || samples >= maxSamples) {
+              // Hentikan jika sudah cukup akurat atau sudah cukup sample
+              if (accuracy <= targetAccuracy || samples >= maxSamples) {
+                navigator.geolocation.clearWatch(watchId);
+                console.log('Stopping watch: reached target or max samples');
+                resolve(bestPosition);
+              }
+            },
+            (error) => {
+              console.error('WatchPosition error:', error.message);
               navigator.geolocation.clearWatch(watchId);
-              finalize(best);
-            }
-          },
-          (err) => {
-            console.warn('watchPosition error', err);
-            try { navigator.geolocation.clearWatch(watchId); } catch (e) {}
-            setReverseLoading(false);
-            setLocation('Lokasi Saya');
-          },
-          opts
-        );
+              // Jangan reject, gunakan best position yang ada
+              resolve(bestPosition);
+            },
+            highAccuracyOptions
+          );
 
-        // Safety timeout: stop watching after maxWait
-        const safety = setTimeout(() => {
-          try { navigator.geolocation.clearWatch(watchId); } catch (e) {}
-          finalize(best);
-        }, maxWait);
+          // Safety timeout
+          setTimeout(() => {
+            navigator.geolocation.clearWatch(watchId);
+            console.log('Stopping watch: timeout reached');
+            resolve(bestPosition);
+          }, maxWaitTime);
+        });
 
-        async function finalize(chosen) {
-          clearTimeout(safety);
-          if (!chosen || !chosen.coords) {
-            // As fallback, try a single quick getCurrentPosition
-            try {
-              const single = await new Promise((resolve, reject) => {
-                navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 5000 });
-              });
-              chosen = single;
-            } catch (e) {
-              console.warn('fallback getCurrentPosition failed', e);
-            }
-          }
+        const finalPosition = await watchPromise;
 
-          if (!chosen || !chosen.coords) {
-            setReverseLoading(false);
-            setLocation('Lokasi Saya');
-            return;
-          }
-
-          const lat = chosen.coords.latitude;
-          const lng = chosen.coords.longitude;
-          try {
-            const fullAddress = await reverseGeocode(lat, lng);
-            if (fullAddress) setLocation(fullAddress);
-            else setLocation(`${lat.toFixed(6)}, ${lng.toFixed(6)}`);
-          } catch (e) {
-            console.warn('Reverse geocode failed', e);
-            setLocation(`${lat.toFixed(6)}, ${lng.toFixed(6)}`);
-          } finally {
-            setReverseLoading(false);
-          }
+        if (!finalPosition || !finalPosition.coords) {
+          throw new Error('Tidak dapat mendapatkan koordinat');
         }
-      } catch (e) {
-        console.warn('handleGetCurrentLocation error', e);
-        setReverseLoading(false);
+
+        const lat = finalPosition.coords.latitude;
+        const lng = finalPosition.coords.longitude;
+        const accuracy = finalPosition.coords.accuracy;
+
+        console.log(`Final position: lat=${lat}, lng=${lng}, accuracy=${accuracy}m`);
+
+        // Fase 4: Reverse geocoding
+        try {
+          const address = await reverseGeocode(lat, lng);
+          if (address) {
+            setLocation(address);
+          } else {
+            setLocation(`${lat.toFixed(6)}, ${lng.toFixed(6)}`);
+          }
+        } catch (e) {
+          console.warn('Reverse geocoding failed', e);
+          setLocation(`${lat.toFixed(6)}, ${lng.toFixed(6)}`);
+        }
+
+      } catch (error) {
+        console.error('Geolocation error:', error);
+        alert(`Gagal mendapatkan lokasi: ${error.message}`);
         setLocation('Lokasi Saya');
+      } finally {
+        setReverseLoading(false);
       }
     })();
   };
 
   // Reverse geocode using Nominatim (OpenStreetMap)
-  // Returns a short human-friendly name or null on failure
-  // Reverse geocode using Nominatim (OpenStreetMap) — return FULL address
   async function reverseGeocode(lat, lon) {
     try {
       const base = "https://nominatim.openstreetmap.org/reverse";
@@ -491,7 +506,7 @@ export default function HeroSection() {
       const addr = data.address || {};
 
       const fullAddressParts = [
-        [addr.road, addr.house_number].filter(Boolean).join(" "), // Jalan
+        [addr.road, addr.house_number].filter(Boolean).join(" "),
         addr.neighbourhood,
         addr.suburb,
         addr.city_district,
@@ -514,8 +529,6 @@ export default function HeroSection() {
     }
   }
 
-  // No Google Maps modal: simplified location input (geolocation button only)
-
   const createSlug = (name) =>
     name
       ?.toLowerCase()
@@ -525,12 +538,9 @@ export default function HeroSection() {
   return (
     <div className="pt-16 sm:pt-20 md:pt-24 lg:pt-28 bg-gradient-to-b from-green-50 to-white pb-8">
       <div className="max-w-[1400px] mx-auto px-3 sm:px-4 md:px-6 lg:px-8">
-        {/* Hero Carousel dan Location Chooser (Kode sama, tidak diubah) */}
-        {/*  */}
+        {/* Hero Carousel */}
         <div className="relative mb-16 sm:mb-20 md:mb-24">
-          {/* ... (Kode Carousel) */}
           <div className="relative rounded-2xl overflow-hidden shadow-xl group">
-            {/* PENGURANGAN TINGGI CAROUSEL */}
             <div className="relative h-56 sm:h-72 md:h-96 lg:h-[430px] overflow-hidden">
               {heroSlides.map((slide, index) => (
                 <div
@@ -548,10 +558,8 @@ export default function HeroSection() {
                     alt={`Slide ${slide.id}`}
                     className="w-full h-full object-cover"
                   />
-                  {/* Overlay untuk teks */}
                   <div className="absolute inset-0 bg-black/40"></div>
 
-                  {/* Slogan Text Overlay */}
                   <motion.div
                     key={slide.id + "-text"}
                     initial={{ opacity: 0, y: 10 }}
@@ -626,13 +634,12 @@ export default function HeroSection() {
             </div>
           </div>
 
-          {/* Standalone Location Chooser */}
+          {/* Location Chooser */}
           <div className="max-w-md mx-auto -mt-12 relative z-10">
             <div className="bg-white rounded-xl shadow-2xl p-6 sm:p-8 transform transition-all duration-300 hover:shadow-2xl hover:-translate-y-1">
               <h3 className="text-lg sm:text-xl font-bold text-gray-800 mb-4 text-center">
                 Cari Makanan di Sekitar Anda
               </h3>
-              {/* Form untuk Chooser Location */}
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
@@ -648,7 +655,6 @@ export default function HeroSection() {
                       placeholder="Masukkan Area / Kecamatan"
                       className="w-full pl-10 pr-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-sm sm:text-base"
                     />
-                    {/* Tombol GPS untuk lokasi saat ini */}
                     <button
                       type="button"
                       onClick={handleGetCurrentLocation}
@@ -694,10 +700,7 @@ export default function HeroSection() {
               </form>
             </div>
           </div>
-
-          {/* Google Maps modal removed — use simple text input + geolocation button instead */}
         </div>
-        {/* END: Carousel dan Location Chooser */}
 
         {/* Categories Section */}
         <div className="bg-white rounded-2xl shadow-md p-4 sm:p-6 mb-6 -mt-8 border-2 border-green-200">
@@ -739,8 +742,7 @@ export default function HeroSection() {
           </div>
         </div>
 
-        {/* Featured Menus Section */}
-        {/* Per-category sections: each nutrition category renders its own container */}
+        {/* Per-category sections */}
         {categorySections.map((section) => (
           <div
             key={section.key}
@@ -797,7 +799,6 @@ export default function HeroSection() {
             )}
           </div>
         ))}
-        {/* Featured Menus Section */}
       </div>
     </div>
   );

@@ -132,8 +132,23 @@ export default function ProfilePage() {
       const payload = unwrap(res) || res?.data || {};
       const avatarUrl = payload.avatar || payload.avatar_url || null;
       if (avatarUrl) {
-        setUserData(prev => ({ ...prev, avatar: avatarUrl }));
-        setPreviewImage(makeImageUrl(avatarUrl));
+        // Normalize to absolute URL when backend returned a relative path
+        let finalUrl = avatarUrl;
+        try {
+          if (typeof finalUrl === 'string' && finalUrl.startsWith('/')) {
+            // Prefer using the response config baseURL if available (handles deployed backend)
+            const baseFromResp = res && res.config && res.config.baseURL ? String(res.config.baseURL).replace(/\/api\/?$/i, '') : null;
+            const baseToUse = baseFromResp || API_ORIGIN || '';
+            finalUrl = baseToUse.replace(/\/$/, '') + finalUrl;
+          }
+        } catch (e) {
+          console.warn('Failed to normalize avatar URL', e);
+        }
+
+        console.debug('Avatar upload returned:', { avatarUrl, finalUrl });
+
+        setUserData(prev => ({ ...prev, avatar: finalUrl }));
+        setPreviewImage(makeImageUrl(finalUrl));
         setTempData(prev => ({ ...prev, avatarFile: null }));
         alert('Foto profil berhasil diperbarui.');
         try { refreshProfile(); } catch (e) { /* ignore */ }
@@ -141,8 +156,11 @@ export default function ProfilePage() {
         alert('Profil diperbarui, namun tidak menerima URL avatar dari server.');
       }
     } catch (e) {
-      console.error('Failed to upload avatar', e);
-      alert('Gagal mengunggah avatar. Periksa koneksi dan coba lagi.');
+      // Log detailed error information to help debugging (network / server response)
+      console.error('Failed to upload avatar', e, e?.response?.data || e?.message || null);
+      const serverMsg = e?.response?.data?.message || e?.response?.data?.error || null;
+      const alertMsg = serverMsg || e?.message || 'Gagal mengunggah avatar. Periksa koneksi dan coba lagi.';
+      alert(alertMsg);
     } finally {
       setIsSaving(false);
     }
