@@ -1,12 +1,10 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Camera, Edit2, Save, X, Mail, Phone, Calendar, User } from "lucide-react";
-import api, { API_ORIGIN, unwrap, makeImageUrl } from '../utils/api';
+import { Camera, Save, X, Mail, Phone, Calendar, User } from "lucide-react";
+import api, { API_ORIGIN, makeImageUrl, unwrap } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 
 export default function ProfilePage() {
-  // Real user data loaded from API
   const [userData, setUserData] = useState(null);
-
   const [isEditing, setIsEditing] = useState({
     username: false,
     birthDate: false,
@@ -14,12 +12,75 @@ export default function ProfilePage() {
     email: false,
     phone: false
   });
-
-  const [tempData, setTempData] = useState({ ...userData });
+  const [tempData, setTempData] = useState({});
   const [previewImage, setPreviewImage] = useState('');
+  const [imgAttempts, setImgAttempts] = useState(0);
   const fileInputRef = useRef(null);
   const [isSaving, setIsSaving] = useState(false);
   const { refreshProfile } = useAuth();
+
+  // Helper function to normalize avatar URL
+  const normalizeAvatarUrl = (url) => {
+    if (!url) return `https://ui-avatars.com/api/?name=User&background=16a34a&color=fff&size=400`;
+    
+    // Use the makeImageUrl helper from api.js
+    try {
+      return makeImageUrl(url);
+    } catch (e) {
+      console.error('Failed to normalize avatar URL:', e);
+      return `https://ui-avatars.com/api/?name=User&background=16a34a&color=fff&size=400`;
+    }
+  };
+
+  // Fetch profile on mount
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const res = await api.get('/auth/profile');
+        const data = unwrap(res);
+        
+        console.log('[DEBUG] Profile response:', data);
+        
+        if (!data) {
+          throw new Error('No profile data received');
+        }
+        
+        // Normalize keys to match local state
+        const normalized = {
+          username: data.username || data.name || data.full_name || data.nama || '',
+          birthDate: data.birth_date || data.tanggal_lahir || data.birthDate || '',
+          gender: data.gender || data.jenis_kelamin || '',
+          email: data.email || '',
+          phone: data.phone || data.nomorHP || data.nomor_hp || '',
+          avatar: data.avatar || data.avatar_url || null,
+          id: data.id || data.user_id || null,
+        };
+        
+        setUserData(normalized);
+        setTempData(normalized);
+        
+        // Set preview image with normalization
+        const avatarUrl = normalizeAvatarUrl(normalized.avatar);
+        setPreviewImage(avatarUrl);
+        console.log('[DEBUG] Profile loaded, avatar URL:', avatarUrl);
+        
+      } catch (e) {
+        console.error('Failed to load profile:', e);
+        const fallbackData = { 
+          username: '', 
+          birthDate: '', 
+          gender: '', 
+          email: '', 
+          phone: '', 
+          avatar: '' 
+        };
+        setUserData(fallbackData);
+        setTempData(fallbackData);
+        setPreviewImage(normalizeAvatarUrl(''));
+      }
+    };
+    fetchProfile();
+  }, []);
 
   // Handle image selection
   const handleImageChange = (e) => {
@@ -41,81 +102,47 @@ export default function ProfilePage() {
       const reader = new FileReader();
       reader.onloadend = () => {
         setPreviewImage(reader.result);
+        setImgAttempts(0);
       };
       reader.readAsDataURL(file);
-      // store file for upload
+      
+      // Store file for upload
       setTempData(prev => ({ ...prev, avatarFile: file }));
     }
   };
 
-  // use shared makeImageUrl helper
-
-  // Handle edit toggle
-  const toggleEdit = (field) => {
-    if (isEditing[field]) {
-      // Save changes
-      handleSaveField(field, tempData[field]);
-    } else {
-      // Start editing
-      setTempData({ ...userData });
+  // Handle image error with smart fallback
+  const handleImageError = (e) => {
+    console.warn('Profile image failed to load:', previewImage, 'attempt:', imgAttempts);
+    
+    // Prevent infinite loop
+    if (imgAttempts >= 3) {
+      console.error('Max image load attempts reached, using placeholder');
+      e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(userData?.username || 'User')}&background=16a34a&color=fff&size=400`;
+      return;
     }
-    setIsEditing({ ...isEditing, [field]: !isEditing[field] });
-  };
-
-  // Fetch profile on mount
-  useEffect(() => {
-    const fetchProfile = async () => {
-      try {
-          const res = await api.get('/auth/profile');
-          const data = unwrap(res) || {};
-        // normalize keys to match local state
-        const normalized = {
-          username: data.username || data.name || data.full_name || data.nama || '',
-          birthDate: data.birth_date || data.tanggal_lahir || data.birthDate || '',
-          gender: data.gender || data.jenis_kelamin || '',
-          email: data.email || '',
-          phone: data.phone || data.nomorHP || data.nomor_hp || '',
-          avatar: data.avatar || data.avatar_url || (data.email ? `https://ui-avatars.com/api/?name=${encodeURIComponent(data.email)}&background=16a34a&color=fff&size=400` : ''),
-          id: data.id || data.user_id || null,
-        };
-        setUserData(normalized);
-        setTempData(normalized);
-        setPreviewImage(makeImageUrl(normalized.avatar || ''));
-      } catch (e) {
-        console.error('Failed to load profile', e);
-        // fallback to empty user
-        setUserData({ username: '', birthDate: '', gender: '', email: '', phone: '', avatar: '' });
-        setTempData({ username: '', birthDate: '', gender: '', email: '', phone: '', avatar: '' });
-      }
-    };
-    fetchProfile();
-  }, []);
-
-  // Save a single field to backend
-  const handleSaveField = async (field, value) => {
-    if (!userData) return;
-    setIsSaving(true);
-    try {
-      // Build payload with backend column names only (avoid sending UI-only keys)
-      const payload = {};
-      if (field === 'username') payload.name = value;
-      else if (field === 'birthDate') payload.birth_date = value;
-      else if (field === 'phone') payload.phone = value;
-      else if (field === 'gender') payload.gender = value;
-      else if (field === 'email') payload.email = value;
-
-      const res = await api.put('/auth/profile', payload).catch(err => { throw err; });
-      // optimistic update
-      setUserData(prev => ({ ...prev, [field]: value }));
-      // refresh auth context user if available
-      try { refreshProfile(); } catch (e) { /* ignore */ }
-    } catch (e) {
-      console.error('Failed to save profile field', e);
-      const msg = e?.response?.data?.message || e.message || 'Gagal menyimpan perubahan. Periksa koneksi dan coba lagi.';
-      alert(msg);
-    } finally {
-      setIsSaving(false);
+    
+    // Try different URL formats
+    if (imgAttempts === 0 && previewImage.startsWith('/')) {
+      const candidate = API_ORIGIN.replace(/\/$/, '') + previewImage;
+      console.debug('Trying with API_ORIGIN:', candidate);
+      setPreviewImage(candidate);
+      setImgAttempts(a => a + 1);
+      return;
     }
+    
+    if (imgAttempts === 1 && previewImage.startsWith('http://')) {
+      const candidate = previewImage.replace('http://', 'https://');
+      console.debug('Trying HTTPS:', candidate);
+      setPreviewImage(candidate);
+      setImgAttempts(a => a + 1);
+      return;
+    }
+    
+    // Final fallback
+    console.error('All avatar load attempts failed, using placeholder');
+    e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(userData?.username || 'User')}&background=16a34a&color=fff&size=400`;
+    setImgAttempts(a => a + 1);
   };
 
   // Save avatar (file upload)
@@ -124,43 +151,123 @@ export default function ProfilePage() {
       alert('Pilih gambar terlebih dahulu.');
       return;
     }
+    
     setIsSaving(true);
+    
     try {
       const fd = new FormData();
       fd.append('avatar', tempData.avatarFile);
-      const res = await api.post('/auth/avatar', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
-      const payload = unwrap(res) || res?.data || {};
-      const avatarUrl = payload.avatar || payload.avatar_url || null;
-      if (avatarUrl) {
-        // Normalize to absolute URL when backend returned a relative path
-        let finalUrl = avatarUrl;
-        try {
-          if (typeof finalUrl === 'string' && finalUrl.startsWith('/')) {
-            // Prefer using the response config baseURL if available (handles deployed backend)
-            const baseFromResp = res && res.config && res.config.baseURL ? String(res.config.baseURL).replace(/\/api\/?$/i, '') : null;
-            const baseToUse = baseFromResp || API_ORIGIN || '';
-            finalUrl = baseToUse.replace(/\/$/, '') + finalUrl;
-          }
-        } catch (e) {
-          console.warn('Failed to normalize avatar URL', e);
-        }
-
-        console.debug('Avatar upload returned:', { avatarUrl, finalUrl });
-
-        setUserData(prev => ({ ...prev, avatar: finalUrl }));
-        setPreviewImage(makeImageUrl(finalUrl));
-        setTempData(prev => ({ ...prev, avatarFile: null }));
-        alert('Foto profil berhasil diperbarui.');
-        try { refreshProfile(); } catch (e) { /* ignore */ }
-      } else {
-        alert('Profil diperbarui, namun tidak menerima URL avatar dari server.');
+      
+      console.log('[DEBUG] Uploading avatar...');
+      const res = await api.post('/auth/avatar', fd, { 
+        headers: { 'Content-Type': 'multipart/form-data' } 
+      });
+      
+      const responseData = res?.data;
+      console.log('[DEBUG] Avatar upload response:', responseData);
+      
+      // Check for success flag
+      if (!responseData?.success) {
+        throw new Error(responseData?.message || 'Upload gagal');
       }
+      
+      // Try multiple possible field names from backend
+      let avatarUrl = responseData.avatar || responseData.avatar_url || responseData.data?.avatar || null;
+      
+      if (!avatarUrl) {
+        console.error('No avatar URL in response:', responseData);
+        alert('Upload berhasil tetapi URL tidak ditemukan. Silakan refresh halaman.');
+        
+        // Try to refresh profile
+        try {
+          const profileRes = await api.get('/auth/profile');
+          const profileData = unwrap(profileRes);
+          avatarUrl = profileData?.avatar || profileData?.avatar_url;
+        } catch (e) {
+          console.error('Failed to fetch updated profile:', e);
+        }
+        
+        if (!avatarUrl) {
+          setIsSaving(false);
+          return;
+        }
+      }
+
+      // Normalize URL to absolute format
+      const finalUrl = normalizeAvatarUrl(avatarUrl);
+      console.log('[DEBUG] Final avatar URL:', finalUrl);
+
+      // Update state with new avatar URL
+      setUserData(prev => ({ ...prev, avatar: finalUrl }));
+      setPreviewImage(finalUrl);
+      setTempData(prev => ({ ...prev, avatarFile: null, avatar: finalUrl }));
+      setImgAttempts(0);
+      
+      alert('Foto profil berhasil diperbarui!');
+      
+      // Refresh auth context
+      try { 
+        await refreshProfile(); 
+      } catch (e) { 
+        console.warn('Failed to refresh profile context:', e);
+      }
+      
     } catch (e) {
-      // Log detailed error information to help debugging (network / server response)
-      console.error('Failed to upload avatar', e, e?.response?.data || e?.message || null);
+      console.error('Failed to upload avatar:', e);
       const serverMsg = e?.response?.data?.message || e?.response?.data?.error || null;
       const alertMsg = serverMsg || e?.message || 'Gagal mengunggah avatar. Periksa koneksi dan coba lagi.';
       alert(alertMsg);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Handle edit toggle
+  const toggleEdit = (field) => {
+    if (isEditing[field]) {
+      handleSaveField(field, tempData[field]);
+    } else {
+      setTempData({ ...userData });
+    }
+    setIsEditing({ ...isEditing, [field]: !isEditing[field] });
+  };
+
+  // Save a single field to backend
+  const handleSaveField = async (field, value) => {
+    if (!userData) return;
+    setIsSaving(true);
+    
+    try {
+      // Build payload with backend column names
+      const payload = {};
+      if (field === 'username') payload.name = value;
+      else if (field === 'birthDate') payload.birth_date = value;
+      else if (field === 'phone') payload.phone = value;
+      else if (field === 'gender') payload.gender = value;
+      else if (field === 'email') payload.email = value;
+
+      console.log('[DEBUG] Saving field:', field, 'with payload:', payload);
+      const res = await api.put('/auth/profile', payload);
+      
+      // Check success flag
+      if (res?.data?.success === false) {
+        throw new Error(res.data.message || 'Update gagal');
+      }
+      
+      // Optimistic update
+      setUserData(prev => ({ ...prev, [field]: value }));
+      
+      // Refresh auth context
+      try { 
+        await refreshProfile(); 
+      } catch (e) { 
+        console.warn('Failed to refresh context:', e); 
+      }
+      
+    } catch (e) {
+      console.error('Failed to save profile field:', e);
+      const msg = e?.response?.data?.message || e?.message || 'Gagal menyimpan perubahan.';
+      alert(msg);
     } finally {
       setIsSaving(false);
     }
@@ -177,13 +284,7 @@ export default function ProfilePage() {
     setTempData({ ...tempData, [field]: value });
   };
 
-  // Handle save password (mock)
-  const handleSavePassword = () => {
-    // In real app, validate and send to backend
-    alert('Kata sandi berhasil diubah!');
-  };
-
-  // show loading state until userData is fetched
+  // Show loading state
   if (userData === null) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -194,7 +295,7 @@ export default function ProfilePage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-green-50 pt-0 md:pt-0 py-8 px-4 sm:px-6 lg:px-8">
-      {/* Header with gradient */}
+      {/* Header */}
       <div className="max-w-6xl mx-auto mb-8">
         <div className="bg-gradient-to-r from-green-500 to-green-600 rounded-2xl p-8 text-white shadow-xl">
           <h1 className="text-3xl md:text-4xl font-bold mb-2">Profil Saya</h1>
@@ -206,7 +307,6 @@ export default function ProfilePage() {
         {/* Left Side - Profile Picture Card */}
         <div className="lg:col-span-1">
           <div className="bg-white rounded-2xl shadow-lg p-6 sticky top-6">
-            {/* Profile Picture */}
             <div className="flex flex-col items-center">
               <div className="relative group mb-4">
                 <div className="w-48 h-48 rounded-full overflow-hidden ring-4 ring-green-500 ring-offset-4 shadow-xl">
@@ -214,10 +314,10 @@ export default function ProfilePage() {
                     src={previewImage}
                     alt="Profile"
                     className="w-full h-full object-cover"
+                    onError={handleImageError}
                   />
                 </div>
                 
-                {/* Camera overlay */}
                 <button
                   onClick={() => fileInputRef.current?.click()}
                   className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300"
@@ -225,7 +325,6 @@ export default function ProfilePage() {
                   <Camera className="w-8 h-8 text-white" />
                 </button>
 
-                {/* Edit badge */}
                 <div className="absolute bottom-2 right-2 bg-green-600 rounded-full p-3 shadow-lg group-hover:scale-110 transition-transform duration-300">
                   <Camera className="w-5 h-5 text-white" />
                 </div>
@@ -240,11 +339,10 @@ export default function ProfilePage() {
               />
 
               <h2 className="text-2xl font-bold text-gray-800 mb-1">
-                {userData.username}
+                {userData.username || 'User'}
               </h2>
               <p className="text-gray-500 text-sm mb-4">Member RasoSehat</p>
 
-              {/* File info */}
               <div className="w-full bg-green-50 rounded-xl p-4 border border-green-200">
                 <p className="text-sm font-medium text-gray-700 mb-2">
                   Ekstensi file yang diperbolehkan:
@@ -265,11 +363,12 @@ export default function ProfilePage() {
                 </p>
               </div>
 
-              {/* Save Avatar Button */}
               <button
                 onClick={handleSaveAvatar}
-                disabled={isSaving}
-                className={`mt-6 w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-semibold py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center gap-2 group ${isSaving ? 'opacity-60 cursor-not-allowed' : ''}`}
+                disabled={isSaving || !tempData.avatarFile}
+                className={`mt-6 w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-semibold py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center gap-2 ${
+                  (isSaving || !tempData.avatarFile) ? 'opacity-60 cursor-not-allowed' : ''
+                }`}
               >
                 <Save className="w-5 h-5" />
                 {isSaving ? 'Menyimpan...' : 'Simpan Foto Profil'}
@@ -309,17 +408,13 @@ export default function ProfilePage() {
                       } focus:outline-none`}
                       placeholder="Masukkan username"
                     />
-                    {!isEditing.username && userData.username && (
-                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-green-600 font-semibold">
-                        Ubah
-                      </span>
-                    )}
                   </div>
                   {isEditing.username ? (
                     <div className="flex gap-2">
                       <button
                         onClick={() => toggleEdit('username')}
-                        className="p-3 bg-green-600 hover:bg-green-700 text-white rounded-xl transition-colors duration-300 shadow-md hover:shadow-lg"
+                        disabled={isSaving}
+                        className="p-3 bg-green-600 hover:bg-green-700 text-white rounded-xl transition-colors duration-300 shadow-md hover:shadow-lg disabled:opacity-50"
                       >
                         <Save className="w-5 h-5" />
                       </button>
@@ -360,17 +455,13 @@ export default function ProfilePage() {
                           : 'border-gray-200 bg-gray-50 cursor-not-allowed'
                       } focus:outline-none`}
                     />
-                    {!isEditing.birthDate && !userData.birthDate && (
-                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-green-600 font-semibold">
-                        Tambah Tanggal Lahir
-                      </span>
-                    )}
                   </div>
                   {isEditing.birthDate ? (
                     <div className="flex gap-2">
                       <button
                         onClick={() => toggleEdit('birthDate')}
-                        className="p-3 bg-green-600 hover:bg-green-700 text-white rounded-xl transition-colors duration-300 shadow-md hover:shadow-lg"
+                        disabled={isSaving}
+                        className="p-3 bg-green-600 hover:bg-green-700 text-white rounded-xl transition-colors duration-300 shadow-md hover:shadow-lg disabled:opacity-50"
                       >
                         <Save className="w-5 h-5" />
                       </button>
@@ -414,22 +505,17 @@ export default function ProfilePage() {
                       <option value="Perempuan">Perempuan</option>
                     </select>
                     <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
-                      {!isEditing.gender && !userData.gender ? (
-                        <span className="text-green-600 font-semibold">
-                          Tambah Jenis Kelamin
-                        </span>
-                      ) : (
-                        <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                        </svg>
-                      )}
+                      <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
                     </div>
                   </div>
                   {isEditing.gender ? (
                     <div className="flex gap-2">
                       <button
                         onClick={() => toggleEdit('gender')}
-                        className="p-3 bg-green-600 hover:bg-green-700 text-white rounded-xl transition-colors duration-300 shadow-md hover:shadow-lg"
+                        disabled={isSaving}
+                        className="p-3 bg-green-600 hover:bg-green-700 text-white rounded-xl transition-colors duration-300 shadow-md hover:shadow-lg disabled:opacity-50"
                       >
                         <Save className="w-5 h-5" />
                       </button>
@@ -483,17 +569,13 @@ export default function ProfilePage() {
                       } focus:outline-none`}
                       placeholder="contoh@email.com"
                     />
-                    {!isEditing.email && !userData.email && (
-                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-green-600 font-semibold">
-                        Tambah Email
-                      </span>
-                    )}
                   </div>
                   {isEditing.email ? (
                     <div className="flex gap-2">
                       <button
                         onClick={() => toggleEdit('email')}
-                        className="p-3 bg-green-600 hover:bg-green-700 text-white rounded-xl transition-colors duration-300 shadow-md hover:shadow-lg"
+                        disabled={isSaving}
+                        className="p-3 bg-green-600 hover:bg-green-700 text-white rounded-xl transition-colors duration-300 shadow-md hover:shadow-lg disabled:opacity-50"
                       >
                         <Save className="w-5 h-5" />
                       </button>
@@ -535,17 +617,13 @@ export default function ProfilePage() {
                       } focus:outline-none`}
                       placeholder="08xxxxxxxxxx"
                     />
-                    {!isEditing.phone && !userData.phone && (
-                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-green-600 font-semibold">
-                        Tambah Nomor HP
-                      </span>
-                    )}
                   </div>
                   {isEditing.phone ? (
                     <div className="flex gap-2">
                       <button
                         onClick={() => toggleEdit('phone')}
-                        className="p-3 bg-green-600 hover:bg-green-700 text-white rounded-xl transition-colors duration-300 shadow-md hover:shadow-lg"
+                        disabled={isSaving}
+                        className="p-3 bg-green-600 hover:bg-green-700 text-white rounded-xl transition-colors duration-300 shadow-md hover:shadow-lg disabled:opacity-50"
                       >
                         <Save className="w-5 h-5" />
                       </button>
