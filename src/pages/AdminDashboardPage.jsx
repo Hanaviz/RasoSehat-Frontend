@@ -818,6 +818,22 @@ export default function AdminDashboardPage() {
     navigate("/signin");
   };
 
+  const handleViewDetails = async (id) => {
+    try {
+      const res = await api.get(`/admin/restaurant/${id}`);
+      const r = unwrap(res) || res?.data || {};
+      setSelectedItem({ type: "merchant", ...r });
+    } catch (e) {
+      console.warn("Could not fetch restaurant detail, using fallback", e);
+      const fallback = activeRestaurants.find((a) => Number(a.id) === Number(id));
+      if (fallback) {
+        setSelectedItem({ type: "merchant", ...fallback, id: fallback.id });
+        return;
+      }
+      alert("Gagal memuat detail restoran.");
+    }
+  };
+
   // Tampilan Tabel Merchant
   // Card list for pending merchants (horizontal)
   const renderMerchantTable = () => (
@@ -1158,12 +1174,12 @@ const renderActiveRestaurantsTable = () => (
                   : "-"}
               </div>
                {/* Placeholder untuk aksi, misalnya tombol "Lihat Detail" */}
-               <button
-                  className="w-full sm:w-auto px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition duration-150"
-                  // onClick={() => handleViewDetails(r.id)} 
-               >
-                  Lihat Detail 👁️
-               </button>
+              <button
+                className="w-full sm:w-auto px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition duration-150"
+                onClick={() => handleViewDetails(r.id)}
+              >
+                Lihat Detail 👁️
+              </button>
             </div>
           </div>
         );
