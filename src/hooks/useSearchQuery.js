@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { searchQuery } from '../utils/api/search';
+import api from '../utils/api';
 
 const cache = new Map();
 
@@ -39,9 +39,10 @@ export default function useSearchQuery(q, options = {}) {
       if (abortRef.current) abortRef.current.abort();
       abortRef.current = new AbortController();
       try {
-        const resp = await searchQuery(term, abortRef.current.signal);
-        setData(resp);
-        cache.set(term, { value: resp, expires: Date.now() + (options.ttl || 30000) });
+        const resp = await api.get('/search', { params: { q: term }, signal: abortRef.current.signal });
+        const payload = resp?.data?.data || resp?.data || null;
+        setData(payload);
+        cache.set(term, { value: payload, expires: Date.now() + (options.ttl || 30000) });
       } catch (err) {
         if (err.name === 'AbortError') return;
         setError(err);

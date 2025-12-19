@@ -4,7 +4,6 @@ import debounce from 'lodash/debounce';
 import { useAuth } from '../context/AuthContext';
 import { makeImageUrl, unwrap } from '../utils/api';
 import api from '../utils/api';
-import { normalizeResultList } from '../utils/searchNormalizer';
 
 export default function NavbarAuth() {
   const navigate = useNavigate();
@@ -156,11 +155,13 @@ export default function NavbarAuth() {
 
     setIsLoading(true);
     try {
-      const resp = await api.get('/search', { params: { q, type: 'all' } });
+      const resp = await api.get('/search', { params: { q, type: 'menu', limit: 6 } });
       const payload = resp?.data?.data || resp?.data || null;
-      const unified = (payload && Array.isArray(payload.results)) ? normalizeResultList(payload.results) : [];
-      cacheRef.current[q] = unified;
-      setSearchResults(unified);
+      const results = Array.isArray(payload?.results) ? payload.results : [];
+      // prefer menus first; keep both menu and restaurant suggestions if present
+      const filtered = results.filter(item => item.type === 'menu' || item.type === 'restaurant');
+      cacheRef.current[q] = filtered;
+      setSearchResults(filtered);
     } catch (error) {
       console.error('Search error:', error?.response?.data || error.message || error);
       setSearchResults([]);

@@ -56,8 +56,8 @@ export default function CategoryPage() {
       setError(null);
       try {
         const displayName = categoryMeta.name;
-        const key = claimKeyMap[displayName];
-        if (!key) throw new Error('Kategori tidak didukung oleh mapping klaim.');
+        // Prefer sending the human-readable display name so backend can match diet_claims_list.nama
+        const key = displayName;
         const resp = await api.get(`/menus/by-category/${encodeURIComponent(key)}`);
         const payload = unwrap(resp) || [];
         if (cancelled) return;
