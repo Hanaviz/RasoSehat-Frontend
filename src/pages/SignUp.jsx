@@ -106,7 +106,7 @@ export default function SignUpPage() { // <-- NAMA COMPONENT DIPERBAIKI (TADI MA
   };
 
   return (
-    <motion.div className="min-h-screen flex" initial="initial" animate="in" exit="out" variants={pageVariants} transition={{ duration: 0.36 }}>
+    <motion.div className="min-h-screen-safe flex" initial="initial" animate="in" exit="out" variants={pageVariants} transition={{ duration: 0.36 }}>
       <style>{`
         .fade-in-up { animation: fadeUp .5s cubic-bezier(.2,.9,.2,1) both; }
         @keyframes fadeUp { from { opacity: 0; transform: translateY(12px);} to { opacity: 1; transform: translateY(0);} }
@@ -252,11 +252,15 @@ export default function SignUpPage() { // <-- NAMA COMPONENT DIPERBAIKI (TADI MA
                   </label>
                   <input
                     id="nomorHP"
-                    type="email" // Changed type to email for better validation
+                    type="email"
                     value={formData.nomorHP}
                     onChange={(e) => handleChange('nomorHP', e.target.value)}
                     placeholder="Masukkan email aktif"
-                    className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all outline-none"
+                    className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all outline-none input-no-autofill"
+                    spellCheck={false}
+                    autoCorrect="off"
+                    autoCapitalize="off"
+                    autoComplete="email"
                   />
                   {errors.nomorHP && (
                     <p className="text-xs text-red-600 mt-2">{errors.nomorHP}</p>
@@ -274,7 +278,11 @@ export default function SignUpPage() { // <-- NAMA COMPONENT DIPERBAIKI (TADI MA
                       type={showPassword ? "text" : "password"}
                       value={formData.kataSandi}
                       onChange={(e) => handleChange('kataSandi', e.target.value)}
-                      className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all outline-none pr-12"
+                      className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all outline-none pr-12 input-no-autofill"
+                      spellCheck={false}
+                      autoCorrect="off"
+                      autoCapitalize="off"
+                      autoComplete="new-password"
                     />
                     <button
                       type="button"

@@ -31,7 +31,7 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-gray-50 pt-24 md:pt-28 py-8 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen-safe bg-gradient-to-br from-green-50 via-white to-gray-50 pt-24 md:pt-28 py-8 px-4 sm:px-6 lg:px-8">
       {/* Header Utama (Konsisten dengan ProfilePage) */}
       <motion.div 
         initial={{ opacity: 0, y: -20 }}

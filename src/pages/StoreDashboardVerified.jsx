@@ -148,7 +148,7 @@ export default function StoreDashboardVerified({ store = null, menus: menusProp 
     );
 
     return (
-        <div className="min-h-screen bg-gray-50 pt-12 md:pt-16 pb-12 px-4 sm:px-6 lg:px-8"> 
+        <div className="min-h-screen-safe bg-gray-50 pt-12 md:pt-16 pb-12 px-4 sm:px-6 lg:px-8"> 
             <div className="max-w-7xl mx-auto">
                 {/* Header Dashboard & Status */}
                 <motion.div 

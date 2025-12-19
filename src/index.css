@@ -1,2 +1,53 @@
 @import "tailwindcss";
 @plugin "daisyui";
+
+/* ---------- Global UI / Mobile Safety fixes ---------- */
+:root{ --rs-font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol"; }
+
+html,body,#root{ height:100%; }
+
+html, body {
+	font-family: var(--rs-font-family);
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+	text-rendering: optimizeLegibility;
+}
+
+/* Safe viewport utilities: prefer svh when supported, fallback to vh */
+.min-h-screen-safe { min-height: 100svh; min-height: 100dvh; min-height: 100vh; }
+.h-screen-safe { height: 100svh; height: 100dvh; height: 100vh; }
+
+/* Additional explicit utilities under Tailwind's utilities layer */
+@layer utilities {
+	.min-h-screen-safe { min-height: 100svh; min-height: 100dvh; min-height: 100vh; }
+	.h-screen-safe { height: 100svh; height: 100dvh; height: 100vh; }
+	.screen-safe { height: 100svh; height: 100dvh; height: 100vh; }
+	.input-no-autofill { -webkit-text-fill-color: inherit !important; box-shadow: 0 0 0px 1000px #fff inset !important; transition: background-color 5000s ease-in-out 0s !important; }
+}
+
+/* Neutralize browser/mobile autofill styling (webkits and others) */
+input:-webkit-autofill,
+textarea:-webkit-autofill,
+select:-webkit-autofill {
+	-webkit-text-fill-color: inherit !important;
+	box-shadow: 0 0 0px 1000px #fff inset !important;
+	transition: background-color 5000s ease-in-out 0s !important;
+}
+
+/* Ensure form controls inherit app font & smoothing */
+input, textarea, select, button {
+	font-family: inherit;
+	-webkit-font-smoothing: inherit;
+	-moz-osx-font-smoothing: inherit;
+}
+
+/* helper class to mark inputs where we intentionally neutralize autofill */
+.input-no-autofill { caret-color: auto; }
+
+/* Prevent horizontal overflow by default (defensive) */
+body { overflow-x: hidden; }
+
+/* Small improvements for font rendering on mobile */
+* { -webkit-font-smoothing: antialiased; }
+
+/* End global mobile/UI fixes */

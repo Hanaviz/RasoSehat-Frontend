@@ -38,7 +38,7 @@ export default function CategoryPage() {
   const categoryMeta = allCategories.find((c) => c.slug === categorySlug);
   if (!categoryMeta) {
     return (
-      <div className="min-h-screen pt-28 text-center p-8">
+      <div className="min-h-screen-safe pt-28 text-center p-8">
         <h1 className="text-3xl font-bold text-red-600">404: Kategori Tidak Ditemukan</h1>
         <p className="text-gray-600 mt-4">Kategori {categorySlug} belum tersedia. Kembali ke <Link to="/" className="text-green-600 hover:underline">Beranda</Link>.</p>
       </div>
@@ -95,7 +95,7 @@ export default function CategoryPage() {
   }, [categorySlug]);
 
   return (
-    <div className="min-h-screen bg-gray-50 pt-24 md:pt-28 pb-12">
+    <div className="min-h-screen-safe bg-gray-50 pt-24 md:pt-28 pb-12">
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
         
         {/* Header Kategori */}

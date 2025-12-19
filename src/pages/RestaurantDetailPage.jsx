@@ -191,7 +191,7 @@ export default function RestaurantDetailPage() {
 
     if (loading) {
         return (
-            <div className="min-h-screen flex items-center justify-center">
+            <div className="min-h-screen-safe flex items-center justify-center">
                 <div className="text-center p-8">
                     <div className="w-16 h-16 border-4 border-green-600 border-t-transparent rounded-full mx-auto mb-4 animate-spin" />
                     <p className="text-gray-700">Memuat data restoran...</p>
@@ -204,7 +204,7 @@ export default function RestaurantDetailPage() {
         const shownSlug = slug || 'tidak tersedia';
         const is404 = error === 'Toko tidak ditemukan.';
         return (
-            <div className="min-h-screen pt-28 text-center p-8">
+            <div className="min-h-screen-safe pt-28 text-center p-8">
                 {is404 ? (
                     <>
                         <h1 className="text-3xl font-bold text-red-600">404: Toko Tidak Ditemukan</h1>
@@ -262,7 +262,7 @@ export default function RestaurantDetailPage() {
     };
 
     return (
-        <div className="min-h-screen bg-gray-50 pt-24 md:pt-28 pb-12">
+        <div className="min-h-screen-safe bg-gray-50 pt-24 md:pt-28 pb-12">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 
                 {/* HERO SECTION: Informasi Utama Restoran (Responsive) */}

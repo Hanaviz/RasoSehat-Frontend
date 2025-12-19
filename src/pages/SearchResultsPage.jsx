@@ -117,7 +117,7 @@ export default function SearchResultsPage() {
   const endIndex = Math.min(page * limit, total);
 
   return (
-    <div className="min-h-screen bg-gray-50 pt-24 pb-12">
+    <div className="min-h-screen-safe bg-gray-50 pt-24 pb-12">
       <div className="max-w-7xl mx-auto px-4">
         {/* HEADER */}
         <div className="mb-8 bg-white p-6 rounded-xl shadow-md border-l-4 border-green-500">

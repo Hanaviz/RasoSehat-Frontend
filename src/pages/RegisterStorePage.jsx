@@ -12,7 +12,7 @@ import { useAuth } from '../context/AuthContext';
 
 // ✅ MEMOIZED INPUT COMPONENT - Prevents re-creation on each render
 const InputField = memo(({ 
-  id, label, value, onChange, error, placeholder, type = 'text', helperText 
+  id, label, value, onChange, error, placeholder, type = 'text', helperText, inputProps = {} 
 }) => (
   <div>
     <label htmlFor={id} className="block text-sm font-bold text-gray-700 mb-1">
@@ -28,8 +28,12 @@ const InputField = memo(({
       onChange={onChange}
       className={`w-full px-4 py-2 border rounded-lg focus:ring-green-500 focus:border-green-500 ${
         error ? 'border-red-500' : 'border-gray-300'
-      }`}
+      } input-no-autofill`}
       placeholder={placeholder}
+      spellCheck={false}
+      autoCorrect="off"
+      autoCapitalize="off"
+      {...inputProps}
     />
     {error && <p className="text-xs text-red-600 mt-1">{error}</p>}
   </div>
@@ -963,7 +967,7 @@ const RegisterStorePage = () => {
   );
 
   return (
-    <div className="min-h-screen bg-gray-50 pt-15 md:pt-15 pb-25">
+    <div className="min-h-screen-safe bg-gray-50 pt-15 md:pt-15 pb-25">
       <AnimatePresence mode="wait">
         {step === 1 && <div key="step-1">{renderStep1()}</div>}
         {step === 2 && <div key="step-2">{renderStep2()}</div>}

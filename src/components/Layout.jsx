@@ -36,7 +36,7 @@ export default function Layout() {
 
   return (
     // Flex container untuk memastikan footer selalu berada di bawah (sticky footer pattern)
-    <div className="flex flex-col min-h-screen">
+    <div className="flex flex-col min-h-screen-safe">
       
       {/* Navbar di atas - HANYA RENDER JIKA shouldRenderNavbar ADALAH TRUE */}
       {shouldRenderNavbar && <CurrentNavbar onLogout={handleLogout} />} 
