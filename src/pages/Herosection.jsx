@@ -355,33 +355,103 @@ export default function HeroSection() {
 
     setReverseLoading(true);
 
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        const lat = position.coords.latitude;
-        const lng = position.coords.longitude;
-
-        try {
-          const fullAddress = await reverseGeocode(lat, lng);
-
-          if (fullAddress) {
-            setLocation(fullAddress); // alamat lengkap
-          } else {
-            setLocation(`${lat.toFixed(6)}, ${lng.toFixed(6)}`);
+    // Prefer permission check to give earlier feedback when denied
+    (async () => {
+      try {
+        if (navigator.permissions && navigator.permissions.query) {
+          try {
+            const p = await navigator.permissions.query({ name: 'geolocation' });
+            if (p && p.state === 'denied') {
+              console.warn('Geolocation permission denied');
+              setReverseLoading(false);
+              setLocation('Lokasi Saya');
+              return;
+            }
+          } catch (e) {
+            // ignore permission query errors
           }
-        } catch (e) {
-          console.warn("Reverse geocode failed", e);
-          setLocation(`${lat.toFixed(6)}, ${lng.toFixed(6)}`);
-        } finally {
-          setReverseLoading(false);
         }
-      },
-      (error) => {
-        console.warn("Geolocation error:", error);
+
+        // Use watchPosition to gather several samples and pick the most accurate one
+        let best = null;
+        let samples = 0;
+        const maxSamples = 6; // sample up to this many readings
+        const maxWait = 9000; // maximum wait time (ms)
+
+        const opts = { enableHighAccuracy: true, maximumAge: 0, timeout: 5000 };
+
+        const watchId = navigator.geolocation.watchPosition(
+          (pos) => {
+            samples += 1;
+            try {
+              const acc = typeof pos.coords.accuracy === 'number' ? pos.coords.accuracy : 1e6;
+              if (!best || acc < (best.coords.accuracy || 1e6)) {
+                best = pos;
+              }
+            } catch (e) {
+              if (!best) best = pos;
+            }
+
+            // If accuracy is already good (< 25m) or we've sampled enough, stop
+            if ((best && best.coords && best.coords.accuracy && best.coords.accuracy <= 25) || samples >= maxSamples) {
+              navigator.geolocation.clearWatch(watchId);
+              finalize(best);
+            }
+          },
+          (err) => {
+            console.warn('watchPosition error', err);
+            try { navigator.geolocation.clearWatch(watchId); } catch (e) {}
+            setReverseLoading(false);
+            setLocation('Lokasi Saya');
+          },
+          opts
+        );
+
+        // Safety timeout: stop watching after maxWait
+        const safety = setTimeout(() => {
+          try { navigator.geolocation.clearWatch(watchId); } catch (e) {}
+          finalize(best);
+        }, maxWait);
+
+        async function finalize(chosen) {
+          clearTimeout(safety);
+          if (!chosen || !chosen.coords) {
+            // As fallback, try a single quick getCurrentPosition
+            try {
+              const single = await new Promise((resolve, reject) => {
+                navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 5000 });
+              });
+              chosen = single;
+            } catch (e) {
+              console.warn('fallback getCurrentPosition failed', e);
+            }
+          }
+
+          if (!chosen || !chosen.coords) {
+            setReverseLoading(false);
+            setLocation('Lokasi Saya');
+            return;
+          }
+
+          const lat = chosen.coords.latitude;
+          const lng = chosen.coords.longitude;
+          try {
+            const fullAddress = await reverseGeocode(lat, lng);
+            if (fullAddress) setLocation(fullAddress);
+            else setLocation(`${lat.toFixed(6)}, ${lng.toFixed(6)}`);
+          } catch (e) {
+            console.warn('Reverse geocode failed', e);
+            setLocation(`${lat.toFixed(6)}, ${lng.toFixed(6)}`);
+          } finally {
+            setReverseLoading(false);
+          }
+        }
+      } catch (e) {
+        console.warn('handleGetCurrentLocation error', e);
         setReverseLoading(false);
-        setLocation("Lokasi Saya");
-      },
-      { enableHighAccuracy: true, timeout: 10000 }
-    );
+        setLocation('Lokasi Saya');
+      }
+    })();
   };
 
   // Reverse geocode using Nominatim (OpenStreetMap)

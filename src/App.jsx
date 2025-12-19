@@ -6,7 +6,7 @@ import {
   Navigate,
 } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
-import ScrollToTop from './components/ScrollToTop';
+import { useEffect } from "react";
 
 import Layout from "./components/Layout";
 import SignInPage from "./pages/Signin";
@@ -37,7 +37,10 @@ function ProtectedRoute({ children }) {
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        Memuat...
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-green-500 border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-gray-600">Memuat...</p>
+        </div>
       </div>
     );
   }
@@ -49,66 +52,154 @@ function ProtectedRoute({ children }) {
   return children;
 }
 
+/* ---------------------- SCROLL TO TOP HOOK ---------------------- */
+function useScrollToTop() {
+  const { pathname, search } = useLocation();
+
+  useEffect(() => {
+    // Scroll ke atas saat route berubah
+    // Delay kecil untuk sinkronisasi dengan animasi
+    const timeoutId = setTimeout(() => {
+      window.scrollTo({
+        top: 0,
+        left: 0,
+        behavior: 'instant',
+      });
+    }, 50);
+
+    return () => clearTimeout(timeoutId);
+  }, [pathname, search]);
+}
+
 /* ---------------------- ANIMATED ROUTER WRAPPER ---------------------- */
 function AppContent() {
   const location = useLocation();
+  
+  // Gunakan hook scroll to top
+  useScrollToTop();
 
   return (
-    <>
-      {/* WAJIB di luar AnimatePresence */}
-      <ScrollToTop />
+    <AnimatePresence mode="wait">
+      <motion.div
+        key={location.pathname + location.search}
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -20 }}
+        transition={{ 
+          duration: 0.3, 
+          ease: [0.22, 1, 0.36, 1] // easeOutExpo untuk transisi smooth
+        }}
+      >
+        <Routes location={location}>
+          {/* ---------- AUTH ---------- */}
+          <Route path="/signin" element={<SignInPage />} />
+          <Route path="/signup" element={<SignUpPage />} />
 
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={location.pathname + location.search}
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -8 }}
-          transition={{ duration: 0.32, ease: "easeOut" }}
-        >
-          <Routes location={location}>
-            {/* ---------- AUTH ---------- */}
-            <Route path="/signin" element={<SignInPage />} />
-            <Route path="/signup" element={<SignUpPage />} />
+          {/* ---------- STORE ---------- */}
+          <Route 
+            path="/my-store" 
+            element={
+              <ProtectedRoute>
+                <MyStorePage />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/my-store/edit" 
+            element={
+              <ProtectedRoute>
+                <EditRestaurantProfile />
+              </ProtectedRoute>
+            } 
+          />
+          <Route path="/register-store" element={<RegisterStorePage />} />
+          <Route 
+            path="/store-verification-pending" 
+            element={<StoreVerificationPending />} 
+          />
+          <Route path="/add-menu" element={<AddMenuPage />} />
+          <Route 
+            path="/edit-menu/:id" 
+            element={
+              <ProtectedRoute>
+                <EditMenuPage />
+              </ProtectedRoute>
+            } 
+          />
 
-            {/* ---------- STORE ---------- */}
-            <Route path="/my-store" element={<ProtectedRoute><MyStorePage /></ProtectedRoute>} />
-            <Route path="/my-store/edit" element={<ProtectedRoute><EditRestaurantProfile /></ProtectedRoute>} />
-            <Route path="/register-store" element={<RegisterStorePage />} />
-            <Route path="/store-verification-pending" element={<StoreVerificationPending />} />
-            <Route path="/add-menu" element={<AddMenuPage />} />
-            <Route path="/edit-menu/:id" element={<ProtectedRoute><EditMenuPage /></ProtectedRoute>} />
-
-            {/* ---------- MAIN LAYOUT ---------- */}
-            <Route path="/" element={<Layout />}>
-              <Route index element={<Navigate to="/signin" replace />} />
-              <Route path="home" element={<ProtectedRoute><HeroSectionPage /></ProtectedRoute>} />
-              <Route path="search" element={<SearchResultsPage />} />
-              <Route path="category/:categorySlug" element={<CategoryPage />} />
-              <Route path="menu/:slug" element={<MenuDetailPage />} />
-              <Route path="restaurant/:slug" element={<RestaurantDetailPage />} />
-            </Route>
-
-            {/* ---------- USER ---------- */}
-            <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
-            <Route path="/notifications" element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
-            <Route path="/notifications/:id" element={<ProtectedRoute><NotificationDetail /></ProtectedRoute>} />
-            <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
-
-            {/* ---------- ADMIN ---------- */}
-            <Route path="/admin" element={<Navigate to="/admin-dashboard" replace />} />
-            <Route
-              path="/admin-dashboard"
+          {/* ---------- MAIN LAYOUT ---------- */}
+          <Route path="/" element={<Layout />}>
+            <Route index element={<Navigate to="/signin" replace />} />
+            <Route 
+              path="home" 
               element={
                 <ProtectedRoute>
-                  <AdminDashboardPage />
+                  <HeroSectionPage />
                 </ProtectedRoute>
-              }
+              } 
             />
-          </Routes>
-        </motion.div>
-      </AnimatePresence>
-    </>
+            <Route path="search" element={<SearchResultsPage />} />
+            <Route 
+              path="category/:categorySlug" 
+              element={<CategoryPage />} 
+            />
+            <Route path="menu/:slug" element={<MenuDetailPage />} />
+            <Route 
+              path="restaurant/:slug" 
+              element={<RestaurantDetailPage />} 
+            />
+          </Route>
+
+          {/* ---------- USER ---------- */}
+          <Route 
+            path="/profile" 
+            element={
+              <ProtectedRoute>
+                <ProfilePage />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/notifications" 
+            element={
+              <ProtectedRoute>
+                <NotificationsPage />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/notifications/:id" 
+            element={
+              <ProtectedRoute>
+                <NotificationDetail />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/settings" 
+            element={
+              <ProtectedRoute>
+                <SettingsPage />
+              </ProtectedRoute>
+            } 
+          />
+
+          {/* ---------- ADMIN ---------- */}
+          <Route 
+            path="/admin" 
+            element={<Navigate to="/admin-dashboard" replace />} 
+          />
+          <Route
+            path="/admin-dashboard"
+            element={
+              <ProtectedRoute>
+                <AdminDashboardPage />
+              </ProtectedRoute>
+            }
+          />
+        </Routes>
+      </motion.div>
+    </AnimatePresence>
   );
 }
 
