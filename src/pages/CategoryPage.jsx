@@ -153,7 +153,19 @@ export default function CategoryPage() {
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {menus.map((m) => (
-                            <HeroMenuCard key={m.id} menu={m} />
+                          <HeroMenuCard
+                            key={m.id}
+                            menu={{
+                              ...m,
+                              whatsappNumber:
+                                m.whatsappNumber ||
+                                m.no_telepon ||
+                                m.whatsapp ||
+                                m.phone ||
+                                (m.restaurant && (m.restaurant.no_telepon || m.restaurant.phone || m.restaurant.whatsapp)) ||
+                                null,
+                            }}
+                          />
                         ))}
                     </div>
                 )}

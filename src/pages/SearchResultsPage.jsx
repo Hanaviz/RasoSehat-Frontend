@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { Filter, Search, Star, ChevronLeft, ChevronRight } from "lucide-react";
-import api from "../utils/api";
+import api, { makeImageUrl } from "../utils/api";
 import MenuCard from "../components/MenuCard";
 
 const categories = [
@@ -17,6 +17,7 @@ export default function SearchResultsPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const query = searchParams.get("q") || "";
+  const typeParam = (searchParams.get("type") || "all").toLowerCase();
 
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -26,13 +27,14 @@ export default function SearchResultsPage() {
 
   const [activeFilter, setActiveFilter] = useState("Semua Kategori");
   const [minRating, setMinRating] = useState(0);
+  const [visitingId, setVisitingId] = useState(null);
 
   const limit = 24;
 
-  // Reset page when query changes
+  // Reset page when query or type changes
   useEffect(() => {
     setPage(1);
-  }, [query]);
+  }, [query, typeParam]);
 
   // Fetch search results from backend
   useEffect(() => {
@@ -51,7 +53,7 @@ export default function SearchResultsPage() {
       try {
         controllerRef.current.abort();
       } catch (e) {
-        console.log('Abort error:', e);
+        // Ignore abort errors
       }
     }
 
@@ -61,21 +63,57 @@ export default function SearchResultsPage() {
     // Debounced fetch
     const timer = setTimeout(async () => {
       try {
-        console.log(`[SearchResults] Fetching: q="${keyword}", page=${page}, limit=${limit}`);
-        
         const res = await api.get("/search", {
-          params: { q: keyword, page, limit },
+          params: { q: keyword, page, limit, type: typeParam },
           signal: controller.signal,
         });
 
-        const payload = res?.data?.data || res?.data || null;
-        const menus = Array.isArray(payload?.results) ? payload.results : [];
-        const totalCount = typeof payload?.total === "number" ? payload.total : menus.length;
+        const payload = res?.data?.data || res?.data || {};
+        const items = Array.isArray(payload.results) ? payload.results : [];
+        const totalCount = typeof payload.total === "number" ? payload.total : items.length;
 
-        console.log(`[SearchResults] Received ${menus.length} results (total: ${totalCount})`);
-
-        setResults(menus);
+        setResults(items);
         setTotal(totalCount);
+
+        // Prefetch missing slugs for restaurant items so UI shows DB slugs
+        let active = true;
+        (async () => {
+          try {
+            const missing = items.filter(
+              (it) => it.type === 'restaurant' && (!it.slug || String(it.slug) === 'null')
+            );
+            if (missing.length === 0) return;
+
+            const updates = {};
+            await Promise.all(
+              missing.map(async (it) => {
+                if (!it.id) return;
+                try {
+                  const rres = await api.get(`/restaurants/${it.id}`);
+                  const body = rres?.data?.data || rres?.data || {};
+                  const fetchedSlug = body?.slug || body?.restaurant?.slug || null;
+                  if (fetchedSlug && String(fetchedSlug) !== 'null') {
+                    updates[it.id] = {
+                      slug: String(fetchedSlug),
+                      foto: it.foto || body?.foto || body?.photo || it.foto,
+                      rating: it.rating || body?.rating || it.rating,
+                    };
+                  }
+                } catch (e) {
+                  console.warn('[SearchResults] prefetch slug failed for', it.id, e);
+                }
+              })
+            );
+
+            if (!active) return;
+            if (Object.keys(updates).length > 0) {
+              const merged = items.map((it) => (updates[it.id] ? { ...it, ...updates[it.id] } : it));
+              setResults(merged);
+            }
+          } catch (e) {
+            console.warn('[SearchResults] error prefetching slugs', e);
+          }
+        })();
       } catch (err) {
         // Ignore abort errors
         if (
@@ -92,7 +130,7 @@ export default function SearchResultsPage() {
       } finally {
         setLoading(false);
       }
-    }, 300);
+    }, 250);
 
     return () => {
       clearTimeout(timer);
@@ -100,14 +138,13 @@ export default function SearchResultsPage() {
         controller.abort();
       } catch (e) {}
     };
-  }, [query, page]);
+  }, [query, page, typeParam]);
 
   // Client-side filtering by rating
   const filteredResults = results.filter((item) => {
     if (minRating > 0 && (!item.rating || item.rating < minRating)) {
       return false;
     }
-    // Kategori filter bisa ditambahkan di sini jika backend menyediakan field kategori
     return true;
   });
 
@@ -115,6 +152,93 @@ export default function SearchResultsPage() {
   const totalPages = Math.max(1, Math.ceil(total / limit));
   const startIndex = (page - 1) * limit + 1;
   const endIndex = Math.min(page * limit, total);
+
+  // Renderer for restaurant items
+  const renderRestaurantItem = (r) => {
+    // Resolve image: prefer r.foto, fallback to foto_ktp or generated avatar
+    const rawImg = r.foto || r.foto_ktp || r.photo || null;
+    let imgSrc = '/restoran-placeholder.png';
+    try {
+      if (rawImg) {
+        if (typeof rawImg === 'string' && rawImg.startsWith('http')) imgSrc = rawImg;
+        else imgSrc = makeImageUrl(rawImg);
+      } else {
+        imgSrc = `https://ui-avatars.com/api/?name=${encodeURIComponent(r.name || '')}&background=16a34a&color=fff&rounded=true`;
+      }
+    } catch (e) {
+      imgSrc = `https://ui-avatars.com/api/?name=${encodeURIComponent(r.name || '')}&background=16a34a&color=fff&rounded=true`;
+    }
+
+    // compute safe slug: ignore literal 'null' or undefined
+    const slugCandidate = (r.slug && String(r.slug) !== 'null') ? String(r.slug) : null;
+    const safeVisit = async () => {
+      if (visitingId) return; // prevent re-entrancy
+      setVisitingId(r.id);
+      try {
+        if (slugCandidate) return navigate(`/restaurant/${slugCandidate}`);
+
+        // Fallback: try to fetch restaurant by id and obtain its slug
+        if (r.id) {
+          const res = await api.get(`/restaurants/${r.id}`);
+          const body = res?.data?.data || res?.data || {};
+          const fetchedSlug = body?.slug || body?.restaurant?.slug || null;
+          if (fetchedSlug && String(fetchedSlug) !== 'null') {
+            return navigate(`/restaurant/${encodeURIComponent(fetchedSlug)}`);
+          }
+        }
+      } catch (e) {
+        console.warn('[SearchResults] Failed to fetch restaurant by id fallback', e);
+      } finally {
+        setVisitingId(null);
+      }
+
+      // Final fallback: perform a restaurant-only search for the name
+      navigate(`/search?q=${encodeURIComponent(r.name || '')}&type=restaurant`);
+    };
+
+    return (
+      <div key={`resto-${r.id}`} className="bg-white p-4 rounded-xl shadow-sm hover:shadow-md transition-shadow">
+        <div className="flex items-start gap-4">
+          <button
+            type="button"
+            onClick={safeVisit}
+            disabled={visitingId === r.id}
+            aria-label={`Buka ${r.name || 'restoran'}`}
+            className="flex-shrink-0 rounded-full overflow-hidden w-20 h-20 ring-1 ring-gray-100"
+          >
+            <img src={imgSrc} alt={r.name || 'Restoran'} loading="lazy" className="w-full h-full object-cover" />
+          </button>
+
+          <div className="flex-1">
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0">
+                <button type="button" onClick={safeVisit} disabled={visitingId === r.id} className="text-left w-full">
+                  <h3 className="font-semibold text-gray-800 text-lg leading-tight hover:underline truncate">{r.name || '—'}</h3>
+                </button>
+                {r.slug && String(r.slug) !== 'null' && <div className="text-xs text-gray-400 mt-1 truncate">{r.slug}</div>}
+              </div>
+
+              <div className="flex flex-col items-end">
+                <div className="text-sm text-yellow-500 font-medium mb-2">{r.rating ? Number(r.rating).toFixed(1) : '0.0'} ⭐</div>
+                <button
+                  type="button"
+                  onClick={safeVisit}
+                  disabled={visitingId === r.id}
+                  className={`mt-2 px-3 py-2 text-sm bg-green-600 text-white rounded-md shadow-sm disabled:opacity-60`}
+                >
+                  {visitingId === r.id ? 'Memuat…' : 'Kunjungi Toko'}
+                </button>
+              </div>
+            </div>
+
+            {r.description && (
+              <p className="text-sm text-gray-500 mt-3 line-clamp-3">{r.description}</p>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="min-h-screen-safe bg-gray-50 pt-24 pb-12">
@@ -222,20 +346,24 @@ export default function SearchResultsPage() {
               <>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                   {filteredResults.map((item) => (
-                    <MenuCard
-                      key={item.id}
-                      menu={{
-                        id: item.id,
-                        name: item.name,
-                        description: item.description,
-                        price: item.price,
-                        image: item.foto || null,
-                        rating: item.rating,
-                        restaurantName: item.restaurant || "",
-                        restaurantSlug: item.restaurant_slug || "",
-                        slug: item.slug,
-                      }}
-                    />
+                    item.type === 'restaurant' ? (
+                      renderRestaurantItem(item)
+                    ) : (
+                      <MenuCard
+                        key={item.id}
+                        menu={{
+                          id: item.id,
+                          name: item.name,
+                          description: item.description,
+                          price: item.price,
+                          image: item.foto || null,
+                          rating: item.rating,
+                          restaurantName: item.restaurant || "",
+                          restaurantSlug: item.restaurant_slug || "",
+                          slug: item.slug,
+                        }}
+                      />
+                    )
                   ))}
                 </div>
 

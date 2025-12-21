@@ -155,7 +155,7 @@ export default function NavbarAuth() {
 
     setIsLoading(true);
     try {
-      const resp = await api.get('/search', { params: { q, type: 'menu', limit: 6 } });
+      const resp = await api.get('/search', { params: { q, type: 'all', limit: 6 } });
       const payload = resp?.data?.data || resp?.data || null;
       const results = Array.isArray(payload?.results) ? payload.results : [];
       // prefer menus first; keep both menu and restaurant suggestions if present

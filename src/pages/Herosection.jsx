@@ -791,7 +791,14 @@ export default function HeroSection() {
                   return (
                     <HeroMenuCard
                       key={`${section.key}-${item.id}`}
-                      menu={menu}
+                      menu={{
+                        ...menu,
+                        // Prefer restaurant's official phone (same as MyStorePage), then menu.whatsappNumber
+                        whatsappNumber:
+                          (item.restaurant && (item.restaurant.no_telepon || item.restaurant.phone || item.restaurant.whatsapp)) ||
+                          item.whatsappNumber ||
+                          null
+                      }}
                     />
                   );
                 })}

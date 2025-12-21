@@ -13,6 +13,22 @@ const formatRupiah = (number) => {
     }).format(number).replace('Rp', 'Rp ');
 };
 
+// Helper: normalize and extract WhatsApp digits from menu props.
+// Priority: menu.whatsappNumber -> menu.no_telepon -> menu.phone
+// Normalization: remove non-digits, convert leading 0 or 8 to country code 62.
+function getWhatsappDigitsFromMenu(menu) {
+    // Strict rule: only use menu.whatsappNumber (no fallbacks)
+    if (!menu || menu.whatsappNumber === undefined || menu.whatsappNumber === null) return null;
+    const raw = String(menu.whatsappNumber || '');
+    // strip everything except digits
+    let digits = raw.replace(/\D+/g, '');
+    if (!digits) return null;
+    // normalize leading 0 or 8 to country code 62
+    if (digits.startsWith('0')) digits = '62' + digits.slice(1);
+    else if (digits.startsWith('8')) digits = '62' + digits;
+    return digits;
+}
+
 const HeroMenuCard = ({ menu, onEdit, onDelete }) => {
     // Debug logging: show key fields when component receives props
     useEffect(() => {
@@ -35,6 +51,8 @@ const HeroMenuCard = ({ menu, onEdit, onDelete }) => {
     const navigate = useNavigate();
     const [isLiked, setIsLiked] = useState(false);
     const [imageLoaded, setImageLoaded] = useState(false);
+    // Do NOT rely on restaurant-level fields; only menu.whatsappNumber is used per spec
+    const waDigits = getWhatsappDigitsFromMenu(menu);
     
     // Data ini berasal dari mock data di Herosection.jsx
         const isVerified = Boolean(menu.isVerified) || (typeof menu.id === 'string' ? (menu.id.charCodeAt(0) % 2 === 0) : (Number(menu.id) % 2 === 0));
@@ -62,18 +80,33 @@ const HeroMenuCard = ({ menu, onEdit, onDelete }) => {
     const handleContactWhatsApp = (e) => {
         e.preventDefault();
         e.stopPropagation();
-        // Resolve phone from several possible fields (menu-level, restaurant-level)
-        const raw = menu.whatsappNumber || menu.no_telepon || menu.restaurantPhone || menu.restaurant_phone || menu.restaurantTel || '';
-        // Normalize to digits only
-        let digits = String(raw || '').replace(/\D+/g, '');
-        // If empty, fallback to a safe placeholder (replace with real default if desired)
-        if (!digits) digits = '6281234567890';
-        // Common Indonesian formats: starting with 0 -> replace with 62, starting with 8 -> prepend 62
-        if (digits.startsWith('0')) digits = '62' + digits.slice(1);
-        else if (digits.startsWith('8')) digits = '62' + digits;
+        try {
+            // Per rules: source must be menu.whatsappNumber only
+            if (menu.whatsappNumber === undefined || menu.whatsappNumber === null || String(menu.whatsappNumber).trim() === '') {
+                // Inform the user; do not attempt to open WhatsApp
+                // Use alert to ensure visibility; could be replaced by a toast system
+                window.alert('Nomor WhatsApp toko belum tersedia');
+                return;
+            }
 
-        const message = encodeURIComponent(`Halo, saya tertarik dengan menu ${menu.name} dari ${menu.restaurantName}`);
-        window.open(`https://wa.me/${digits}?text=${message}`, '_blank');
+            // Clean number (digits only)
+            let cleaned = String(menu.whatsappNumber).replace(/\D+/g, '');
+            if (!cleaned) {
+                window.alert('Nomor WhatsApp toko belum tersedia');
+                return;
+            }
+
+            // Normalize leading 0 or 8 to 62
+            if (cleaned.startsWith('0')) cleaned = '62' + cleaned.slice(1);
+            else if (cleaned.startsWith('8')) cleaned = '62' + cleaned;
+
+            const message = encodeURIComponent(`Halo, saya tertarik dengan menu ${menu.name || menu.nama_menu || ''} dari ${menu.restaurantName || menu.nama_restoran || ''}`);
+            window.open(`https://wa.me/${cleaned}?text=${message}`, '_blank');
+        } catch (err) {
+            console.warn('[HeroMenuCard] handleContactWhatsApp error', err);
+            // safe fallback
+            window.alert('Nomor WhatsApp toko belum tersedia');
+        }
     };
 
     const handleViewLocation = (e) => {
@@ -287,6 +320,7 @@ const HeroMenuCard = ({ menu, onEdit, onDelete }) => {
                 <div className="mt-auto pt-2">
                     <div className="grid grid-cols-2 gap-2">
                         {/* WhatsApp Contact Button */}
+                        {/* Always display Hubungi; behavior depends solely on menu.whatsappNumber */}
                         <motion.button
                             whileHover={{ scale: 1.02 }}
                             whileTap={{ scale: 0.98 }}

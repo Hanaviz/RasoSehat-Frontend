@@ -377,6 +377,12 @@ export default function AdminDashboardPage() {
 
   const [pendingMerchants, setPendingMerchants] = useState([]);
   const [pendingMenus, setPendingMenus] = useState([]);
+  // KPI counts
+  const [kpiPendingMerchants, setKpiPendingMerchants] = useState(0);
+  const [kpiPendingMenus, setKpiPendingMenus] = useState(0);
+  const [kpiActiveMenus, setKpiActiveMenus] = useState(0);
+  const [kpiTotalRestaurants, setKpiTotalRestaurants] = useState(0);
+  const [kpiTotalUsers, setKpiTotalUsers] = useState(0);
   const [activeRestaurants, setActiveRestaurants] = useState([]);
   const [activeMenusList, setActiveMenusList] = useState([]);
   const [restaurantHistory, setRestaurantHistory] = useState([]);
@@ -430,6 +436,30 @@ export default function AdminDashboardPage() {
       setLoading(false);
     }
   }, [isLoading, isAuthenticated, isAdmin, navigate]);
+
+  // Fetch KPI summary (new consolidated endpoint)
+  const fetchKpiSummary = useCallback(async () => {
+    try {
+      const res = await api.get('/admin/kpi/summary');
+      const body = unwrap(res) ?? (res && res.data) ?? null;
+      if (body && body.pendingRestaurants !== undefined) {
+        setKpiPendingMerchants(Number(body.pendingRestaurants || 0));
+        setKpiPendingMenus(Number(body.pendingMenus || 0));
+        setKpiActiveMenus(Number(body.activeMenus || 0));
+        setKpiTotalRestaurants(Number(body.totalRestaurants || 0));
+        setKpiTotalUsers(Number(body.totalUsers || 0));
+      } else if (res && res.data) {
+        // fallback to older shape
+        const d = res.data;
+        setKpiPendingMerchants(Array.isArray(d) ? d.length : pendingMerchants.length);
+      }
+    } catch (e) {
+      // fallback: derive from already-fetched lists
+      setKpiPendingMerchants(pendingMerchants.length);
+      setKpiPendingMenus(pendingMenus.length);
+      // active menus/total restaurants remain unknown without server support
+    }
+  }, [pendingMerchants.length, pendingMenus.length]);
 
   const fetchActiveRestaurants = useCallback(async (page = 1) => {
     setRestLoading(true);
@@ -704,6 +734,8 @@ export default function AdminDashboardPage() {
       fetchRestaurantHistory(1),
       fetchMenuHistory(1),
     ]).catch((e) => console.warn("refetchAll partial failure", e));
+    // refresh KPI as well
+    fetchKpiSummary().catch(() => {});
   }, [
     fetchPending,
     fetchActiveRestaurants,
@@ -721,6 +753,7 @@ export default function AdminDashboardPage() {
     fetchActiveMenus(menuPage);
     fetchRestaurantHistory(1);
     fetchMenuHistory(1);
+    fetchKpiSummary();
   }, [
     fetchPending,
     fetchActiveRestaurants,
@@ -1743,25 +1776,25 @@ const renderActiveRestaurantsTable = () => (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
               <KpiCard
                 title="Toko Menunggu"
-                value={pendingMerchants.length}
+                  value={kpiPendingMerchants}
                 icon={Store}
                 color="text-red-500 border-red-500"
               />
               <KpiCard
                 title="Menu Baru (Audit)"
-                value={pendingMenus.length}
+                  value={kpiPendingMenus}
                 icon={Utensils}
                 color="text-yellow-500 border-yellow-500"
               />
               <KpiCard
                 title="Total Menu Aktif"
-                value={pendingMenus.length}
+                  value={kpiActiveMenus}
                 icon={CheckCircle}
                 color="text-green-600 border-green-600"
               />
               <KpiCard
                 title="Total Toko Terdaftar"
-                value={pendingMerchants.length}
+                  value={kpiTotalRestaurants}
                 icon={User}
                 color="text-blue-500 border-blue-500"
               />
