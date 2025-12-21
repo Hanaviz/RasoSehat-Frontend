@@ -99,6 +99,16 @@ export function makeImageUrl(u) {
   try {
     const s = String(u);
     if (/^https?:\/\//i.test(s)) return encodeURI(s);
+
+    // If string looks like a hostname or full host+path but missing protocol
+    // e.g. "example.com/uploads/..." then assume https and prepend it.
+    // Avoid treating plain filenames (e.g. "1766174066109-68391915.jpg") as hostnames
+    // by ensuring the match is NOT an image filename/extension-only path.
+    const looksLikeDomain = /^[a-z0-9-]+\.[a-z]{2,}(\/.*)?$/i;
+    const imageExt = /\.(jpe?g|png|gif|webp|svg)$/i;
+    if (looksLikeDomain.test(s) && !imageExt.test(s)) {
+      return encodeURI('https://' + s);
+    }
     if (s.startsWith('/')) return encodeURI(API_ORIGIN + s);
     // If string looks like a placeholder fragment (e.g. "400x300.png?text=..."),
     // prefer the public placeholder service to avoid resolving relative domains.
@@ -111,8 +121,9 @@ export function makeImageUrl(u) {
       return encodeURI(API_ORIGIN.replace(/\/$/, '') + '/' + s.replace(/^\//, ''));
     }
 
-    // Fallback: prefix with uploads/ to preserve older DB shapes where only filename stored
-    return encodeURI(API_ORIGIN.replace(/\/$/, '') + '/uploads/' + s.replace(/^\//, ''));
+    // Fallback: many older records store only the filename for menu images
+    // Prefer `/uploads/menu/` so files resolve correctly to the menu uploads directory.
+    return encodeURI(API_ORIGIN.replace(/\/$/, '') + '/uploads/menu/' + s.replace(/^\//, ''));
   } catch (e) {
     return '';
   }

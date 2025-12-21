@@ -103,16 +103,14 @@ export default function SignInPage() {
         <div className="absolute -left-12 -top-12 w-44 h-44 rounded-full bg-gradient-to-tr from-green-300 to-green-500 decorative-blob" style={{mixBlendMode: 'screen'}} />
         
         <div className="w-full max-w-md">
-          {/* Mobile Logo */}
+          {/* Mobile Logo - plain circular logo (no box) */}
           <div className="lg:hidden flex items-center justify-center gap-3 mb-8">
-            <div className="w-12 h-12 bg-green-600 rounded-full flex items-center justify-center">
-              <svg viewBox="0 0 24 24" fill="none" className="w-9 h-9">
-                <path d="M12 2C13.1 2 14 2.9 14 4C14 5.1 13.1 6 12 6C10.9 6 10 5.1 10 4C10 2.9 10.9 2 12 2M12 16C13.1 16 14 16.9 14 18C14 19.1 13.1 20 12 20C10.9 20 10 19.1 10 18C10 16.9 10.9 16 12 16M18 8C19.1 8 20 8.9 20 10C20 11.1 19.1 12 18 12C16.9 12 16 11.1 16 10C16 8.9 16.9 8 18 8M6 8C7.1 8 8 8.9 8 10C8 11.1 7.1 12 6 12C4.9 12 4 11.1 4 10C4 8.9 4.9 8 6 8Z" fill="white"/>
-                <circle cx="12" cy="10" r="6" stroke="white" strokeWidth="1.5" fill="none"/>
-              </svg>
+            <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm overflow-hidden">
+              <img src="/logo-RasoSehat.png" alt="RasoSehat" className="w-10 h-10  object-contain transform scale-125 transition-transform duration-300 ease-out logo-float" />
             </div>
             <div>
               <h2 className="text-2xl font-bold text-gray-800">RasoSehat</h2>
+              <p className="text-sm text-gray-600">Hidup Sehat, Hidup Bahagia</p>
             </div>
           </div>
 

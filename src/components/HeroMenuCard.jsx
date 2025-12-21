@@ -17,13 +17,26 @@ const formatRupiah = (number) => {
 // Priority: menu.whatsappNumber -> menu.no_telepon -> menu.phone
 // Normalization: remove non-digits, convert leading 0 or 8 to country code 62.
 function getWhatsappDigitsFromMenu(menu) {
-    // Strict rule: only use menu.whatsappNumber (no fallbacks)
-    if (!menu || menu.whatsappNumber === undefined || menu.whatsappNumber === null) return null;
-    const raw = String(menu.whatsappNumber || '');
-    // strip everything except digits
-    let digits = raw.replace(/\D+/g, '');
+    if (!menu) return null;
+    // Candidate fields in order of preference: menu-level then restaurant-level
+    const candidates = [
+        menu.whatsappNumber,
+        menu.whatsapp,
+        menu.no_telepon,
+        menu.phone,
+        menu.phone_admin,
+        menu.phonePrimary,
+        // restaurant-level fallbacks
+        menu.restaurant?.whatsapp,
+        menu.restaurant?.no_telepon,
+        menu.restaurant?.phone,
+        menu.restaurant?.phone_admin,
+    ];
+
+    const raw = candidates.find(c => c !== undefined && c !== null && String(c).trim() !== '');
+    if (!raw) return null;
+    let digits = String(raw).replace(/\D+/g, '');
     if (!digits) return null;
-    // normalize leading 0 or 8 to country code 62
     if (digits.startsWith('0')) digits = '62' + digits.slice(1);
     else if (digits.startsWith('8')) digits = '62' + digits;
     return digits;
@@ -81,30 +94,16 @@ const HeroMenuCard = ({ menu, onEdit, onDelete }) => {
         e.preventDefault();
         e.stopPropagation();
         try {
-            // Per rules: source must be menu.whatsappNumber only
-            if (menu.whatsappNumber === undefined || menu.whatsappNumber === null || String(menu.whatsappNumber).trim() === '') {
-                // Inform the user; do not attempt to open WhatsApp
-                // Use alert to ensure visibility; could be replaced by a toast system
+            const digits = getWhatsappDigitsFromMenu(menu);
+            if (!digits) {
                 window.alert('Nomor WhatsApp toko belum tersedia');
                 return;
             }
-
-            // Clean number (digits only)
-            let cleaned = String(menu.whatsappNumber).replace(/\D+/g, '');
-            if (!cleaned) {
-                window.alert('Nomor WhatsApp toko belum tersedia');
-                return;
-            }
-
-            // Normalize leading 0 or 8 to 62
-            if (cleaned.startsWith('0')) cleaned = '62' + cleaned.slice(1);
-            else if (cleaned.startsWith('8')) cleaned = '62' + cleaned;
 
             const message = encodeURIComponent(`Halo, saya tertarik dengan menu ${menu.name || menu.nama_menu || ''} dari ${menu.restaurantName || menu.nama_restoran || ''}`);
-            window.open(`https://wa.me/${cleaned}?text=${message}`, '_blank');
+            window.open(`https://wa.me/${digits}?text=${message}`, '_blank');
         } catch (err) {
             console.warn('[HeroMenuCard] handleContactWhatsApp error', err);
-            // safe fallback
             window.alert('Nomor WhatsApp toko belum tersedia');
         }
     };
@@ -193,7 +192,7 @@ const HeroMenuCard = ({ menu, onEdit, onDelete }) => {
                 {
                     (() => {
                         const raw = menu.image || menu.foto || null;
-                        const imageUrl = raw ? makeImageUrl(raw) : 'https://via.placeholder.com/400x300.png?text=No+Image';
+                        const imageUrl = raw ? makeImageUrl(raw) : '/RasoSehat.png';
                         return (
                             <img
                                 src={imageUrl}
@@ -204,6 +203,15 @@ const HeroMenuCard = ({ menu, onEdit, onDelete }) => {
                                         const img = e && e.target;
                                         if (img && img.naturalWidth) {
                                             console.debug('[HeroMenuCard] image load:', { src: img.src, naturalWidth: img.naturalWidth, naturalHeight: img.naturalHeight });
+                                        }
+                                    } catch (err) { /* ignore */ }
+                                }}
+                                onError={(e) => {
+                                    try {
+                                        // Avoid infinite loop
+                                        if (e?.target) {
+                                            e.target.onerror = null;
+                                            e.target.src = '/RasoSehat.png';
                                         }
                                     } catch (err) { /* ignore */ }
                                 }}

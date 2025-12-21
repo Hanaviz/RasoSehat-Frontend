@@ -349,7 +349,6 @@ const RegisterStorePage = () => {
     ownerEmail: '',
     ownerName: '',
     phonePrimary: '',
-    phoneAdmin: '',
     addressFull: '',
     mapsLink: '',
     operatingHours: '',
@@ -439,7 +438,6 @@ const RegisterStorePage = () => {
                 ownerEmail: payload.owner_email || prev.ownerEmail,
                 ownerName: payload.owner_name || prev.ownerName,
                 phonePrimary: payload.no_telepon || prev.phonePrimary,
-                phoneAdmin: payload.phone_admin || prev.phoneAdmin,
                 addressFull: payload.alamat || prev.addressFull,
                 mapsLink: payload.maps_latlong || prev.mapsLink,
                 operatingHours: payload.operating_hours || prev.operatingHours,
@@ -478,7 +476,6 @@ const RegisterStorePage = () => {
         return re.test(val) ? '' : 'Format email tidak valid.';
       },
       phonePrimary: (val) => !val.trim() || val.length < MIN_PHONE_LENGTH ? 'Nomor HP utama tidak valid.' : '',
-      phoneAdmin: (val) => !val.trim() || val.length < MIN_PHONE_LENGTH ? 'Nomor HP notifikasi tidak valid.' : '',
       addressFull: (val) => !val.trim() ? 'Alamat lengkap wajib diisi.' : '',
       mapsLink: (val) => {
         if (!val || !val.trim()) return 'Link Google Maps wajib diisi.';
@@ -542,7 +539,7 @@ const RegisterStorePage = () => {
             jenis_usaha: (formData.businessType || '').toString().toLowerCase(),
             owner_name: formData.ownerName,
             owner_email: formData.ownerEmail,
-            phone_admin: formData.phoneAdmin,
+            // phone_admin: formData.phoneAdmin,
             operating_hours: formData.operatingHours,
             sales_channels: formData.salesChannels,
             social_media: formData.socialMedia,
@@ -585,7 +582,7 @@ const RegisterStorePage = () => {
           jenis_usaha: (formData.businessType || '').toString().toLowerCase(),
           owner_name: formData.ownerName,
           owner_email: formData.ownerEmail,
-          phone_admin: formData.phoneAdmin,
+          // phone_admin: formData.phoneAdmin,
           operating_hours: formData.operatingHours,
           sales_channels: formData.salesChannels,
           social_media: formData.socialMedia,
@@ -733,16 +730,7 @@ const RegisterStorePage = () => {
           error={errors.phonePrimary}
           placeholder="Contoh: 0812xxxxxxxx"
         />
-        <InputField
-          id="phoneAdmin"
-          label="Nomor HP / WhatsApp Aktif (Notifikasi)"
-          helperText="Nomor untuk keperluan administrasi dan notifikasi tim RasoSehat."
-          type="tel"
-          value={formData.phoneAdmin}
-          onChange={(e) => handleChange('phoneAdmin', e.target.value)}
-          error={errors.phoneAdmin}
-          placeholder="Contoh: 0813xxxxxxxx"
-        />
+        {/* phoneAdmin removed per UX decision — notifications will use owner/store phone */}
       </div>
 
       <div className="lg:col-span-1 space-y-4">

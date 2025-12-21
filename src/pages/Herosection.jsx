@@ -795,9 +795,15 @@ export default function HeroSection() {
                         ...menu,
                         // Prefer restaurant's official phone (same as MyStorePage), then menu.whatsappNumber
                         whatsappNumber:
-                          (item.restaurant && (item.restaurant.no_telepon || item.restaurant.phone || item.restaurant.whatsapp)) ||
-                          item.whatsappNumber ||
-                          null
+                            (
+                              item.no_telepon || item.phone || item.whatsapp ||
+                              // some APIs return flattened restaurant phone fields on the item
+                              item.restaurant_no_telepon || item.restaurant_phone || item.restaurant_whatsapp ||
+                              // or nested restaurant object
+                              (item.restaurant && (item.restaurant.no_telepon || item.restaurant.phone || item.restaurant.whatsapp)) ||
+                              item.whatsappNumber ||
+                              null
+                            )
                       }}
                     />
                   );
