@@ -100,7 +100,12 @@ export function makeImageUrl(u) {
     const s = String(u).trim();
     // Only accept absolute http(s) URLs. Any other value -> return empty to avoid 404s
     if (/^https?:\/\//i.test(s)) return encodeURI(s);
-    return '';
+    // If value is a path like '/uploads/...' or a bare filename, prefix with API origin
+    if (s.startsWith('/')) return API_ORIGIN.replace(/\/$/, '') + s;
+    // bare filenames (no slashes) or relative paths -> prefix with /uploads/
+    if (!s.includes('/')) return API_ORIGIN.replace(/\/$/, '') + '/uploads/' + encodeURI(s);
+    // fallback: prefix and clean leading slashes
+    return API_ORIGIN.replace(/\/$/, '') + '/' + encodeURI(s.replace(/^\/+/, ''));
   } catch (e) {
     return '';
   }
