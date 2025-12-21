@@ -130,7 +130,7 @@ export default function RestaurantDetailPage() {
                     // Normalize menus to consistent field names
                     const rawMenus = Array.isArray(payload.menus) ? payload.menus : [];
                     const normalizedMenus = rawMenus.map(m => {
-                        const rawImg = m.foto || m.foto_url || m.image || m.photo || null;
+                        const rawImg = m.foto_path || m.foto || m.foto_url || m.image || m.photo || null;
                         const imageUrl = rawImg ? makeImageUrl(rawImg) : 'https://via.placeholder.com/400x300.png?text=No+Image';
                         return {
                             id: m.id,

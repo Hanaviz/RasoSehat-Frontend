@@ -3,9 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { MapPin, Star, CheckCircle, Clock, Store, Heart, Phone, TrendingUp, Flame, Navigation, Edit3, Trash2 } from 'lucide-react';
 import { makeImageUrl } from '../utils/api';
-
-// Fungsi untuk format harga ke Rupiah (Rp)
-const formatRupiah = (number) => {
+                    {
+                        const raw = menu.foto_path || menu.image || menu.foto || null;
+                        const imageUrl = raw ? makeImageUrl(raw) : '/RasoSehat.png';
     return new Intl.NumberFormat('id-ID', {
         style: 'currency',
         currency: 'IDR',

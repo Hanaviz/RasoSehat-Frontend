@@ -431,7 +431,7 @@ export default function MyStorePage() {
                   key={menu.id}
                   menu={{
                     ...menu,
-                    image: menu.foto || menu.image || null,
+                    image: menu.foto_path || menu.foto || menu.image || null,
                     name: menu.nama_menu || menu.name,
                     price: menu.harga || menu.price,
                     restaurantName: restaurant?.nama_restoran || menu.restaurantName || '',
