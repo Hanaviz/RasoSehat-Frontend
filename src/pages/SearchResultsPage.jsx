@@ -70,7 +70,8 @@ export default function SearchResultsPage() {
 
         const payload = res?.data?.data || res?.data || {};
         const items = Array.isArray(payload.results) ? payload.results : [];
-        const totalCount = typeof payload.total === "number" ? payload.total : items.length;
+        const totalCount =
+          typeof payload.total === "number" ? payload.total : items.length;
 
         setResults(items);
         setTotal(totalCount);
@@ -80,7 +81,9 @@ export default function SearchResultsPage() {
         (async () => {
           try {
             const missing = items.filter(
-              (it) => it.type === 'restaurant' && (!it.slug || String(it.slug) === 'null')
+              (it) =>
+                it.type === "restaurant" &&
+                (!it.slug || String(it.slug) === "null")
             );
             if (missing.length === 0) return;
 
@@ -91,8 +94,9 @@ export default function SearchResultsPage() {
                 try {
                   const rres = await api.get(`/restaurants/${it.id}`);
                   const body = rres?.data?.data || rres?.data || {};
-                  const fetchedSlug = body?.slug || body?.restaurant?.slug || null;
-                  if (fetchedSlug && String(fetchedSlug) !== 'null') {
+                  const fetchedSlug =
+                    body?.slug || body?.restaurant?.slug || null;
+                  if (fetchedSlug && String(fetchedSlug) !== "null") {
                     updates[it.id] = {
                       slug: String(fetchedSlug),
                       foto: it.foto || body?.foto || body?.photo || it.foto,
@@ -100,18 +104,24 @@ export default function SearchResultsPage() {
                     };
                   }
                 } catch (e) {
-                  console.warn('[SearchResults] prefetch slug failed for', it.id, e);
+                  console.warn(
+                    "[SearchResults] prefetch slug failed for",
+                    it.id,
+                    e
+                  );
                 }
               })
             );
 
             if (!active) return;
             if (Object.keys(updates).length > 0) {
-              const merged = items.map((it) => (updates[it.id] ? { ...it, ...updates[it.id] } : it));
+              const merged = items.map((it) =>
+                updates[it.id] ? { ...it, ...updates[it.id] } : it
+              );
               setResults(merged);
             }
           } catch (e) {
-            console.warn('[SearchResults] error prefetching slugs', e);
+            console.warn("[SearchResults] error prefetching slugs", e);
           }
         })();
       } catch (err) {
@@ -154,23 +164,30 @@ export default function SearchResultsPage() {
   const endIndex = Math.min(page * limit, total);
 
   // Renderer for restaurant items
+  // Renderer for restaurant items
   const renderRestaurantItem = (r) => {
     // Resolve image: prefer r.foto, fallback to foto_ktp or generated avatar
     const rawImg = r.foto || r.foto_ktp || r.photo || null;
-    let imgSrc = '/restoran-placeholder.png';
+    let imgSrc = "/restoran-placeholder.png";
     try {
       if (rawImg) {
-        if (typeof rawImg === 'string' && rawImg.startsWith('http')) imgSrc = rawImg;
+        if (typeof rawImg === "string" && rawImg.startsWith("http"))
+          imgSrc = rawImg;
         else imgSrc = makeImageUrl(rawImg);
       } else {
-        imgSrc = `https://ui-avatars.com/api/?name=${encodeURIComponent(r.name || '')}&background=16a34a&color=fff&rounded=true`;
+        imgSrc = `https://ui-avatars.com/api/?name=${encodeURIComponent(
+          r.name || ""
+        )}&background=16a34a&color=fff&rounded=true`;
       }
     } catch (e) {
-      imgSrc = `https://ui-avatars.com/api/?name=${encodeURIComponent(r.name || '')}&background=16a34a&color=fff&rounded=true`;
+      imgSrc = `https://ui-avatars.com/api/?name=${encodeURIComponent(
+        r.name || ""
+      )}&background=16a34a&color=fff&rounded=true`;
     }
 
     // compute safe slug: ignore literal 'null' or undefined
-    const slugCandidate = (r.slug && String(r.slug) !== 'null') ? String(r.slug) : null;
+    const slugCandidate =
+      r.slug && String(r.slug) !== "null" ? String(r.slug) : null;
     const safeVisit = async () => {
       if (visitingId) return; // prevent re-entrancy
       setVisitingId(r.id);
@@ -182,59 +199,92 @@ export default function SearchResultsPage() {
           const res = await api.get(`/restaurants/${r.id}`);
           const body = res?.data?.data || res?.data || {};
           const fetchedSlug = body?.slug || body?.restaurant?.slug || null;
-          if (fetchedSlug && String(fetchedSlug) !== 'null') {
+          if (fetchedSlug && String(fetchedSlug) !== "null") {
             return navigate(`/restaurant/${encodeURIComponent(fetchedSlug)}`);
           }
         }
       } catch (e) {
-        console.warn('[SearchResults] Failed to fetch restaurant by id fallback', e);
+        console.warn(
+          "[SearchResults] Failed to fetch restaurant by id fallback",
+          e
+        );
       } finally {
         setVisitingId(null);
       }
 
       // Final fallback: perform a restaurant-only search for the name
-      navigate(`/search?q=${encodeURIComponent(r.name || '')}&type=restaurant`);
+      navigate(`/search?q=${encodeURIComponent(r.name || "")}&type=restaurant`);
     };
 
     return (
-      <div key={`resto-${r.id}`} className="bg-white p-4 rounded-xl shadow-sm hover:shadow-md transition-shadow">
-        <div className="flex items-start gap-4">
+      <div
+        key={`resto-${r.id}`}
+        className="bg-white rounded-lg shadow-sm hover:shadow-lg transition-all duration-200 overflow-hidden border border-gray-100"
+      >
+        <div className="p-5">
+          <div className="flex items-start gap-4">
+            {/* Logo Restoran */}
+            <button
+              type="button"
+              onClick={safeVisit}
+              disabled={visitingId === r.id}
+              aria-label={`Buka ${r.name || "restoran"}`}
+              className="flex-shrink-0 rounded-full overflow-hidden w-20 h-20 ring-2 ring-gray-100 hover:ring-green-500 transition-all"
+            >
+              <img
+                src={imgSrc}
+                alt={r.name || "Restoran"}
+                loading="lazy"
+                className="w-full h-full object-cover"
+              />
+            </button>
+
+            {/* Info Restoran */}
+            <div className="flex-1 min-w-0">
+              <button
+                type="button"
+                onClick={safeVisit}
+                disabled={visitingId === r.id}
+                className="text-left w-full group"
+              >
+                <h3 className="font-bold text-gray-900 text-lg leading-tight group-hover:text-green-600 transition-colors truncate">
+                  {r.name || "—"}
+                </h3>
+              </button>
+
+              {r.slug && String(r.slug) !== "null" && (
+                <div className="text-xs text-gray-500 mt-1 truncate">
+                  {r.slug}
+                </div>
+              )}
+
+              {/* Stats Row - Shopee Style */}
+              <div className="flex items-center gap-4 mt-3 text-sm">
+                <div className="flex items-center gap-1.5">
+                  <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
+                  <span className="font-semibold text-gray-700">
+                    {r.rating ? Number(r.rating).toFixed(1) : "0.0"}
+                  </span>
+                </div>
+              </div>
+
+              {r.description && (
+                <p className="text-sm text-gray-600 mt-3 line-clamp-2 leading-relaxed">
+                  {r.description}
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Tombol Kunjungi */}
           <button
             type="button"
             onClick={safeVisit}
             disabled={visitingId === r.id}
-            aria-label={`Buka ${r.name || 'restoran'}`}
-            className="flex-shrink-0 rounded-full overflow-hidden w-20 h-20 ring-1 ring-gray-100"
+            className="w-full mt-4 px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed shadow-sm hover:shadow-md"
           >
-            <img src={imgSrc} alt={r.name || 'Restoran'} loading="lazy" className="w-full h-full object-cover" />
+            {visitingId === r.id ? "Memuat…" : "Kunjungi Toko"}
           </button>
-
-          <div className="flex-1">
-            <div className="flex items-start justify-between gap-4">
-              <div className="min-w-0">
-                <button type="button" onClick={safeVisit} disabled={visitingId === r.id} className="text-left w-full">
-                  <h3 className="font-semibold text-gray-800 text-lg leading-tight hover:underline truncate">{r.name || '—'}</h3>
-                </button>
-                {r.slug && String(r.slug) !== 'null' && <div className="text-xs text-gray-400 mt-1 truncate">{r.slug}</div>}
-              </div>
-
-              <div className="flex flex-col items-end">
-                <div className="text-sm text-yellow-500 font-medium mb-2">{r.rating ? Number(r.rating).toFixed(1) : '0.0'} ⭐</div>
-                <button
-                  type="button"
-                  onClick={safeVisit}
-                  disabled={visitingId === r.id}
-                  className={`mt-2 px-3 py-2 text-sm bg-green-600 text-white rounded-md shadow-sm disabled:opacity-60`}
-                >
-                  {visitingId === r.id ? 'Memuat…' : 'Kunjungi Toko'}
-                </button>
-              </div>
-            </div>
-
-            {r.description && (
-              <p className="text-sm text-gray-500 mt-3 line-clamp-3">{r.description}</p>
-            )}
-          </div>
         </div>
       </div>
     );
@@ -340,13 +390,15 @@ export default function SearchResultsPage() {
             {loading ? (
               <div className="flex flex-col items-center justify-center py-20 bg-white rounded-xl shadow-md">
                 <div className="w-16 h-16 border-4 border-green-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-                <p className="text-gray-600 text-lg">Memuat hasil pencarian...</p>
+                <p className="text-gray-600 text-lg">
+                  Memuat hasil pencarian...
+                </p>
               </div>
             ) : filteredResults.length > 0 ? (
               <>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {filteredResults.map((item) => (
-                    item.type === 'restaurant' ? (
+                  {filteredResults.map((item) =>
+                    item.type === "restaurant" ? (
                       renderRestaurantItem(item)
                     ) : (
                       <MenuCard
@@ -364,7 +416,7 @@ export default function SearchResultsPage() {
                         }}
                       />
                     )
-                  ))}
+                  )}
                 </div>
 
                 {/* Pagination */}
@@ -382,13 +434,15 @@ export default function SearchResultsPage() {
                         <ChevronLeft className="w-4 h-4" />
                         <span className="hidden sm:inline">Sebelumnya</span>
                       </button>
-                      
+
                       <span className="px-4 py-2 text-sm font-medium text-gray-700">
                         Hal {page} / {totalPages}
                       </span>
-                      
+
                       <button
-                        onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                        onClick={() =>
+                          setPage((p) => Math.min(totalPages, p + 1))
+                        }
                         disabled={page >= totalPages}
                         className="flex items-center gap-1 px-4 py-2 bg-gray-100 hover:bg-gray-200 disabled:bg-gray-50 disabled:text-gray-400 rounded-lg transition-colors duration-200 font-medium text-sm"
                       >
