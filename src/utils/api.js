@@ -100,14 +100,18 @@ export function makeImageUrl(u) {
     const s = String(u);
     if (/^https?:\/\//i.test(s)) return encodeURI(s);
 
-    // If string looks like a hostname or full host+path but missing protocol
-    // e.g. "example.com/uploads/..." then assume https and prepend it.
-    // Avoid treating plain filenames (e.g. "1766174066109-68391915.jpg") as hostnames
-    // by ensuring the match is NOT an image filename/extension-only path.
-    const looksLikeDomain = /^[a-z0-9-]+\.[a-z]{2,}(\/.*)?$/i;
+    // If string looks like a hostname or host+path but missing protocol
+    // e.g. "example.com/uploads/..." or "rasosehat-backend-pr-12345.something.jpg"
+    // then assume https and prepend it. Also handle bare hostnames that include
+    // an image extension but are missing the protocol (common when DB stored
+    // the host+filename without scheme).
+    const looksLikeDomainOrHost = /^[a-z0-9.-]+(\/.+)?$/i;
     const imageExt = /\.(jpe?g|png|gif|webp|svg)$/i;
-    if (looksLikeDomain.test(s) && !imageExt.test(s)) {
-      return encodeURI('https://' + s);
+    // If it looks like a domain/host (contains a dot) and either contains a slash
+    // (host+path) or ends with a known image extension, consider it a full URL
+    // missing protocol and prepend https://
+    if (looksLikeDomainOrHost.test(s) && s.includes('.') && (s.includes('/') || imageExt.test(s))) {
+      return encodeURI('https://' + s.replace(/^\/+/, ''));
     }
     if (s.startsWith('/')) return encodeURI(API_ORIGIN + s);
     // If string looks like a placeholder fragment (e.g. "400x300.png?text=..."),
