@@ -93,6 +93,10 @@ export default api;
 export const API_BASE_URL = normalizedBase;
 export const API_ORIGIN = String(API_BASE_URL).replace(/\/api\/?$/i, '');
 
+// Supabase storage info (frontend env)
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
+const SUPABASE_PUBLIC_IMAGES_BUCKET = import.meta.env.VITE_SUPABASE_PUBLIC_IMAGES_BUCKET || 'public-images';
+
 // Helper to build absolute image URLs
 export function makeImageUrl(u) {
   if (!u) return '';
@@ -100,6 +104,18 @@ export function makeImageUrl(u) {
     const s = String(u).trim();
     // Only accept absolute http(s) URLs. Any other value -> return empty to avoid 404s
     if (/^https?:\/\//i.test(s)) return encodeURI(s);
+    // If Supabase URL is configured, prefer constructing the public storage URL
+    // Normalize possible local '/uploads/...' paths to storage path
+    if (SUPABASE_URL) {
+      try {
+        let storagePath = s.replace(/^\/*uploads\/*/i, '');
+        storagePath = storagePath.replace(/^\//, '');
+        const supa = String(SUPABASE_URL).replace(/\/$/, '');
+        return `${supa}/storage/v1/object/public/${SUPABASE_PUBLIC_IMAGES_BUCKET}/${encodeURIComponent(storagePath)}`;
+      } catch (e) {
+        // fallthrough to other strategies
+      }
+    }
     // If value is a path like '/uploads/...' or a bare filename, prefix with API origin
     if (s.startsWith('/')) return API_ORIGIN.replace(/\/$/, '') + s;
     // bare filenames (no slashes) or relative paths -> prefix with /uploads/
