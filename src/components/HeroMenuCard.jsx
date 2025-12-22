@@ -4,14 +4,14 @@ import { motion } from 'framer-motion';
 import { MapPin, Star, CheckCircle, Clock, Store, Heart, Phone, TrendingUp, Flame, Navigation, Edit3, Trash2 } from 'lucide-react';
 import { makeImageUrl } from '../utils/api';
 
-// Helper: format number to Indonesian Rupiah string
-function formatRupiah(number) {
+// Fungsi untuk format harga ke Rupiah (Rp)
+const formatRupiah = (number) => {
     return new Intl.NumberFormat('id-ID', {
         style: 'currency',
         currency: 'IDR',
         minimumFractionDigits: 0,
     }).format(number).replace('Rp', 'Rp ');
-}
+};
 
 // Helper: normalize and extract WhatsApp digits from menu props.
 // Priority: menu.whatsappNumber -> menu.no_telepon -> menu.phone
@@ -191,9 +191,7 @@ const HeroMenuCard = ({ menu, onEdit, onDelete }) => {
                 
                 {
                     (() => {
-                        // Prefer the public `foto_path` (Supabase) if available,
-                        // then fall back to older fields `image` or `foto`.
-                        const raw = menu.foto_path || menu.image || menu.foto || null;
+                        const raw = menu.image || menu.foto || null;
                         const imageUrl = raw ? makeImageUrl(raw) : '/RasoSehat.png';
                         return (
                             <img

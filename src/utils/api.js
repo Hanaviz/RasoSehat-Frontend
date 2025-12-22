@@ -93,37 +93,37 @@ export default api;
 export const API_BASE_URL = normalizedBase;
 export const API_ORIGIN = String(API_BASE_URL).replace(/\/api\/?$/i, '');
 
-// Supabase storage info (frontend env)
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
-const SUPABASE_PUBLIC_IMAGES_BUCKET = import.meta.env.VITE_SUPABASE_PUBLIC_IMAGES_BUCKET || 'public-images';
-
 // Helper to build absolute image URLs
 export function makeImageUrl(u) {
   if (!u) return '';
   try {
-    const s = String(u).trim();
-    // Only accept absolute http(s) URLs. Any other value -> return empty to avoid 404s
+    const s = String(u);
     if (/^https?:\/\//i.test(s)) return encodeURI(s);
-    // If Supabase URL is configured, prefer constructing the public storage URL
-    // Normalize possible local '/uploads/...' paths to storage path
-    if (SUPABASE_URL) {
-      try {
-        let storagePath = s.replace(/^\/*uploads\/*/i, '');
-        storagePath = storagePath.replace(/^\//, '');
-        const supa = String(SUPABASE_URL).replace(/\/$/, '');
-        // Encode each path segment but preserve slashes so storage path remains valid
-        const encodedPath = storagePath.split('/').map(seg => encodeURIComponent(seg)).join('/');
-        return `${supa}/storage/v1/object/public/${SUPABASE_PUBLIC_IMAGES_BUCKET}/${encodedPath}`;
-      } catch (e) {
-        // fallthrough to other strategies
-      }
+
+    // If string looks like a hostname or full host+path but missing protocol
+    // e.g. "example.com/uploads/..." then assume https and prepend it.
+    // Avoid treating plain filenames (e.g. "1766174066109-68391915.jpg") as hostnames
+    // by ensuring the match is NOT an image filename/extension-only path.
+    const looksLikeDomain = /^[a-z0-9-]+\.[a-z]{2,}(\/.*)?$/i;
+    const imageExt = /\.(jpe?g|png|gif|webp|svg)$/i;
+    if (looksLikeDomain.test(s) && !imageExt.test(s)) {
+      return encodeURI('https://' + s);
     }
-    // If value is a path like '/uploads/...' or a bare filename, prefix with API origin
-    if (s.startsWith('/')) return API_ORIGIN.replace(/\/$/, '') + s;
-    // bare filenames (no slashes) or relative paths -> prefix with /uploads/
-    if (!s.includes('/')) return API_ORIGIN.replace(/\/$/, '') + '/uploads/' + encodeURI(s);
-    // fallback: prefix and clean leading slashes
-    return API_ORIGIN.replace(/\/$/, '') + '/' + encodeURI(s.replace(/^\/+/, ''));
+    if (s.startsWith('/')) return encodeURI(API_ORIGIN + s);
+    // If string looks like a placeholder fragment (e.g. "400x300.png?text=..."),
+    // prefer the public placeholder service to avoid resolving relative domains.
+    if (/^\d+x\d+\.(png|jpg|jpeg)(\?.*)?$/.test(s) || /text=/.test(s)) {
+      return encodeURI(`https://via.placeholder.com/${s}`);
+    }
+
+    // If string looks like an uploads path or filename, ensure it is absolute
+    if (s.startsWith('uploads/') || s.startsWith('upload/')) {
+      return encodeURI(API_ORIGIN.replace(/\/$/, '') + '/' + s.replace(/^\//, ''));
+    }
+
+    // Fallback: many older records store only the filename for menu images
+    // Prefer `/uploads/menu/` so files resolve correctly to the menu uploads directory.
+    return encodeURI(API_ORIGIN.replace(/\/$/, '') + '/uploads/menu/' + s.replace(/^\//, ''));
   } catch (e) {
     return '';
   }

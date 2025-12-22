@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { makeImageUrl, API_ORIGIN } from '../utils/api';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { 
@@ -127,26 +126,17 @@ export default function StoreDashboardVerified({ store = null, menus: menusProp 
 
     // Normalize menus returned from backend to the UI shape expected by this component
     const mappedMenus = (Array.isArray(menusProp) && menusProp.length > 0)
-                ? menusProp.map(m => {
-                        const raw = m.foto_path || m.foto || m.image || '';
-                        let image = makeImageUrl(raw);
-                        if (!image && raw) {
-                            if (String(raw).startsWith('/uploads')) image = API_ORIGIN + raw;
-                            else if (!String(raw).includes('/')) image = API_ORIGIN + '/uploads/menu/' + raw;
-                            else image = API_ORIGIN + '/' + String(raw).replace(/^\/+/, '');
-                        }
-                        return ({
-                            id: m.id,
-                            name: m.nama_menu || m.name || m.nama_restoran || 'Menu',
-                            slug: m.slug || (m.nama_menu ? String(m.nama_menu).toLowerCase().replace(/\s+/g,'-') : ''),
-                            image,
-                            description: m.deskripsi || m.description || '',
-                            price: (m.harga || m.price) ? String(m.harga || m.price) : '0',
-                            rating: m.rating || 0,
-                            prepTime: m.prep_time || m.prepTime || '',
-                            healthTag: (m.diet_claims && Array.isArray(m.diet_claims) && m.diet_claims[0]) || ''
-                        });
-                })
+        ? menusProp.map(m => ({
+            id: m.id,
+            name: m.nama_menu || m.name || m.nama_restoran || 'Menu',
+            slug: m.slug || (m.nama_menu ? String(m.nama_menu).toLowerCase().replace(/\s+/g,'-') : ''),
+            image: m.foto || m.image || m.foto_ktp || '',
+            description: m.deskripsi || m.description || '',
+            price: (m.harga || m.price) ? String(m.harga || m.price) : '0',
+            rating: m.rating || 0,
+            prepTime: m.prep_time || m.prepTime || '',
+            healthTag: (m.diet_claims && Array.isArray(m.diet_claims) && m.diet_claims[0]) || ''
+        }))
         : mockStoreData.menus;
 
     // adapt stats menuViews to mappedMenus length for a bit more realistic numbers

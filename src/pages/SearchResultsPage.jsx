@@ -99,7 +99,7 @@ export default function SearchResultsPage() {
                   if (fetchedSlug && String(fetchedSlug) !== "null") {
                     updates[it.id] = {
                       slug: String(fetchedSlug),
-                      foto: it.foto_path || it.foto || body?.foto || body?.photo || it.foto,
+                      foto: it.foto || body?.foto || body?.photo || it.foto,
                       rating: it.rating || body?.rating || it.rating,
                     };
                   }
