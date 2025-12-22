@@ -111,7 +111,9 @@ export function makeImageUrl(u) {
         let storagePath = s.replace(/^\/*uploads\/*/i, '');
         storagePath = storagePath.replace(/^\//, '');
         const supa = String(SUPABASE_URL).replace(/\/$/, '');
-        return `${supa}/storage/v1/object/public/${SUPABASE_PUBLIC_IMAGES_BUCKET}/${encodeURIComponent(storagePath)}`;
+        // Encode each path segment but preserve slashes so storage path remains valid
+        const encodedPath = storagePath.split('/').map(seg => encodeURIComponent(seg)).join('/');
+        return `${supa}/storage/v1/object/public/${SUPABASE_PUBLIC_IMAGES_BUCKET}/${encodedPath}`;
       } catch (e) {
         // fallthrough to other strategies
       }
