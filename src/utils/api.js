@@ -125,9 +125,10 @@ export function makeImageUrl(u) {
       return encodeURI(API_ORIGIN.replace(/\/$/, '') + '/' + s.replace(/^\//, ''));
     }
 
-    // Fallback: many older records store only the filename for menu images
-    // Prefer `/uploads/menu/` so files resolve correctly to the menu uploads directory.
-    return encodeURI(API_ORIGIN.replace(/\/$/, '') + '/uploads/menu/' + s.replace(/^\//, ''));
+    // Don't synthesize `/uploads/menu/...` fallback anymore. Backend should
+    // provide public URLs in `foto_path`. If value is not an absolute URL or
+    // absolute path, return empty string so frontend shows placeholders.
+    return '';
   } catch (e) {
     return '';
   }
