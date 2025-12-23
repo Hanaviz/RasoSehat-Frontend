@@ -13,7 +13,7 @@ if (typeof rawBase === 'string' && rawBase.match(/^VITE_API_BASE_URL=/i)) {
 }
 const normalizedBase = rawBase
   ? (rawBase.endsWith('/api') ? rawBase : rawBase.replace(/\/$/, '') + '/api')
-  : 'http://localhost:3000/api';
+  : 'hhttps://raso-sehat.vercel.app/api';
 
 const api = axios.create({
   baseURL: normalizedBase,
@@ -129,12 +129,14 @@ export function makeImageUrl(u) {
       const key = normalizeKey(s);
       if (SUPABASE_URL && SUPABASE_BUCKET && key) {
         try {
-          const supa = SUPABASE_URL.replace(/\/$/, '') + `/storage/v1/object/public/${SUPABASE_BUCKET}/${encodeURIComponent(key)}`;
-          return encodeURI(supa);
+          // Build URL without double encoding - only encode the key part
+          const baseUrl = SUPABASE_URL.replace(/\/$/, '');
+          const supa = `${baseUrl}/storage/v1/object/public/${SUPABASE_BUCKET}/${key}`;
+          return supa;
         } catch (e) { /* fallback below */ }
       }
       // Fallback: use backend origin + path if Supabase not configured
-      return encodeURI(API_ORIGIN.replace(/\/$/, '') + '/' + s.replace(/^\//, ''));
+      return API_ORIGIN.replace(/\/$/, '') + '/' + s.replace(/^\//, '');
     }
 
     // Don't synthesize `/uploads/menu/...` fallback anymore. Backend should
