@@ -49,6 +49,7 @@ const groupMenusByClaim = (menus) => {
         rating: menu.rating || 4.5,
         prepTime: menu.prepTime || "10-20 min",
         image:
+          menu.foto_path ||
           makeImageUrl(menu.foto) ||
           "https://placehold.co/400x300/4ade80/white?text=RasoSehat",
         restaurantName: menu.nama_restoran,
@@ -779,6 +780,7 @@ export default function HeroSection() {
                     price: item.harga || item.price,
                     rating: item.rating || 0,
                     image:
+                      item.foto_path ||
                       makeImageUrl(item.foto || item.image) ||
                       "https://placehold.co/400x300/4ade80/white?text=RasoSehat",
                     restaurantName: item.nama_restoran || item.restaurantName,

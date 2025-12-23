@@ -120,8 +120,20 @@ export function makeImageUrl(u) {
       return encodeURI(`https://via.placeholder.com/${s}`);
     }
 
-    // If string looks like an uploads path or filename, ensure it is absolute
-    if (s.startsWith('uploads/') || s.startsWith('upload/')) {
+    // If string looks like an uploads path or filename, prefer Supabase public URL
+    if (s.startsWith('uploads/') || s.startsWith('upload/') || s.startsWith('/uploads/')) {
+      // If the build provides Supabase details, construct the Supabase public URL
+      const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || import.meta.env.VITE_BACKEND_SUPABASE_URL || '';
+      const SUPABASE_BUCKET = import.meta.env.VITE_SUPABASE_MENU_BUCKET || import.meta.env.VITE_SUPABASE_UPLOAD_BUCKET || import.meta.env.VITE_SUPABASE_BUCKET || '';
+      const normalizeKey = (p) => String(p).replace(/^\/*uploads\/*/i, '').replace(/^\//, '');
+      const key = normalizeKey(s);
+      if (SUPABASE_URL && SUPABASE_BUCKET && key) {
+        try {
+          const supa = SUPABASE_URL.replace(/\/$/, '') + `/storage/v1/object/public/${SUPABASE_BUCKET}/${encodeURIComponent(key)}`;
+          return encodeURI(supa);
+        } catch (e) { /* fallback below */ }
+      }
+      // Fallback: use backend origin + path if Supabase not configured
       return encodeURI(API_ORIGIN.replace(/\/$/, '') + '/' + s.replace(/^\//, ''));
     }
 

@@ -1,7 +1,8 @@
 import React from "react";
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import { motion } from "framer-motion";
-import { Settings, Bell, Lock, Globe, ChevronRight, HelpCircle, Key } from "lucide-react";
+import { Settings, Lock, ChevronRight, LogOut } from "lucide-react";
 
 // Komponen Reusable untuk setiap item pengaturan
 const SettingItem = ({ title, description, icon: Icon, onClick }) => (
@@ -27,10 +28,16 @@ const SettingItem = ({ title, description, icon: Icon, onClick }) => (
 
 export default function SettingsPage() {
   const navigate = useNavigate();
+  const { logout } = useAuth();
   const handleSettingClick = (settingName) => {
     // For Ubah Kata Sandi navigate to dedicated page
     if (settingName === 'Ubah Kata Sandi') {
       navigate('/settings/change-password');
+      return;
+    }
+    if (settingName === 'Logout') {
+      try { logout(); } catch (e) { /* ignore */ }
+      navigate('/signin');
       return;
     }
     alert(`Membuka pengaturan: ${settingName}. (Simulasi)`);
@@ -73,55 +80,15 @@ export default function SettingsPage() {
             icon={Lock}
             onClick={() => handleSettingClick("Ubah Kata Sandi")}
           />
-          <SettingItem
-            title="Verifikasi 2 Langkah"
-            description="Tambahkan lapisan keamanan ekstra pada akun."
-            icon={Key}
-            onClick={() => handleSettingClick("Verifikasi 2 Langkah")}
-          />
-        </motion.div>
 
-        {/* Section: Notifikasi & Bahasa */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.2 }}
-          className="bg-white p-6 rounded-2xl shadow-lg border border-gray-100 space-y-4"
-        >
-          <h3 className="text-2xl font-bold text-gray-800 border-b pb-2 mb-4">
-            Preferensi
-          </h3>
           <SettingItem
-            title="Pengaturan Notifikasi"
-            description="Pilih jenis notifikasi yang ingin Anda terima."
-            icon={Bell}
-            onClick={() => handleSettingClick("Pengaturan Notifikasi")}
-          />
-          <SettingItem
-            title="Pilih Bahasa"
-            description="Atur bahasa tampilan aplikasi."
-            icon={Globe}
-            onClick={() => handleSettingClick("Pilih Bahasa")}
+            title="Logout"
+            description="Keluar dari akun Anda saat ini."
+            icon={LogOut}
+            onClick={() => handleSettingClick("Logout")}
           />
         </motion.div>
-        
-        {/* Section: Dukungan */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.3 }}
-          className="bg-white p-6 rounded-2xl shadow-lg border border-gray-100 space-y-4"
-        >
-          <h3 className="text-2xl font-bold text-gray-800 border-b pb-2 mb-4">
-            Dukungan
-          </h3>
-          <SettingItem
-            title="Bantuan & Dukungan"
-            description="Hubungi tim kami atau lihat FAQ."
-            icon={HelpCircle}
-            onClick={() => handleSettingClick("Bantuan & Dukungan")}
-          />
-        </motion.div>
+        {/* Other settings removed (notifications, language, 2FA, support) per project preference */}
       </div>
     </div>
   );
