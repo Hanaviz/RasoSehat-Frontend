@@ -99,7 +99,7 @@ export default function SearchResultsPage() {
                   if (fetchedSlug && String(fetchedSlug) !== "null") {
                     updates[it.id] = {
                       slug: String(fetchedSlug),
-                      foto: it.foto || body?.foto || body?.photo || it.foto,
+                      foto: body?.foto_path || body?.foto || body?.photo || it.foto || null,
                       rating: it.rating || body?.rating || it.rating,
                     };
                   }
@@ -164,30 +164,23 @@ export default function SearchResultsPage() {
   const endIndex = Math.min(page * limit, total);
 
   // Renderer for restaurant items
-  // Renderer for restaurant items
   const renderRestaurantItem = (r) => {
-    // Resolve image: prefer r.foto, fallback to foto_ktp or generated avatar
-    const rawImg = r.foto || r.foto_ktp || r.photo || null;
+    // Resolve image: prefer r.foto_path, then r.foto, fallback to foto_ktp or generated avatar
+    const rawImg = r.foto_path || r.foto || r.foto_ktp || r.photo || null;
     let imgSrc = "/restoran-placeholder.png";
     try {
       if (rawImg) {
-        if (typeof rawImg === "string" && rawImg.startsWith("http"))
-          imgSrc = rawImg;
+        if (typeof rawImg === "string" && rawImg.startsWith("http")) imgSrc = rawImg;
         else imgSrc = makeImageUrl(rawImg);
       } else {
-        imgSrc = `https://ui-avatars.com/api/?name=${encodeURIComponent(
-          r.name || ""
-        )}&background=16a34a&color=fff&rounded=true`;
+        imgSrc = `https://ui-avatars.com/api/?name=${encodeURIComponent(r.name || "")}&background=16a34a&color=fff&rounded=true`;
       }
     } catch (e) {
-      imgSrc = `https://ui-avatars.com/api/?name=${encodeURIComponent(
-        r.name || ""
-      )}&background=16a34a&color=fff&rounded=true`;
+      imgSrc = `https://ui-avatars.com/api/?name=${encodeURIComponent(r.name || "")}&background=16a34a&color=fff&rounded=true`;
     }
 
     // compute safe slug: ignore literal 'null' or undefined
-    const slugCandidate =
-      r.slug && String(r.slug) !== "null" ? String(r.slug) : null;
+    const slugCandidate = r.slug && String(r.slug) !== "null" ? String(r.slug) : null;
     const safeVisit = async () => {
       if (visitingId) return; // prevent re-entrancy
       setVisitingId(r.id);
@@ -204,10 +197,7 @@ export default function SearchResultsPage() {
           }
         }
       } catch (e) {
-        console.warn(
-          "[SearchResults] Failed to fetch restaurant by id fallback",
-          e
-        );
+        console.warn("[SearchResults] Failed to fetch restaurant by id fallback", e);
       } finally {
         setVisitingId(null);
       }
@@ -217,45 +207,22 @@ export default function SearchResultsPage() {
     };
 
     return (
-      <div
-        key={`resto-${r.id}`}
-        className="bg-white rounded-lg shadow-sm hover:shadow-lg transition-all duration-200 overflow-hidden border border-gray-100"
-      >
+      <div key={`resto-${r.id}`} className="bg-white rounded-lg shadow-sm hover:shadow-lg transition-all duration-200 overflow-hidden border border-gray-100">
         <div className="p-5">
           <div className="flex items-start gap-4">
             {/* Logo Restoran */}
-            <button
-              type="button"
-              onClick={safeVisit}
-              disabled={visitingId === r.id}
-              aria-label={`Buka ${r.name || "restoran"}`}
-              className="flex-shrink-0 rounded-full overflow-hidden w-20 h-20 ring-2 ring-gray-100 hover:ring-green-500 transition-all"
-            >
-              <img
-                src={imgSrc}
-                alt={r.name || "Restoran"}
-                loading="lazy"
-                className="w-full h-full object-cover"
-              />
+            <button type="button" onClick={safeVisit} disabled={visitingId === r.id} aria-label={`Buka ${r.name || "restoran"}`} className="flex-shrink-0 rounded-full overflow-hidden w-20 h-20 ring-2 ring-gray-100 hover:ring-green-500 transition-all">
+              <img src={imgSrc} alt={r.name || "Restoran"} loading="lazy" className="w-full h-full object-cover" />
             </button>
 
             {/* Info Restoran */}
             <div className="flex-1 min-w-0">
-              <button
-                type="button"
-                onClick={safeVisit}
-                disabled={visitingId === r.id}
-                className="text-left w-full group"
-              >
-                <h3 className="font-bold text-gray-900 text-lg leading-tight group-hover:text-green-600 transition-colors truncate">
-                  {r.name || "—"}
-                </h3>
+              <button type="button" onClick={safeVisit} disabled={visitingId === r.id} className="text-left w-full group">
+                <h3 className="font-bold text-gray-900 text-lg leading-tight group-hover:text-green-600 transition-colors truncate">{r.name || "—"}</h3>
               </button>
 
               {r.slug && String(r.slug) !== "null" && (
-                <div className="text-xs text-gray-500 mt-1 truncate">
-                  {r.slug}
-                </div>
+                <div className="text-xs text-gray-500 mt-1 truncate">{r.slug}</div>
               )}
 
               {/* Stats Row - Shopee Style */}
@@ -408,7 +375,7 @@ export default function SearchResultsPage() {
                           name: item.name,
                           description: item.description,
                           price: item.price,
-                          image: item.foto || null,
+                          image: item.foto_path || item.foto || null,
                           rating: item.rating,
                           restaurantName: item.restaurant || "",
                           restaurantSlug: item.restaurant_slug || "",

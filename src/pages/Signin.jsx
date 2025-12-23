@@ -217,11 +217,6 @@ export default function SignInPage() {
                   </AnimatePresence>
                 </motion.button>
 
-                <div className="text-center">
-                  <a href="#" className="text-sm text-green-600 hover:text-green-700 font-medium transition-colors">
-                    Lupa Password?
-                  </a>
-                </div>
               </div>
 
               <div className="pt-4 border-t border-gray-200 text-center">
@@ -229,7 +224,6 @@ export default function SignInPage() {
                   Belum punya akun?{' '}
                   <Link to="/signup" className="text-green-600 hover:text-green-700 font-semibold transition-colors">Daftar sekarang</Link>
                   {' '}·{' '}
-                  <Link to="/register-store" className="text-green-600 hover:text-green-700 font-semibold transition-colors">Daftarkan toko</Link>
                 </p>
               </div>
             </motion.div>

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { MapPin, Star, CheckCircle, Clock, Store, Heart, Phone, TrendingUp, Flame, Navigation, Edit3, Trash2 } from 'lucide-react';
-import { makeImageUrl } from '../utils/api';
+import api, { makeImageUrl } from '../utils/api';
 
 // Fungsi untuk format harga ke Rupiah (Rp)
 const formatRupiah = (number) => {
@@ -18,19 +18,21 @@ const formatRupiah = (number) => {
 // Normalization: remove non-digits, convert leading 0 or 8 to country code 62.
 function getWhatsappDigitsFromMenu(menu) {
     if (!menu) return null;
-    // Candidate fields in order of preference: menu-level then restaurant-level
+    // Candidate fields in order of preference: prefer restaurant-level (My Store profile)
+    // so the seller-provided phone wins over any menu-level overrides.
     const candidates = [
+        // restaurant-level primary sources (from My Store edit)
+        menu.restaurant?.no_telepon,
+        menu.restaurant?.phone,
+        menu.restaurant?.whatsapp,
+        menu.restaurant?.phone_admin,
+        // explicit menu-level fallbacks
         menu.whatsappNumber,
         menu.whatsapp,
         menu.no_telepon,
         menu.phone,
         menu.phone_admin,
         menu.phonePrimary,
-        // restaurant-level fallbacks
-        menu.restaurant?.whatsapp,
-        menu.restaurant?.no_telepon,
-        menu.restaurant?.phone,
-        menu.restaurant?.phone_admin,
     ];
 
     const raw = candidates.find(c => c !== undefined && c !== null && String(c).trim() !== '');
@@ -90,11 +92,40 @@ const HeroMenuCard = ({ menu, onEdit, onDelete }) => {
         setIsLiked(!isLiked);
     };
 
-    const handleContactWhatsApp = (e) => {
+    const handleContactWhatsApp = async (e) => {
         e.preventDefault();
         e.stopPropagation();
         try {
-            const digits = getWhatsappDigitsFromMenu(menu);
+            let digits = getWhatsappDigitsFromMenu(menu);
+            // If no digits present in props, try to fetch restaurant contact from API
+            if (!digits) {
+                try {
+                    const restaurantId = menu.restoran_id || menu.restaurantId || menu.restaurant?.id || menu.restaurant_id || null;
+                    const restaurantSlug = menu.restaurantSlug || menu.restaurant?.slug || menu.restaurant_slug || null;
+                    let res = null;
+                    if (restaurantId) {
+                        res = await api.get(`/restaurants/${encodeURIComponent(restaurantId)}`);
+                    } else if (restaurantSlug) {
+                        // try slug endpoint variants
+                        try {
+                            res = await api.get(`/restaurants/slug/${encodeURIComponent(restaurantSlug)}`);
+                        } catch (err) {
+                            res = await api.get(`/restaurants/${encodeURIComponent(restaurantSlug)}`);
+                        }
+                    }
+
+                    const body = res?.data?.data || res?.data || {};
+                    const candidate = body?.no_telepon || body?.phone || body?.whatsapp || body?.restaurant?.no_telepon || body?.restaurant?.phone || body?.restaurant?.whatsapp || null;
+                    if (candidate) {
+                        digits = String(candidate).replace(/\D+/g, '');
+                        if (digits.startsWith('0')) digits = '62' + digits.slice(1);
+                        else if (digits.startsWith('8')) digits = '62' + digits;
+                    }
+                } catch (err) {
+                    console.warn('[HeroMenuCard] fetch restaurant contact failed', err);
+                }
+            }
+
             if (!digits) {
                 window.alert('Nomor WhatsApp toko belum tersedia');
                 return;
@@ -191,7 +222,7 @@ const HeroMenuCard = ({ menu, onEdit, onDelete }) => {
                 
                 {
                     (() => {
-                        const raw = menu.image || menu.foto || null;
+                        const raw = menu.foto_path || menu.image || menu.foto || null;
                         const imageUrl = raw ? makeImageUrl(raw) : '/RasoSehat.png';
                         return (
                             <img
@@ -329,26 +360,7 @@ const HeroMenuCard = ({ menu, onEdit, onDelete }) => {
                     <div className="grid grid-cols-2 gap-2">
                         {/* WhatsApp Contact Button */}
                         {/* Always display Hubungi; behavior depends solely on menu.whatsappNumber */}
-                        <motion.button
-                            whileHover={{ scale: 1.02 }}
-                            whileTap={{ scale: 0.98 }}
-                            onClick={handleContactWhatsApp}
-                            className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-semibold px-4 py-2.5 rounded-xl shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 text-sm"
-                        >
-                            <Phone className="w-4 h-4" />
-                            <span>Hubungi</span>
-                        </motion.button>
-
-                        {/* View Location Button */}
-                        <motion.button
-                            whileHover={{ scale: 1.02 }}
-                            whileTap={{ scale: 0.98 }}
-                            onClick={handleViewLocation}
-                            className="bg-white hover:bg-gray-50 text-gray-700 font-semibold px-4 py-2.5 rounded-xl shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 text-sm border-2 border-gray-200 hover:border-green-500"
-                        >
-                            <Navigation className="w-4 h-4" />
-                            <span>Lokasi</span>
-                        </motion.button>
+                 
                     </div>
 
                     {/* Info Text */}

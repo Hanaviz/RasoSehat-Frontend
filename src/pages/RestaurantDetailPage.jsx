@@ -121,7 +121,7 @@ export default function RestaurantDetailPage() {
                         verified: (r.status_verifikasi && String(r.status_verifikasi).toLowerCase() === 'disetujui') || Boolean(r.verified) || Boolean(r.verified_at),
                         maps_link: r.maps_link || r.mapsLink || null,
                         maps_latlong: r.maps_latlong || r.mapsLatLong || null,
-                        foto: r.foto || r.foto_ktp || r.photo || null,
+                        foto: r.foto_path || r.foto || r.foto_ktp || r.photo || null,
                         ratingDetails: Array.isArray(r.ratingDetails) ? r.ratingDetails : (r.rating_details || []),
                         // keep original raw for debugging if needed
                         _raw: r,
@@ -130,7 +130,7 @@ export default function RestaurantDetailPage() {
                     // Normalize menus to consistent field names
                     const rawMenus = Array.isArray(payload.menus) ? payload.menus : [];
                     const normalizedMenus = rawMenus.map(m => {
-                        const rawImg = m.foto || m.foto_url || m.image || m.photo || null;
+                        const rawImg = m.foto_path || m.foto || m.foto_url || m.image || m.photo || null;
                         const imageUrl = rawImg ? makeImageUrl(rawImg) : 'https://via.placeholder.com/400x300.png?text=No+Image';
                         return {
                             id: m.id,
@@ -452,7 +452,7 @@ export default function RestaurantDetailPage() {
                                                 key={menu.id}
                                                 menu={{
                                                     ...menu,
-                                                    image: menu.image || menu.foto || null,
+                                                    image: menu.foto_path || menu.image || menu.foto || null,
                                                     name: menu.name || menu.nama_menu,
                                                     price: menu.price || menu.harga,
                                                     // provide restaurant-level contact and maps link

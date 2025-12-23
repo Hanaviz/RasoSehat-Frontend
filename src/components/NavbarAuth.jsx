@@ -858,10 +858,12 @@ export default function NavbarAuth() {
                             <button
                               key={notification.id}
                               onClick={() => {
-                                // navigate to detail page and mark as read
+                                // Optimistically mark as read locally so badge updates immediately,
+                                // then call backend to persist, then navigate to detail.
+                                setNotifications(prev => prev.map(n => n.id === notification.id ? { ...n, is_read: true } : n));
+                                markAsRead(notification.id).catch(() => {});
                                 setShowNotifications(false);
                                 navigate(`/notifications/${notification.id}`);
-                                markAsRead(notification.id);
                               }}
                               className={`w-full p-3 text-left hover:bg-gray-50 transition-colors duration-150 border-b border-gray-50 ${!notification.is_read ? 'ring-1 ring-green-200' : ''}`}
                             >
@@ -871,9 +873,14 @@ export default function NavbarAuth() {
                                 </div>
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-start justify-between gap-2">
-                                    <h4 className={`font-medium ${!notification.is_read ? 'text-gray-900' : 'text-gray-700'}`}>
-                                      {notification.title}
-                                    </h4>
+                                    <div className="flex items-center gap-2">
+                                      { !notification.is_read && (
+                                        <span className="w-2.5 h-2.5 rounded-full bg-green-500 inline-block" aria-hidden="true" />
+                                      )}
+                                      <h4 className={`font-medium ${!notification.is_read ? 'text-gray-900' : 'text-gray-700'}`}>
+                                        {notification.title}
+                                      </h4>
+                                    </div>
                                     <div className="text-xs text-gray-400 whitespace-nowrap">{notification.created_at ? new Date(notification.created_at).toLocaleString() : (notification.time || '')}</div>
                                   </div>
                                   <p className="text-sm text-gray-500 mt-1 line-clamp-2">{notification.message}</p>

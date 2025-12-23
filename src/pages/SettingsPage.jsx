@@ -1,4 +1,5 @@
 import React from "react";
+import { useNavigate } from 'react-router-dom';
 import { motion } from "framer-motion";
 import { Settings, Bell, Lock, Globe, ChevronRight, HelpCircle, Key } from "lucide-react";
 
@@ -25,9 +26,14 @@ const SettingItem = ({ title, description, icon: Icon, onClick }) => (
 );
 
 export default function SettingsPage() {
+  const navigate = useNavigate();
   const handleSettingClick = (settingName) => {
+    // For Ubah Kata Sandi navigate to dedicated page
+    if (settingName === 'Ubah Kata Sandi') {
+      navigate('/settings/change-password');
+      return;
+    }
     alert(`Membuka pengaturan: ${settingName}. (Simulasi)`);
-    // Di aplikasi nyata, ini akan memicu navigasi ke halaman sub-pengaturan
   };
 
   return (

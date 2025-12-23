@@ -238,9 +238,9 @@ export default function MyStorePage() {
               <div className="flex-1">
                 <div className="flex items-center gap-4 mb-4">
                   <div className="w-16 h-16 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center overflow-hidden">
-                    {restaurant.foto ? (
+                    {restaurant.foto_path || restaurant.foto ? (
                       <img
-                        src={makeImageUrl(restaurant.foto)}
+                        src={makeImageUrl(restaurant.foto_path || restaurant.foto)}
                         alt={restaurant.nama_restoran}
                         className="w-full h-full object-cover"
                         onError={(e) => { console.warn('Failed to load restaurant foto', e); }}
@@ -431,7 +431,7 @@ export default function MyStorePage() {
                   key={menu.id}
                   menu={{
                     ...menu,
-                    image: menu.foto || menu.image || null,
+                    image: menu.foto_path || menu.image || menu.foto || null,
                     name: menu.nama_menu || menu.name,
                     price: menu.harga || menu.price,
                     restaurantName: restaurant?.nama_restoran || menu.restaurantName || '',

@@ -66,14 +66,14 @@ export default function CategoryPage() {
           const restaurantSlug = (restaurantName || '').toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, '');
           const name = m.nama_menu || m.name || '';
           const slug = m.slug || (name || '').toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, '');
-          return {
+            return {
             id: m.id,
             name,
             slug,
             price: m.harga || m.price || 0,
             rating: m.rating || 4.5,
             prepTime: m.prepTime || m.time || '10-20 min',
-            image: makeImageUrl(m.foto || m.image) || 'https://placehold.co/400x300/4ade80/white?text=RasoSehat',
+            image: makeImageUrl(m.foto_path || m.foto || m.image) || 'https://placehold.co/400x300/4ade80/white?text=RasoSehat',
             restaurantName,
             restaurantSlug,
             description: m.deskripsi || m.description || '',

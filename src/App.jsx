@@ -23,6 +23,7 @@ import StoreVerificationPending from "./pages/StoreVerificationPending";
 import AdminDashboardPage from "./pages/AdminDashboardPage";
 import MyStorePage from "./pages/MyStorePage";
 import SettingsPage from "./pages/SettingsPage";
+import ChangePasswordPage from "./pages/ChangePasswordPage";
 import RestaurantDetailPage from "./pages/RestaurantDetailPage";
 import AddMenuPage from "./pages/AddMenuPage";
 import EditMenuPage from "./pages/EditMenuPage";
@@ -183,6 +184,15 @@ function AppContent() {
               </ProtectedRoute>
             } 
           />
+          <Route 
+            path="/settings/change-password" 
+            element={
+              <ProtectedRoute>
+                <ChangePasswordPage />
+              </ProtectedRoute>
+            }
+          />
+          {/* forgot/reset-password pages removed */}
 
           {/* ---------- ADMIN ---------- */}
           <Route 

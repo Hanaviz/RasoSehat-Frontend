@@ -266,7 +266,8 @@ export default function EditRestaurantProfile() {
         deskripsi: form.deskripsi
       };
 
-      await api.put(`/restaurants/${encodeURIComponent(id)}/step-2`, body);
+      const respStep2 = await api.put(`/restaurants/${encodeURIComponent(id)}/step-2`, body);
+      try { console.debug('[EditRestaurantProfile] step-2 response:', respStep2?.data || respStep2); } catch (e) {}
 
       // 2) If a foto was selected, upload it separately to step-3
       if (form.foto) {
@@ -288,9 +289,16 @@ export default function EditRestaurantProfile() {
 
       // 3) Refresh my-store and notify user
       try {
-        const refresh = await api.get('/my-store');
-        const payload = unwrap(refresh) || refresh?.data || {};
-        const data = payload.restaurant || payload || refresh?.data?.restaurant || null;
+        // Prefer server response from step-2 if it returned the updated restaurant
+        let data = null;
+        try {
+          data = respStep2?.data?.data || respStep2?.data || null;
+        } catch (e) { data = null; }
+        if (!data) {
+          const refresh = await api.get('/my-store');
+          const payload = unwrap(refresh) || refresh?.data || {};
+          data = payload.restaurant || payload || refresh?.data?.restaurant || null;
+        }
         if (data) setRestaurant(data);
       } catch (e) {
         // non-fatal

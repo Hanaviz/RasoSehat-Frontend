@@ -50,6 +50,9 @@ function normalizeMenuRow(row, idFallback) {
     : (Array.isArray(row.ingredients) ? row.ingredients.map(i => nameOf(i)).filter(Boolean) : [])) || [];
 
   return {
+  // expose top-level phone aliases for compatibility with various API shapes
+  no_telepon: row.no_telepon || row.phone || row.restorans?.no_telepon || row.restorans?.phone || (row.restaurant && (row.restaurant.no_telepon || row.restaurant.phone)) || null,
+  phone: row.no_telepon || row.phone || row.restorans?.no_telepon || row.restorans?.phone || (row.restaurant && (row.restaurant.no_telepon || row.restaurant.phone)) || null,
     id: row.id ?? idFallback,
     name,
     slug: row.slug || name.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, ''),
@@ -64,8 +67,11 @@ function normalizeMenuRow(row, idFallback) {
       name: row.nama_restoran || row.restaurant_name || 'Restoran',
       slug: row.restorans?.slug || (row.nama_restoran || row.restaurant_name || 'restoran').toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, ''),
       address: row.alamat || row.address || '',
-      phone: row.no_telepon || row.phone || '',
+      phone: row.no_telepon || row.phone || row.restorans?.no_telepon || row.restorans?.phone || (row.restaurant && (row.restaurant.no_telepon || row.restaurant.phone)) || '',
       distance: row.distance || '',
+      // map seller-provided Google Maps link or coordinates (filled in My Store edit)
+      mapsLink: row.maps_link || row.mapsLink || row.restorans?.maps_link || row.restorans?.mapsLink || null,
+      mapsLatLong: row.maps_latlong || row.mapsLatLong || row.restorans?.maps_latlong || row.restorans?.mapsLatLong || null,
     },
     // Nutrition values: accept either top-level fields (legacy) or nested `nutrition` object from backend
     nutrition: (() => {
@@ -271,7 +277,101 @@ export default function MenuDetailPage() {
     );
   }
 
-  const waLink = `https://wa.me/${menu.restaurant.phone}?text=Halo%20${menu.restaurant.name},%20Saya%20tertarik%20dengan%20menu%20${menu.name}.`;
+  // Normalize phone for WhatsApp: produce international digits without '+'
+  const normalizePhoneForWhatsApp = (raw) => {
+    if (!raw) return null;
+    let s = String(raw).trim();
+    // remove common separators and letters
+    s = s.replace(/\s+/g, '');
+    s = s.replace(/[^\d+]/g, '');
+    if (!s) return null;
+    if (s.startsWith('+')) s = s.slice(1);
+    // Indonesian local numbers often start with 0 -> convert to 62
+    if (s.startsWith('0')) s = '62' + s.slice(1);
+    return s;
+  };
+
+  const handleContactWhatsApp = (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    try {
+      // Accept multiple possible fields where phone might be stored
+      const rawCandidate = (
+        menu?.whatsappNumber || menu?.whatsapp || menu?.no_telepon || menu?.phone ||
+        menu?.restaurant?.no_telepon || menu?.restaurant?.whatsapp || menu?.restaurant?.phone || ''
+      );
+      const number = normalizePhoneForWhatsApp(rawCandidate || '');
+      if (!number) {
+        window.alert('Nomor penjual tidak tersedia.');
+        return;
+      }
+      const text = `Halo ${menu.restaurant?.name || ''}, Saya tertarik dengan menu ${menu.name}.`;
+      const waProtocol = `whatsapp://send?phone=${number}&text=${encodeURIComponent(text)}`;
+      const waWeb = `https://wa.me/${number}?text=${encodeURIComponent(text)}`;
+
+      // Try opening app protocol first, fallback to web after timeout
+      let handled = false;
+      try {
+        window.location.href = waProtocol;
+        handled = true;
+      } catch (err) {
+        console.warn('[MenuDetailPage] whatsapp protocol failed', err);
+      }
+
+      // If app didn't open within 800ms, open web fallback
+      setTimeout(() => {
+        // On most browsers, if protocol fails, location won't change — open web fallback
+        window.open(waWeb, '_blank', 'noopener');
+      }, 800);
+    } catch (err) {
+      console.warn('[MenuDetailPage] handleContactWhatsApp error', err);
+      window.alert('Gagal membuka WhatsApp.');
+    }
+  };
+
+  const handleViewLocation = () => {
+    try {
+      const possible = (
+        menu.maps_link || menu.mapsLink || menu.maps_latlong || menu.mapsLatLong ||
+        menu.restaurant?.maps_link || menu.restaurant?.mapsLink || menu.restaurant?.maps_latlong || menu.restaurant?.mapsLatLong ||
+        null
+      );
+      if (possible && typeof possible === 'string' && possible.trim()) {
+        const s = possible.trim();
+        if (/^https?:\/\//i.test(s)) {
+          window.open(s, '_blank', 'noopener');
+          return;
+        }
+        if (s.includes('google.com/maps')) {
+          window.open(s, '_blank', 'noopener');
+          return;
+        }
+        // if looks like lat,lng
+        if (/^-?\d+(?:\.\d+)?\s*,\s*-?\d+(?:\.\d+)?$/.test(s)) {
+          window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(s)}`, '_blank', 'noopener');
+          return;
+        }
+      }
+
+      // fallback: use address
+      const address = menu.restaurant?.address || menu.restaurant?.alamat || menu.alamat || menu.address || '';
+      if (address && String(address).trim()) {
+        window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(String(address))}`, '_blank', 'noopener');
+        return;
+      }
+
+      // last resort: search by restaurant name
+      const name = menu.restaurant?.name || menu.name || '';
+      if (name && String(name).trim()) {
+        window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(String(name))}`, '_blank', 'noopener');
+        return;
+      }
+
+      window.alert('Lokasi tidak tersedia untuk menu ini.');
+    } catch (err) {
+      console.warn('[MenuDetailPage] open maps failed', err);
+      window.alert('Gagal membuka peta.');
+    }
+  };
 
   return (
     <div className="min-h-screen bg-white pt-24 pb-12">
@@ -320,11 +420,11 @@ export default function MenuDetailPage() {
               </div>
 
               <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <a href={waLink} target="_blank" rel="noopener noreferrer" className="bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition-all duration-300 shadow-lg shadow-green-500/50 hover:scale-[1.01]">
+                <button onClick={handleContactWhatsApp} className="bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition-all duration-300 shadow-lg shadow-green-500/50 hover:scale-[1.01]">
                   <Phone className="w-5 h-5" /> Hubungi (WA)
-                </a>
+                </button>
 
-                <button className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition-colors duration-300 hover:scale-[1.01]">
+                <button onClick={handleViewLocation} className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition-colors duration-300 hover:scale-[1.01]">
                   <MapPin className="w-5 h-5" /> Lihat Lokasi
                 </button>
               </div>

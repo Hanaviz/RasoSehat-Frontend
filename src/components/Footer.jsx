@@ -92,13 +92,13 @@ export default function Footer() {
                 <div className="p-1.5 sm:p-2 bg-emerald-50 rounded-lg group-hover:bg-emerald-100 transition-colors duration-200 flex-shrink-0">
                   <Mail size={16} className="sm:w-[18px] sm:h-[18px] text-emerald-600"/>
                 </div>
-                <span className="break-all text-xs sm:text-sm">contact@rasosehat.com</span>
+                <span className="break-all text-xs sm:text-sm">RasoSehat@gmail.com</span>
               </div>
               <div className="group flex items-center gap-2.5 sm:gap-3 text-sm text-slate-600 hover:text-emerald-600 transition-colors duration-200">
                 <div className="p-1.5 sm:p-2 bg-emerald-50 rounded-lg group-hover:bg-emerald-100 transition-colors duration-200 flex-shrink-0">
                   <Phone size={16} className="sm:w-[18px] sm:h-[18px] text-emerald-600"/>
                 </div>
-                <span className="text-xs sm:text-sm">+62 812-XXXX-XXXX</span>
+                <span className="text-xs sm:text-sm">+62 821-6211-8624</span>
               </div>
               <div className="group flex items-start gap-2.5 sm:gap-3 text-sm text-slate-600 hover:text-emerald-600 transition-colors duration-200">
                 <div className="p-1.5 sm:p-2 bg-emerald-50 rounded-lg group-hover:bg-emerald-100 transition-colors duration-200 flex-shrink-0">
